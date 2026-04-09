@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -24,10 +24,10 @@ namespace ams::updater {
         public:
             static constexpr size_t SectorAlignment = 0x200;
         private:
-            std::unique_ptr<fs::IStorage> storage;
-            const fs::BisPartitionId partition_id;
+            std::unique_ptr<fs::IStorage> m_storage;
+            const fs::BisPartitionId m_partition_id;
         public:
-            explicit BisAccessor(fs::BisPartitionId id) : partition_id(id) { /* ... */ }
+            explicit BisAccessor(fs::BisPartitionId id) : m_partition_id(id) { /* ... */ }
 
         public:
             Result Initialize();
@@ -127,7 +127,7 @@ namespace ams::updater {
                 const OffsetSizeType *entry = nullptr;
                 for (size_t i = 0; i < Meta::NumEntries; i++) {
                     if (Meta::Entries[i].which == which) {
-                        entry = &Meta::Entries[i];
+                        entry = std::addressof(Meta::Entries[i]);
                         break;
                     }
                 }
@@ -140,32 +140,31 @@ namespace ams::updater {
                 const auto entry = FindEntry(which);
                 AMS_ABORT_UNLESS(size >= entry->size);
 
-                R_TRY(BisAccessor::Read(dst, entry->size, entry->offset));
+                ON_RESULT_SUCCESS { *out_size = entry->size; };
 
-                *out_size = entry->size;
-                return ResultSuccess();
+                R_RETURN(BisAccessor::Read(dst, entry->size, entry->offset));
             }
 
             Result Write(const void *src, size_t size, EnumType which) {
                 const auto entry = FindEntry(which);
                 AMS_ABORT_UNLESS(size <= entry->size);
                 AMS_ABORT_UNLESS((size % BisAccessor::SectorAlignment) == 0);
-                return BisAccessor::Write(entry->offset, src, size);
+                R_RETURN(BisAccessor::Write(entry->offset, src, size));
             }
 
             Result Write(const char *bip_path, void *work_buffer, size_t work_buffer_size, EnumType which) {
                 const auto entry = FindEntry(which);
-                return BisAccessor::Write(entry->offset, entry->size, bip_path, work_buffer, work_buffer_size);
+                R_RETURN(BisAccessor::Write(entry->offset, entry->size, bip_path, work_buffer, work_buffer_size));
             }
 
             Result Clear(void *work_buffer, size_t work_buffer_size, EnumType which) {
                 const auto entry = FindEntry(which);
-                return BisAccessor::Clear(entry->offset, entry->size, work_buffer, work_buffer_size);
+                R_RETURN(BisAccessor::Clear(entry->offset, entry->size, work_buffer, work_buffer_size));
             }
 
             Result GetHash(void *dst, u64 hash_size, void *work_buffer, size_t work_buffer_size, EnumType which) {
                 const auto entry = FindEntry(which);
-                return BisAccessor::GetHash(dst, entry->offset, entry->size, hash_size, work_buffer, work_buffer_size);
+                R_RETURN(BisAccessor::GetHash(dst, entry->offset, entry->size, hash_size, work_buffer, work_buffer_size));
             }
     };
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -16,8 +16,9 @@
 #pragma once
 #include <vapours.hpp>
 #include <stratosphere/tipc/tipc_common.hpp>
+#include <stratosphere/tipc/impl/tipc_impl_message_api.hpp>
 #include <stratosphere/tipc/tipc_service_object.hpp>
-#include <stratosphere/tipc/tipc_waitable_object.hpp>
+#include <stratosphere/tipc/tipc_object_holder.hpp>
 
 namespace ams::tipc {
 
@@ -28,16 +29,16 @@ namespace ams::tipc {
     class ObjectManagerBase {
         protected:
             struct Entry {
-                util::TypedStorage<WaitableObject> object;
-                os::WaitableHolderType waitable_holder;
+                util::TypedStorage<ObjectHolder> object;
+                os::MultiWaitHolderType multi_wait_holder;
             };
         private:
             os::SdkMutex m_mutex{};
             Entry *m_entries_start{};
             Entry *m_entries_end{};
-            os::WaitableManagerType *m_waitable_manager{};
+            os::MultiWaitType *m_multi_wait{};
         private:
-            Entry *FindEntry(svc::Handle handle) {
+            Entry *FindEntry(tipc::NativeHandle handle) {
                 for (Entry *cur = m_entries_start; cur != m_entries_end; ++cur) {
                     if (GetReference(cur->object).GetHandle() == handle) {
                         return cur;
@@ -46,9 +47,9 @@ namespace ams::tipc {
                 return nullptr;
             }
 
-            Entry *FindEntry(os::WaitableHolderType *holder) {
+            Entry *FindEntry(os::MultiWaitHolderType *holder) {
                 for (Entry *cur = m_entries_start; cur != m_entries_end; ++cur) {
-                    if (std::addressof(cur->waitable_holder) == holder) {
+                    if (std::addressof(cur->multi_wait_holder) == holder) {
                         return cur;
                     }
                 }
@@ -57,9 +58,9 @@ namespace ams::tipc {
         public:
             constexpr ObjectManagerBase() = default;
 
-            void InitializeImpl(os::WaitableManagerType *manager, Entry *entries, size_t max_objects) {
-                /* Set our waitable manager. */
-                m_waitable_manager = manager;
+            void InitializeImpl(os::MultiWaitType *multi_wait, Entry *entries, size_t max_objects) {
+                /* Set our multi wait. */
+                m_multi_wait = multi_wait;
 
                 /* Setup entry pointers. */
                 m_entries_start = entries;
@@ -71,23 +72,23 @@ namespace ams::tipc {
                 }
             }
 
-            void AddObject(WaitableObject &object) {
+            void AddObject(ObjectHolder &object) {
                 /* Lock ourselves. */
                 std::scoped_lock lk(m_mutex);
 
                 /* Find an empty entry. */
-                auto *entry = this->FindEntry(svc::InvalidHandle);
+                auto *entry = this->FindEntry(tipc::InvalidNativeHandle);
                 AMS_ABORT_UNLESS(entry != nullptr);
 
                 /* Set the entry's object. */
                 GetReference(entry->object) = object;
 
                 /* Setup the entry's holder. */
-                os::InitializeWaitableHolder(std::addressof(entry->waitable_holder), object.GetHandle());
-                os::LinkWaitableHolder(m_waitable_manager, std::addressof(entry->waitable_holder));
+                os::InitializeMultiWaitHolder(std::addressof(entry->multi_wait_holder), object.GetHandle());
+                os::LinkMultiWaitHolder(m_multi_wait, std::addressof(entry->multi_wait_holder));
             }
 
-            void CloseObject(svc::Handle handle) {
+            void CloseObject(tipc::NativeHandle handle) {
                 /* Lock ourselves. */
                 std::scoped_lock lk(m_mutex);
 
@@ -96,21 +97,21 @@ namespace ams::tipc {
                 AMS_ABORT_UNLESS(entry != nullptr);
 
                 /* Finalize the entry's holder. */
-                os::UnlinkWaitableHolder(std::addressof(entry->waitable_holder));
-                os::FinalizeWaitableHolder(std::addressof(entry->waitable_holder));
+                os::UnlinkMultiWaitHolder(std::addressof(entry->multi_wait_holder));
+                os::FinalizeMultiWaitHolder(std::addressof(entry->multi_wait_holder));
 
                 /* Destroy the object. */
                 GetReference(entry->object).Destroy();
             }
 
-            Result ReplyAndReceive(os::WaitableHolderType **out_holder, WaitableObject *out_object, svc::Handle reply_target, os::WaitableManagerType *manager) {
+            Result ReplyAndReceive(os::MultiWaitHolderType **out_holder, ObjectHolder *out_object, tipc::NativeHandle reply_target, os::MultiWaitType *multi_wait) {
                 /* Declare signaled holder for processing ahead of time. */
-                os::WaitableHolderType *signaled_holder;
+                os::MultiWaitHolderType *signaled_holder;
 
                 /* Reply and receive until we get a newly signaled target. */
-                Result result = os::SdkReplyAndReceive(out_holder, reply_target, manager);
+                Result result = os::SdkReplyAndReceive(out_holder, reply_target, multi_wait);
                 for (signaled_holder = *out_holder; signaled_holder == nullptr; signaled_holder = *out_holder) {
-                    result = os::SdkReplyAndReceive(out_holder, svc::InvalidHandle, manager);
+                    result = os::SdkReplyAndReceive(out_holder, tipc::InvalidNativeHandle, multi_wait);
                 }
 
                 /* Find the entry matching the signaled holder. */
@@ -119,36 +120,62 @@ namespace ams::tipc {
                     *out_object = GetReference(entry->object);
                     *out_holder = nullptr;
 
-                    return result;
+                    R_RETURN(result);
                 } else {
-                    return ResultSuccess();
+                    R_SUCCEED();
                 }
             }
 
-            Result Reply(svc::Handle reply_target) {
-                /* Perform the reply. */
-                s32 dummy;
-                R_TRY_CATCH(svc::ReplyAndReceive(std::addressof(dummy), nullptr, 0, reply_target, 0)) {
-                    R_CATCH(svc::ResultTimedOut) {
-                        /* Timing out is acceptable. */
-                    }
-                    R_CATCH(svc::ResultSessionClosed) {
-                        /* It's okay if we couldn't reply to a closed session. */
-                    }
-                } R_END_TRY_CATCH_WITH_ABORT_UNLESS;
-
-                return ResultSuccess();
+            void Reply(tipc::NativeHandle reply_target) {
+                return tipc::impl::Reply(reply_target);
             }
 
-            Result ProcessRequest(WaitableObject &object) {
+            Result ProcessRequest(ObjectHolder &object) {
+                /* Get the message buffer. */
+                const MessageBuffer message_buffer(tipc::GetMessageBuffer());
+
                 /* Get the method id. */
-                const auto method_id = svc::ipc::MessageBuffer::MessageHeader(svc::ipc::MessageBuffer(svc::ipc::GetMessageBuffer())).GetTag();
+                const auto method_id = MessageBuffer::MessageHeader(message_buffer).GetTag();
 
-                /* Check that the method id is valid. */
-                R_UNLESS(method_id != MethodId_Invalid, tipc::ResultInvalidMethod());
+                /* Process for the method id. */
+                {
+                    /* Ensure that if we fail, we clean up any handles that get sent our way. */
+                    ON_RESULT_FAILURE {
+                        const MessageBuffer::MessageHeader message_header(message_buffer);
+                        const MessageBuffer::SpecialHeader special_header(message_buffer, message_header);
 
-                /* If we're closing the object, do so. */
+                        /* Determine the offset to the start of handles. */
+                        auto offset = message_buffer.GetSpecialDataIndex(message_header, special_header);
+                        if (special_header.GetHasProcessId()) {
+                            offset += sizeof(u64) / sizeof(u32);
+                        }
+
+                        /* Close all copy handles. */
+                        for (auto i = 0; i < special_header.GetCopyHandleCount(); ++i) {
+                            tipc::impl::CloseHandle(message_buffer.GetHandle(offset));
+                            offset += sizeof(typename std::remove_reference<decltype(message_buffer.GetHandle(offset))>::type) / sizeof(u32);
+                        }
+                    };
+
+                    /* Check that the method id is valid. */
+                    R_UNLESS(method_id != MethodId_Invalid, tipc::ResultInvalidMethod());
+
+                    /* Process the request. */
+                    if (method_id != MethodId_CloseSession) {
+                        /* Process the generic method for the object. */
+                        R_TRY(object.GetObject()->ProcessRequest());
+                    } else {
+                        /* Validate that the close request is of valid format. */
+                        using CloseSessionCommandMeta = impl::CommandMetaInfo<MethodId_CloseSession, std::tuple<>>;
+                        using CloseSessionProcessor   = impl::CommandProcessor<CloseSessionCommandMeta>;
+
+                        R_TRY(CloseSessionProcessor::ValidateCommandFormat(message_buffer));
+                    }
+                }
+
+                /* If we were asked to close the object, do so. */
                 if (method_id == MethodId_CloseSession) {
+                    /* Get the object handle. */
                     const auto handle = object.GetHandle();
 
                     /* Close the object itself. */
@@ -156,16 +183,14 @@ namespace ams::tipc {
 
                     /* Close the object's handle. */
                     /* NOTE: Nintendo does not check that this succeeds. */
-                    R_ABORT_UNLESS(svc::CloseHandle(handle));
+                    R_ABORT_UNLESS(tipc::impl::CloseHandle(handle));
 
-                    /* Return result to signify we closed the object. */
-                    return tipc::ResultSessionClosed();
+                    /* Return an error to signify we closed the object. */
+                    R_THROW(tipc::ResultSessionClosed());
                 }
 
-                /* Process the generic method for the object. */
-                R_TRY(object.GetObject()->ProcessRequest());
-
-                return ResultSuccess();
+                /* We successfully processed, so we don't need to clean up handles. */
+                R_SUCCEED();
             }
     };
 
@@ -176,8 +201,8 @@ namespace ams::tipc {
         public:
             constexpr ObjectManager() = default;
 
-            void Initialize(os::WaitableManagerType *manager) {
-                this->InitializeImpl(manager, m_entries_storage, MaxObjects);
+            void Initialize(os::MultiWaitType *multi_wait) {
+                this->InitializeImpl(multi_wait, m_entries_storage, MaxObjects);
             }
     };
 

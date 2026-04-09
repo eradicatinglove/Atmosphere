@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -32,7 +32,7 @@ namespace ams::gpio::driver::impl {
 
         /* We opened successfully. */
         pad_guard.Cancel();
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     void PadSessionImpl::Close() {
@@ -73,8 +73,8 @@ namespace ams::gpio::driver::impl {
         auto ev_guard = SCOPE_GUARD { os::DestroySystemEvent(event); };
 
         /* Attach the event to our holder. */
-        this->event_holder.AttachEvent(event);
-        auto hl_guard = SCOPE_GUARD { this->event_holder.DetachEvent(); };
+        m_event_holder.AttachEvent(event);
+        auto hl_guard = SCOPE_GUARD { m_event_holder.DetachEvent(); };
 
         /* Update interrupt needed. */
         R_TRY(this->UpdateDriverInterruptEnabled());
@@ -82,7 +82,7 @@ namespace ams::gpio::driver::impl {
         /* We succeeded. */
         hl_guard.Cancel();
         ev_guard.Cancel();
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     void PadSessionImpl::UnbindInterrupt() {
@@ -97,7 +97,7 @@ namespace ams::gpio::driver::impl {
         }
 
         /* Detach and destroy the event */
-        os::DestroySystemEvent(this->event_holder.DetachEvent());
+        os::DestroySystemEvent(m_event_holder.DetachEvent());
 
         /* Update interrupt needed. */
         R_ABORT_UNLESS(this->UpdateDriverInterruptEnabled());
@@ -110,12 +110,12 @@ namespace ams::gpio::driver::impl {
         AMS_ASSERT(driver.GetInterruptControlMutex(pad).IsLockedByCurrentThread());
 
         /* Set interrupt enabled. */
-        return driver.SetInterruptEnabled(std::addressof(pad), pad.IsInterruptRequiredForDriver());
+        R_RETURN(driver.SetInterruptEnabled(std::addressof(pad), pad.IsInterruptRequiredForDriver()));
     }
 
     Result PadSessionImpl::GetInterruptEnabled(bool *out) const {
         *out = this->GetDevice().SafeCastTo<Pad>().IsInterruptEnabled();
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     Result PadSessionImpl::SetInterruptEnabled(bool en) {
@@ -133,7 +133,7 @@ namespace ams::gpio::driver::impl {
         R_TRY(this->UpdateDriverInterruptEnabled());
 
         pad_guard.Cancel();
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     void PadSessionImpl::SignalInterruptBoundEvent() {
@@ -141,8 +141,9 @@ namespace ams::gpio::driver::impl {
         auto &pad = this->GetDevice().SafeCastTo<Pad>();
         auto &driver = pad.GetDriver().SafeCastTo<IGpioDriver>();
         AMS_ASSERT(driver.GetInterruptControlMutex(pad).IsLockedByCurrentThread());
+        AMS_UNUSED(pad, driver);
 
-        if (auto *event = this->event_holder.GetSystemEvent(); event != nullptr) {
+        if (auto *event = m_event_holder.GetSystemEvent(); event != nullptr) {
             os::SignalSystemEvent(event);
         }
     }

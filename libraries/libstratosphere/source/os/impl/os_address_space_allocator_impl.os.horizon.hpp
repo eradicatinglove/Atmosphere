@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -18,14 +18,22 @@
 
 namespace ams::os::impl {
 
-    inline bool CheckFreeSpace(uintptr_t address, size_t size) {
-        /* Query the memory. */
-        svc::MemoryInfo memory_info;
-        svc::PageInfo page_info;
-        const auto result = svc::QueryMemory(std::addressof(memory_info), std::addressof(page_info), address);
-        AMS_ASSERT(R_SUCCEEDED(result));
+    class AddressSpaceAllocator final : public AddressSpaceAllocatorBase<uintptr_t, size_t> {
+        private:
+            using Base = AddressSpaceAllocatorBase<uintptr_t, size_t>;
+        public:
+            using Base::Base;
+        public:
+            virtual bool CheckFreeSpace(AddressType address, SizeType size) override {
+                /* Query the memory. */
+                svc::MemoryInfo memory_info;
+                svc::PageInfo page_info;
+                const auto result = svc::QueryMemory(std::addressof(memory_info), std::addressof(page_info), address);
+                R_ASSERT(result);
+                AMS_UNUSED(result);
 
-        return memory_info.state == svc::MemoryState_Free && address + size <= memory_info.addr + memory_info.size;
-    }
+                return memory_info.state == svc::MemoryState_Free && address + size <= memory_info.base_address + memory_info.size;
+            }
+    };
 
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -30,7 +30,8 @@ namespace ams::kern {
                 }
             }
         public:
-            constexpr ALWAYS_INLINE KTimerTask() : m_time(0) { /* ... */ }
+            constexpr explicit ALWAYS_INLINE KTimerTask(util::ConstantInitializeTag) : util::IntrusiveRedBlackTreeBaseNode<KTimerTask>(util::ConstantInitialize), m_time(0) { /* ... */ }
+            explicit ALWAYS_INLINE KTimerTask() : m_time(0) { /* ... */ }
 
             constexpr ALWAYS_INLINE void SetTime(s64 t) {
                 m_time = t;
@@ -40,8 +41,9 @@ namespace ams::kern {
                 return m_time;
             }
 
-            virtual void OnTimer() = 0;
-
+            /* NOTE: This is virtual in Nintendo's kernel. Prior to 13.0.0, KWaitObject was also a TimerTask; this is no longer the case. */
+            /* Since this is now KThread exclusive, we have devirtualized (see inline declaration for this inside kern_kthread.hpp). */
+            void OnTimer();
     };
 
 }

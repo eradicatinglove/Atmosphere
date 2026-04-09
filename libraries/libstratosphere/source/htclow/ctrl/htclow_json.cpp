@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -26,6 +26,8 @@ namespace ams::htclow::ctrl {
     }
 
     bool JsonHandler::Key(const Ch *str, rapidjson::SizeType len, bool copy) {
+        AMS_UNUSED(len, copy);
+
         if (m_state == State::ParseObject) {
             if (!util::Strncmp(str, ChannelKey, sizeof(ChannelKey))) {
                 m_state = State::ParseServiceChannels;
@@ -45,6 +47,8 @@ namespace ams::htclow::ctrl {
     }
 
     bool JsonHandler::String(const Ch *str, rapidjson::SizeType len, bool copy) {
+        AMS_UNUSED(len, copy);
+
         if (m_state == State::ParseServiceChannelsArray && *m_num_strings < m_max_strings) {
             m_strings[(*m_num_strings)++] = str;
         }

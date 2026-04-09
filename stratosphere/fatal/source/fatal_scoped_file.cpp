@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -23,8 +23,8 @@ namespace ams::fatal::srv {
         /* Convenience definitions. */
         constexpr size_t MaximumLineLength = 0x20;
 
-        os::Mutex g_format_lock(false);
-        char g_format_buffer[2 * os::MemoryPageSize];
+        constinit os::SdkMutex g_format_lock;
+        constinit char g_format_buffer[2 * os::MemoryPageSize];
 
     }
 
@@ -90,8 +90,8 @@ namespace ams::fatal::srv {
         }
 
         /* Advance, if we write successfully. */
-        if (R_SUCCEEDED(fs::WriteFile(this->file, this->offset, data, size, fs::WriteOption::Flush))) {
-            this->offset += size;
+        if (R_SUCCEEDED(fs::WriteFile(m_file, m_offset, data, size, fs::WriteOption::Flush))) {
+            m_offset += size;
         }
     }
 

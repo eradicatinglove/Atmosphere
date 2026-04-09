@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -128,10 +128,10 @@ namespace ams::secmon {
 
     }
 
-    constexpr inline const Address WarmbootStackAddress   = MemoryRegionVirtualTzramVolatileData.GetAddress() + offsetof(VolatileData, warmboot_stack)    + sizeof(VolatileData::warmboot_stack);
-    constexpr inline const Address Core012SmcStackAddress = MemoryRegionVirtualTzramVolatileData.GetAddress() + offsetof(VolatileData, core012_smc_stack) + sizeof(VolatileData::core012_smc_stack);
+    constexpr inline const Address WarmbootStackAddress   = MemoryRegionVirtualTzramVolatileData.GetAddress() + AMS_OFFSETOF(VolatileData, warmboot_stack)    + sizeof(VolatileData::warmboot_stack);
+    constexpr inline const Address Core012SmcStackAddress = MemoryRegionVirtualTzramVolatileData.GetAddress() + AMS_OFFSETOF(VolatileData, core012_smc_stack) + sizeof(VolatileData::core012_smc_stack);
 
-    constexpr inline const Address Core0ExceptionStackAddress = MemoryRegionVirtualTzramVolatileData.GetAddress() + offsetof(VolatileData, core_exception_stacks) + CoreExceptionStackSize;
+    constexpr inline const Address Core0ExceptionStackAddress = MemoryRegionVirtualTzramVolatileData.GetAddress() + AMS_OFFSETOF(VolatileData, core_exception_stacks) + CoreExceptionStackSize;
     constexpr inline const Address Core1ExceptionStackAddress = Core0ExceptionStackAddress + CoreExceptionStackSize;
     constexpr inline const Address Core2ExceptionStackAddress = Core1ExceptionStackAddress + CoreExceptionStackSize;
 

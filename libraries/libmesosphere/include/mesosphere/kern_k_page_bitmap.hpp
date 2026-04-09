@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -20,7 +20,7 @@
 namespace ams::kern {
 
     class KPageBitmap {
-        private:
+        public:
             class RandomBitGenerator {
                 private:
                     util::TinyMT m_rng;
@@ -42,59 +42,83 @@ namespace ams::kern {
                         --m_bits_available;
                         return rnd_bit;
                     }
+
+                    u64 GenerateRandomBits(u32 num_bits) {
+                        u64 result = 0;
+
+                        /* Iteratively add random bits to our result. */
+                        while (num_bits > 0) {
+                            /* Ensure we have random bits to take from. */
+                            if (m_bits_available == 0) {
+                                this->RefreshEntropy();
+                            }
+
+                            /* Determine how many bits to take this round. */
+                            const auto cur_bits = std::min(num_bits, m_bits_available);
+
+                            /* Generate mask for our current bits. */
+                            const u64 mask = (static_cast<u64>(1) << cur_bits) - 1;
+
+                            /* Add bits to output from our entropy. */
+                            result <<= cur_bits;
+                            result |= (m_entropy & mask);
+
+                            /* Remove bits from our entropy. */
+                            m_entropy >>= cur_bits;
+                            m_bits_available -= cur_bits;
+
+                            /* Advance. */
+                            num_bits -= cur_bits;
+                        }
+
+                        return result;
+                    }
                 public:
-                    RandomBitGenerator() : m_rng(), m_entropy(), m_bits_available() {
+                    RandomBitGenerator() : m_entropy(), m_bits_available() {
                         m_rng.Initialize(static_cast<u32>(KSystemControl::GenerateRandomU64()));
                     }
 
-                    size_t SelectRandomBit(u64 bitmap) {
-                        u64 selected     = 0;
+                    u64 SelectRandomBit(u64 bitmap) {
+                        u64 selected = 0;
 
-                        u64 cur_num_bits = BITSIZEOF(bitmap) / 2;
-                        u64 cur_mask     = (1ull << cur_num_bits) - 1;
+                        for (size_t cur_num_bits = BITSIZEOF(bitmap) / 2; cur_num_bits != 0; cur_num_bits /= 2) {
+                            const u64 high = (bitmap >> cur_num_bits);
+                            const u64 low  = (bitmap & (~(UINT64_C(0xFFFFFFFFFFFFFFFF) << cur_num_bits)));
 
-                        while (cur_num_bits) {
-                            const u64 low  = (bitmap >> 0) & cur_mask;
-                            const u64 high = (bitmap >> cur_num_bits) & cur_mask;
-
-                            bool choose_low;
-                            if (high == 0) {
-                                /* If only low val is set, choose low. */
-                                choose_low = true;
-                            } else if (low == 0) {
-                                /* If only high val is set, choose high. */
-                                choose_low = false;
-                            } else {
-                                /* If both are set, choose random. */
-                                choose_low = this->GenerateRandomBit();
-                            }
-
-                            /* If we chose low, proceed with low. */
-                            if (choose_low) {
-                                bitmap    = low;
-                                selected += 0;
-                            } else {
+                            /* Choose high if we have high and (don't have low or select high randomly). */
+                            if (high && (low == 0 || this->GenerateRandomBit())) {
                                 bitmap    = high;
                                 selected += cur_num_bits;
+                            } else {
+                                bitmap    = low;
+                                selected += 0;
                             }
-
-                            /* Proceed. */
-                            cur_num_bits /= 2;
-                            cur_mask >>= cur_num_bits;
                         }
 
                         return selected;
+                    }
+
+                    u64 GenerateRandom(u64 max) {
+                        /* Determine the number of bits we need. */
+                        const u64 bits_needed = 1 + (BITSIZEOF(max) - util::CountLeadingZeros(max));
+
+                        /* Generate a random value of the desired bitwidth. */
+                        const u64 rnd = this->GenerateRandomBits(bits_needed);
+
+                        /* Adjust the value to be in range. */
+                        return rnd - ((rnd / max) * max);
                     }
             };
         public:
             static constexpr size_t MaxDepth = 4;
         private:
             u64 *m_bit_storages[MaxDepth];
+            u64 *m_end_storages[MaxDepth];
             RandomBitGenerator m_rng;
             size_t m_num_bits;
             size_t m_used_depths;
         public:
-            KPageBitmap() : m_bit_storages(), m_rng(), m_num_bits(), m_used_depths() { /* ... */ }
+            KPageBitmap() : m_bit_storages(), m_end_storages(), m_rng(), m_num_bits(), m_used_depths() { /* ... */ }
 
             constexpr size_t GetNumBits() const { return m_num_bits; }
             constexpr s32 GetHighestDepthIndex() const { return static_cast<s32>(m_used_depths) - 1; }
@@ -112,6 +136,7 @@ namespace ams::kern {
                     m_bit_storages[depth] = storage;
                     size = util::AlignUp(size, BITSIZEOF(u64)) / BITSIZEOF(u64);
                     storage += size;
+                    m_end_storages[depth] = storage;
                 }
 
                 return storage;
@@ -146,6 +171,45 @@ namespace ams::kern {
                 }
 
                 return static_cast<ssize_t>(offset);
+            }
+
+            ssize_t FindFreeRange(size_t count) {
+                /* Check that it is possible to find a range. */
+                const u64 * const storage_start = m_bit_storages[m_used_depths - 1];
+                const u64 * const storage_end   = m_end_storages[m_used_depths - 1];
+
+                /* If we don't have a storage to iterate (or want more blocks than fit in a single storage), we can't find a free range. */
+                if (!(storage_start < storage_end && count <= BITSIZEOF(u64))) {
+                    return -1;
+                }
+
+                /* Walk the storages to select a random free range. */
+                const size_t options_per_storage = std::max<size_t>(BITSIZEOF(u64) / count, 1);
+                const size_t num_entries         = std::max<size_t>(storage_end - storage_start, 1);
+
+                const u64 free_mask = (static_cast<u64>(1) << count) - 1;
+
+                size_t num_valid_options = 0;
+                ssize_t chosen_offset = -1;
+                for (size_t storage_index = 0; storage_index < num_entries; ++storage_index) {
+                    u64 storage = storage_start[storage_index];
+                    for (size_t option = 0; option < options_per_storage; ++option) {
+                        if ((storage & free_mask) == free_mask) {
+                            /* We've found a new valid option. */
+                            ++num_valid_options;
+
+                            /* Select the Kth valid option with probability 1/K. This leads to an overall uniform distribution. */
+                            if (num_valid_options == 1 || m_rng.GenerateRandom(num_valid_options) == 0) {
+                                /* This is our first option, so select it. */
+                                chosen_offset = storage_index * BITSIZEOF(u64) + option * count;
+                            }
+                        }
+                        storage >>= count;
+                    }
+                }
+
+                /* Return the random offset we chose.*/
+                return chosen_offset;
             }
 
             void SetBit(size_t offset) {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -56,9 +56,9 @@ namespace ams::kern {
             {
                 const auto &management_region = KMemoryLayout::GetPoolManagementRegion();
                 MESOSPHERE_ABORT_UNLESS(management_region.GetEndAddress() != 0);
+                static_assert(util::size(MinimumMemoryManagerAlignmentShifts) == KMemoryManager::Pool_Count);
 
-                Kernel::GetMemoryManager().Initialize(management_region.GetAddress(), management_region.GetSize());
-                init::InitializeKPageBufferSlabHeap();
+                Kernel::GetMemoryManager().Initialize(management_region.GetAddress(), management_region.GetSize(), MinimumMemoryManagerAlignmentShifts);
             }
 
             /* Copy the Initial Process Binary to safe memory. */
@@ -99,7 +99,6 @@ namespace ams::kern {
         DoOnEachCoreInOrder(core_id, [=]() ALWAYS_INLINE_LAMBDA {
             KThread::Register(std::addressof(Kernel::GetMainThread(core_id)));
             KThread::Register(std::addressof(Kernel::GetIdleThread(core_id)));
-            Kernel::GetInterruptTaskManager().Initialize();
         });
 
         /* Activate the scheduler and enable interrupts. */
@@ -117,8 +116,9 @@ namespace ams::kern {
 
         /* Perform more core-0 specific initialization. */
         if (core_id == 0) {
-            /* Initialize the exit worker manager, so that threads and processes may exit cleanly. */
-            Kernel::GetWorkerTaskManager(KWorkerTaskManager::WorkerType_Exit).Initialize(KWorkerTaskManager::WorkerType_Exit, KWorkerTaskManager::ExitWorkerPriority);
+            /* Initialize the exit worker managers, so that threads and processes may exit cleanly. */
+            Kernel::GetWorkerTaskManager(KWorkerTaskManager::WorkerType_ExitThread).Initialize(KWorkerTaskManager::ExitWorkerPriority);
+            Kernel::GetWorkerTaskManager(KWorkerTaskManager::WorkerType_ExitProcess).Initialize(KWorkerTaskManager::ExitWorkerPriority);
 
             /* Setup so that we may sleep later, and reserve memory for secure applets. */
             KSystemControl::InitializePhase2();

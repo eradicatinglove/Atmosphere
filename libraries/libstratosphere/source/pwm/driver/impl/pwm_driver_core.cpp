@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -24,12 +24,13 @@ namespace ams::pwm::driver::impl {
         constinit int g_init_count = 0;
 
         pwm::driver::IPwmDriver::List &GetPwmDriverList() {
-            static pwm::driver::IPwmDriver::List s_driver_list;
+            AMS_FUNCTION_LOCAL_STATIC_CONSTINIT(pwm::driver::IPwmDriver::List, s_driver_list);
             return s_driver_list;
         }
 
         ddsf::DeviceCodeEntryManager &GetDeviceCodeEntryManager() {
-            static ddsf::DeviceCodeEntryManager s_device_code_entry_manager(ddsf::GetDeviceCodeEntryHolderMemoryResource());
+            AMS_FUNCTION_LOCAL_STATIC(ddsf::DeviceCodeEntryManager, s_device_code_entry_manager, ddsf::GetDeviceCodeEntryHolderMemoryResource());
+
             return s_device_code_entry_manager;
         }
 
@@ -78,7 +79,7 @@ namespace ams::pwm::driver::impl {
     Result RegisterDeviceCode(DeviceCode device_code, IPwmDevice *device) {
         AMS_ASSERT(device != nullptr);
         R_TRY(GetDeviceCodeEntryManager().Add(device_code, device));
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     bool UnregisterDeviceCode(DeviceCode device_code) {
@@ -95,7 +96,7 @@ namespace ams::pwm::driver::impl {
 
         /* Set output. */
         *out = device->SafeCastToPointer<IPwmDevice>();
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     Result FindDeviceByChannelIndex(IPwmDevice **out, int channel) {
@@ -120,7 +121,7 @@ namespace ams::pwm::driver::impl {
         /* Check that we found the pad. */
         R_UNLESS(found, ddsf::ResultDeviceCodeNotFound());
 
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -49,38 +49,33 @@ namespace ams::util {
     }
 
     template<>
-    constexpr ALWAYS_INLINE void *AlignUp<void *>(void *value, size_t alignment) {
+    ALWAYS_INLINE void *AlignUp<void *>(void *value, size_t alignment) {
         return reinterpret_cast<void *>(AlignUp(reinterpret_cast<uintptr_t>(value), alignment));
     }
 
     template<>
-    constexpr ALWAYS_INLINE const void *AlignUp<const void *>(const void *value, size_t alignment) {
+    ALWAYS_INLINE const void *AlignUp<const void *>(const void *value, size_t alignment) {
         return reinterpret_cast<const void *>(AlignUp(reinterpret_cast<uintptr_t>(value), alignment));
     }
 
     template<>
-    constexpr ALWAYS_INLINE void *AlignDown<void *>(void *value, size_t alignment) {
+    ALWAYS_INLINE void *AlignDown<void *>(void *value, size_t alignment) {
         return reinterpret_cast<void *>(AlignDown(reinterpret_cast<uintptr_t>(value), alignment));
     }
 
     template<>
-    constexpr ALWAYS_INLINE const void *AlignDown<const void *>(const void *value, size_t alignment) {
+    ALWAYS_INLINE const void *AlignDown<const void *>(const void *value, size_t alignment) {
         return reinterpret_cast<void *>(AlignDown(reinterpret_cast<uintptr_t>(value), alignment));
     }
 
     template<>
-    constexpr ALWAYS_INLINE bool IsAligned<void *>(void *value, size_t alignment) {
+    ALWAYS_INLINE bool IsAligned<void *>(void *value, size_t alignment) {
         return IsAligned(reinterpret_cast<uintptr_t>(value), alignment);
     }
 
     template<>
-    constexpr ALWAYS_INLINE bool IsAligned<const void *>(const void *value, size_t alignment) {
+    ALWAYS_INLINE bool IsAligned<const void *>(const void *value, size_t alignment) {
         return IsAligned(reinterpret_cast<uintptr_t>(value), alignment);
-    }
-
-    template<typename T, typename U> requires std::integral<T> && std::integral<U>
-    constexpr ALWAYS_INLINE T DivideUp(T x, U y) {
-        return (x + (y - 1)) / y;
     }
 
 }

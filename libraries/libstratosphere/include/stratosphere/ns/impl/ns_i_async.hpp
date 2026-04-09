@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -24,4 +24,4 @@
     AMS_SF_METHOD_INFO(C, H,  1, Result, Cancel,          (),                                             ())    \
     AMS_SF_METHOD_INFO(C, H,  2, Result, GetErrorContext, (::ams::sf::Out<::ams::err::ErrorContext> out), (out))
 
-AMS_SF_DEFINE_INTERFACE(ams::ns::impl, IAsyncResult, AMS_NS_I_ASYNC_RESULT_INTERFACE_INFO)
+AMS_SF_DEFINE_INTERFACE(ams::ns::impl, IAsyncResult, AMS_NS_I_ASYNC_RESULT_INTERFACE_INFO, 0x66E1ADBD)

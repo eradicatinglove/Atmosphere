@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -15,6 +15,7 @@
  */
 #pragma once
 #include <stratosphere.hpp>
+#include "os_address_space_allocator_forbidden_region.hpp"
 
 namespace ams::os::impl {
 
@@ -28,55 +29,64 @@ namespace ams::os::impl {
             static constexpr u64 AslrSize64BitDeprecated = 0x0078000000ul;
             static constexpr u64 AslrBase64Bit           = 0x0008000000ul;
             static constexpr u64 AslrSize64Bit           = 0x7FF8000000ul;
+
+            static constexpr size_t ForbiddenRegionCount = 2;
         private:
-            static u64 GetAslrInfo(svc::InfoType type) {
+            static u64 GetAslrInfo(os::NativeHandle process_handle, svc::InfoType type) {
                 u64 value;
-                R_ABORT_UNLESS(svc::GetInfo(std::addressof(value), type, svc::PseudoHandle::CurrentProcess, 0));
+                R_ABORT_UNLESS(svc::GetInfo(std::addressof(value), type, process_handle, 0));
+
                 static_assert(std::same_as<size_t, uintptr_t>);
                 AMS_ASSERT(value <= std::numeric_limits<size_t>::max());
+
                 return static_cast<u64>(value & std::numeric_limits<size_t>::max());
             }
+        private:
+            AddressSpaceAllocatorForbiddenRegion m_forbidden_regions[ForbiddenRegionCount];
         public:
-            constexpr AslrSpaceManagerHorizonImpl() = default;
-
-            static u64 GetHeapSpaceBeginAddress() {
-                return GetAslrInfo(svc::InfoType_HeapRegionAddress);
+            AslrSpaceManagerHorizonImpl() {
+                this->InitializeForbiddenRegions(svc::PseudoHandle::CurrentProcess);
             }
 
-            static u64 GetHeapSpaceBeginSize() {
-                return GetAslrInfo(svc::InfoType_HeapRegionSize);
+            AslrSpaceManagerHorizonImpl(os::NativeHandle process_handle) {
+                this->InitializeForbiddenRegions(process_handle);
             }
 
-            static u64 GetAliasSpaceBeginAddress() {
-                return GetAslrInfo(svc::InfoType_AliasRegionAddress);
+            const AddressSpaceAllocatorForbiddenRegion *GetForbiddenRegions() const {
+                return m_forbidden_regions;
             }
 
-            static u64 GetAliasSpaceBeginSize() {
-                return GetAslrInfo(svc::InfoType_AliasRegionSize);
+            static size_t GetForbiddenRegionCount() {
+                return ForbiddenRegionCount;
             }
 
-            static u64 GetAslrSpaceBeginAddress() {
-                if (hos::GetVersion() >= hos::Version_2_0_0 || svc::IsKernelMesosphere()) {
-                    return GetAslrInfo(svc::InfoType_AslrRegionAddress);
-                } else {
-                    if (GetHeapSpaceBeginAddress() < AslrBase64BitDeprecated || GetAliasSpaceBeginAddress() < AslrBase64BitDeprecated) {
-                        return AslrBase32Bit;
-                    } else {
-                        return AslrBase64BitDeprecated;
-                    }
-                }
+            static u64 GetHeapSpaceBeginAddress(os::NativeHandle process_handle = svc::PseudoHandle::CurrentProcess) {
+                return GetAslrInfo(process_handle, svc::InfoType_HeapRegionAddress);
             }
 
-            static u64 GetAslrSpaceEndAddress() {
-                if (hos::GetVersion() >= hos::Version_2_0_0 || svc::IsKernelMesosphere()) {
-                    return GetAslrInfo(svc::InfoType_AslrRegionAddress) + GetAslrInfo(svc::InfoType_AslrRegionSize);
-                } else {
-                    if (GetHeapSpaceBeginAddress() < AslrBase64BitDeprecated || GetAliasSpaceBeginAddress() < AslrBase64BitDeprecated) {
-                        return AslrBase32Bit + AslrSize32Bit;
-                    } else {
-                        return AslrBase64BitDeprecated + AslrSize64BitDeprecated;
-                    }
-                }
+            static u64 GetHeapSpaceSize(os::NativeHandle process_handle = svc::PseudoHandle::CurrentProcess) {
+                return GetAslrInfo(process_handle, svc::InfoType_HeapRegionSize);
+            }
+
+            static u64 GetAliasSpaceBeginAddress(os::NativeHandle process_handle = svc::PseudoHandle::CurrentProcess) {
+                return GetAslrInfo(process_handle, svc::InfoType_AliasRegionAddress);
+            }
+
+            static u64 GetAliasSpaceSize(os::NativeHandle process_handle = svc::PseudoHandle::CurrentProcess) {
+                return GetAslrInfo(process_handle, svc::InfoType_AliasRegionSize);
+            }
+
+            static u64 GetAslrSpaceBeginAddress(os::NativeHandle process_handle = svc::PseudoHandle::CurrentProcess) {
+                return GetAslrInfo(process_handle, svc::InfoType_AslrRegionAddress);
+            }
+
+            static u64 GetAslrSpaceEndAddress(os::NativeHandle process_handle = svc::PseudoHandle::CurrentProcess) {
+                return GetAslrInfo(process_handle, svc::InfoType_AslrRegionAddress) + GetAslrInfo(process_handle, svc::InfoType_AslrRegionSize);
+            }
+        private:
+            void InitializeForbiddenRegions(os::NativeHandle process_handle) {
+                m_forbidden_regions[0] = { .address = GetHeapSpaceBeginAddress(process_handle),  .size = GetHeapSpaceSize(process_handle)  };
+                m_forbidden_regions[1] = { .address = GetAliasSpaceBeginAddress(process_handle), .size = GetAliasSpaceSize(process_handle) };
             }
     };
 

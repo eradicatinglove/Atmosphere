@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -17,16 +17,31 @@
 
 namespace ams::kern {
 
-    void KLightLock::LockSlowPath(uintptr_t _owner, uintptr_t _cur_thread) {
+    namespace {
+
+        class ThreadQueueImplForKLightLock final : public KThreadQueue {
+            public:
+                constexpr ThreadQueueImplForKLightLock() : KThreadQueue() { /* ... */ }
+
+                virtual void CancelWait(KThread *waiting_thread, Result wait_result, bool cancel_timer_task) override {
+                    /* Do nothing, waiting to acquire a light lock cannot be canceled. */
+                    MESOSPHERE_UNUSED(waiting_thread, wait_result, cancel_timer_task);
+                }
+        };
+
+    }
+
+    bool KLightLock::LockSlowPath(uintptr_t _owner, uintptr_t _cur_thread) {
         KThread *cur_thread = reinterpret_cast<KThread *>(_cur_thread);
+        ThreadQueueImplForKLightLock wait_queue;
 
         /* Pend the current thread waiting on the owner thread. */
         {
             KScopedSchedulerLock sl;
 
             /* Ensure we actually have locking to do. */
-            if (AMS_UNLIKELY(m_tag.load(std::memory_order_relaxed) != _owner)) {
-                return;
+            if (m_tag.Load<std::memory_order_relaxed>() != _owner) {
+                return false;
             }
 
             /* Add the current thread as a waiter on the owner. */
@@ -34,22 +49,15 @@ namespace ams::kern {
             cur_thread->SetAddressKey(reinterpret_cast<uintptr_t>(std::addressof(m_tag)));
             owner_thread->AddWaiter(cur_thread);
 
-            /* Set thread states. */
-            cur_thread->SetState(KThread::ThreadState_Waiting);
+            /* Begin waiting to hold the lock. */
+            cur_thread->BeginWait(std::addressof(wait_queue));
 
             if (owner_thread->IsSuspended()) {
                 owner_thread->ContinueIfHasKernelWaiters();
             }
         }
 
-        /* We're no longer waiting on the lock owner. */
-        {
-            KScopedSchedulerLock sl;
-
-            if (KThread *owner_thread = cur_thread->GetLockOwner(); AMS_UNLIKELY(owner_thread != nullptr)) {
-                owner_thread->RemoveWaiter(cur_thread);
-            }
-        }
+        return true;
     }
 
     void KLightLock::UnlockSlowPath(uintptr_t _cur_thread) {
@@ -60,18 +68,15 @@ namespace ams::kern {
             KScopedSchedulerLock sl;
 
             /* Get the next owner. */
-            s32 num_waiters = 0;
-            KThread *next_owner = owner_thread->RemoveWaiterByKey(std::addressof(num_waiters), reinterpret_cast<uintptr_t>(std::addressof(m_tag)));
+            bool has_waiters;
+            KThread *next_owner = owner_thread->RemoveWaiterByKey(std::addressof(has_waiters), reinterpret_cast<uintptr_t>(std::addressof(m_tag)));
 
             /* Pass the lock to the next owner. */
             uintptr_t next_tag = 0;
             if (next_owner != nullptr) {
-                next_tag = reinterpret_cast<uintptr_t>(next_owner);
-                if (num_waiters > 1) {
-                    next_tag |= 0x1;
-                }
+                next_tag = reinterpret_cast<uintptr_t>(next_owner) | static_cast<uintptr_t>(has_waiters);
 
-                next_owner->SetState(KThread::ThreadState_Runnable);
+                next_owner->EndWait(ResultSuccess());
 
                 if (next_owner->IsSuspended()) {
                     next_owner->ContinueIfHasKernelWaiters();
@@ -84,7 +89,7 @@ namespace ams::kern {
             }
 
             /* Write the new tag value. */
-            m_tag.store(next_tag);
+            m_tag.Store<std::memory_order_release>(next_tag);
         }
     }
 

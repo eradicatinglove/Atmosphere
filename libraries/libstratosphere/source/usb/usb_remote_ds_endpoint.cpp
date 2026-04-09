@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -18,6 +18,7 @@
 
 namespace ams::usb {
 
+    #if defined(ATMOSPHERE_OS_HORIZON)
     Result RemoteDsEndpoint::PostBufferAsync(sf::Out<u32> out_urb_id, u64 address, u32 size) {
         const struct {
             u32 size;
@@ -25,37 +26,43 @@ namespace ams::usb {
         } in = { size, address };
 
         serviceAssumeDomain(std::addressof(m_srv));
-        return serviceDispatchInOut(std::addressof(m_srv), 0, in, *out_urb_id);
+        R_RETURN(serviceDispatchInOut(std::addressof(m_srv), 0, in, *out_urb_id));
     }
 
     Result RemoteDsEndpoint::Cancel() {
         serviceAssumeDomain(std::addressof(m_srv));
-        return serviceDispatch(std::addressof(m_srv), 1);
+        R_RETURN(serviceDispatch(std::addressof(m_srv), 1));
     }
 
     Result RemoteDsEndpoint::GetCompletionEvent(sf::OutCopyHandle out) {
         serviceAssumeDomain(std::addressof(m_srv));
-        return serviceDispatch(std::addressof(m_srv), 2,
+
+        os::NativeHandle event_handle;
+        R_TRY((serviceDispatch(std::addressof(m_srv), 2,
             .out_handle_attrs = { SfOutHandleAttr_HipcCopy },
-            .out_handles = out.GetHandlePointer(),
-        );
+            .out_handles = std::addressof(event_handle),
+        )));
+
+        out.SetValue(event_handle, true);
+        R_SUCCEED();
     }
 
     Result RemoteDsEndpoint::GetUrbReport(sf::Out<usb::UrbReport> out) {
         serviceAssumeDomain(std::addressof(m_srv));
-        return serviceDispatchOut(std::addressof(m_srv), 3, *out);
+        R_RETURN(serviceDispatchOut(std::addressof(m_srv), 3, *out));
     }
 
     Result RemoteDsEndpoint::Stall() {
         serviceAssumeDomain(std::addressof(m_srv));
-        return serviceDispatch(std::addressof(m_srv), 4);
+        R_RETURN(serviceDispatch(std::addressof(m_srv), 4));
     }
 
     Result RemoteDsEndpoint::SetZlt(bool zlt) {
         const u8 in = zlt ? 1 : 0;
 
         serviceAssumeDomain(std::addressof(m_srv));
-        return serviceDispatchIn(std::addressof(m_srv), 5, in);
+        R_RETURN(serviceDispatchIn(std::addressof(m_srv), 5, in));
     }
+    #endif
 
 }

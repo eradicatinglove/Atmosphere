@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -20,7 +20,7 @@ namespace ams::cs {
     void InitializeTargetIoServer() {
         /* Launch target io server. */
         os::ProcessId process_id;
-        scs::LaunchProgram(std::addressof(process_id), ncm::SystemProgramId::DevServer, nullptr, 0, 0);
+        static_cast<void>(scs::LaunchProgram(std::addressof(process_id), ncm::ProgramLocation::Make(ncm::SystemProgramId::DevServer, ncm::StorageId::None), nullptr, 0, 0));
     }
 
 }

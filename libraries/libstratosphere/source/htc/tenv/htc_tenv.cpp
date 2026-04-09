@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -15,12 +15,17 @@
  */
 #include <stratosphere.hpp>
 #include "impl/htc_tenv_allocator.hpp"
+#include "impl/htc_tenv_impl.hpp"
 
 namespace ams::htc::tenv {
 
     void Initialize(AllocateFunction allocate, DeallocateFunction deallocate) {
         /* Initialize the library allocator. */
         impl::InitializeAllocator(allocate, deallocate);
+    }
+
+    void UnregisterDefinitionFilePath(os::ProcessId process_id) {
+        return impl::UnregisterDefinitionFilePath(process_id.value);
     }
 
 }

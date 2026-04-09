@@ -1,4 +1,505 @@
 # Changelog
+## 1.11.1
++ Basic support was added for 22.1.0.
++ General system stability improvements to enhance the user's experience.
+## 1.11.0
++ Support was added for 22.0.0.
++ Special thanks to @alula for handling a large chunk of the necessary kernel, loader and erpt changes.
+  + The console should boot and atmosphère should be fully functional.
+  + **Please note**: A change in how applications/applets' lifespan is managed broke the homebrew ecosystem.
+    + All applications and applets are expected to perform a clean exit by calling the relevant IPC commands.
+    + Homebrew compiled with libnx and hbmenu itself explicitly avoid exiting so it can keep using the same process.
+      + Properly fixing this would require a re-design of how homebrew is launched and terminated.
+    + As a temporary solution, patches to the `am` sysmodule are now included which allow restoring the previous behavior and regain homebrew compatibility without any further changes.
+    + Nonetheless, please report any issues you may face when testing homebrew to ensure no edge cases have been missed.    
+  + `exosphère` was updated to reflect the latest official secure monitor behavior.
+  + `mesosphère` was updated to reflect the latest official kernel behavior.
+  + `loader` was updated to reflect the latest official behavior.
+  + `erpt` was updated to reflect the latest official behavior.
+  + `pgl` was updated to fix a few issues.
++ Support was added for memory modes above 4GB (thanks @CTCaer).
++ A build time option to configure Joy-Con rails as UART for debugging was added (thanks @alula).
++ General system stability improvements to enhance the user's experience.
+## 1.10.2
++ Basic support was added for 21.2.0.
++ General system stability improvements to enhance the user's experience.
+## 1.10.1
++ Basic support was added for 21.1.0.
++ A bug was fixed that caused some games (e.g. Tomb Raider definitive edition) to fail to launch.
++ General system stability improvements to enhance the user's experience.
+## 1.10.0
++ Basic support was added for 21.0.0.
+  + The console should boot and atmosphère should be fully functional.
+  + **Please note**: All homebrew software may need to be re-compiled with the latest libnx (>= 4.10.0), or else it may crash/experience memory corruption.
+    + Nintendo broke the userland<->kernel TLS ABI in 21.0.0, by writing to previously reserved space.
+    + Homebrew used this reserved space for its TLS slots, which means any homebrew software using TLS slots will experience memory corruption when running under Atmosphere 1.10.0.
+    + This doesn't appear to impact everything, but a large portion of tested homebrew crashes (often on exit), and so will need re-compile for the new ABI.
+      + For those technically inclined, while TLS slots are rarely used by developers, they're used to implement features like e.g. C++ exceptions under the hood, and so anything using those crashes, etc.
+    + To help make this transition easier, hbmenu now shows a warning when selecting homebrew compiled with an older, incompatible ABI version.
+      + I apologize for the hassle in general.
+      + libnx has been updated so that its reserved space matches Nintendo's now -- this particular issue can never occur again, even if Nintendo touches more reserved space.
+  + `exosphère` was updated to reflect the latest official secure monitor behavior.
+  + `mesosphère` was updated to reflect the latest official kernel behavior.
+  + `loader` was updated to reflect the latest official behavior.
+  + `pm` was updated to reflect the latest official behavior.
+  + `erpt` was updated to reflect the latest official behavior.
+  + `pgl` was updated to reflect the latest official behavior.
+  + `fatal` was updated to reflect the latest official behavior.
++ Support was added for launching another game-which-has-too-many-files with romfs mods.
+  + I rely on user reports for adding support/fixing these, and some of these games can be pretty obscure!
+  + If you are affected by this, you will see "Data abort (0x101)" when trying to launch the game with mods.
+  + Please reach out to `sciresm` on discord if this occurs to share your error report binary.
+    + Although some games may be impossible to fix, I believe I can get almost everything working, so please let me try to help you (and improve atmosphère's support!) if you run into this!
++ General system stability improvements to enhance the user's experience.
+## 1.9.5
++ Basic support was added for 20.5.0.
++ General system stability improvements to enhance the user's experience.
+## 1.9.4
++ Basic support was added for 20.4.0.
++ An issue was fixed in `exosphère`'s register accessilibity tables (thanks @CTCaer).
+  + I believe this had no impact on official code, though it would have prevented some homebrew from interacting correctly with the MC0/MC1 registers.
++ An issue was fixed that could cause a deadlock when building multiple romfs images simultaneously (thanks @Ereza).
+  + This fixes support for certain mods, e.g. system language translations overriding content for both overlayDisp and qlaunch.
++ General system stability improvements to enhance the user's experience.
+## 1.9.3
++ Basic support was added for 20.3.0.
++ Compatibility was fixed for loading mods with KOTOR 2 (star wars).
++ General system stability improvements to enhance the user's experience.
+## 1.9.2
++ Basic support was added for 20.2.0.
++ USB 3.0 support force-enable was fixed for 20.1.0+.
++ General system stability improvements to enhance the user's experience.
+## 1.9.1
++ Basic support was added for 20.1.0.
++ General system stability improvements to enhance the user's experience.
+## 1.9.0
++ Basic support was added for 20.0.0.
+  + The console should boot and atmosphère should be fully functional. However, not all modules have been fully updated to reflect the latest changes.
+    + There shouldn't be anything user visible resulting from this, but it will be addressed in a future atmosphère update.
+    + The same action item from 18.0.0 remains, and I believe in my heart of hearts that it will be addressed eventually. Someone has told me they're working on it.
+    + There aren't (to my knowledge) outstanding 19.0.0 items any more.
+  + **Please note**: As a result of changes made to nintendo's software in 20.0.0, there is roughly 10MB less memory available for custom system modules.
+    + We can only steal a maximum of 14MB from the applet pool, down from 40MB.
+    + To compensate for this, `ams.mitm`'s heap usage has been reduced by 20MB.
+      + To facilitate this, a new helper module (`memlet`) was added, so that memory may be temporarily stolen during the romfs building process.
+      + Hopefully, this results in relatively little breakage, however it is possible that user mods which replace extremely large numbers of files in The Legend of Zelda: Tears of the Kingdom may no longer function.
+        + If you are affected by this, you will see "Data abort (0x101)" when trying to launch the game with mods.
+        + Please reach out to `sciresm` on discord if this occurs to share your error report binary. However, some issues may be impossible to fix.
+        + I apologize sincerely if the issue is impossible to resolve, but I have been forced unavoidably to make compromises here, and I think this is the best balance to be struck.
+  + `exosphère` was updated to reflect the latest official secure monitor behavior.
+  + `mesosphère` was updated to reflect the latest official kernel behavior.
+  + `loader` was updated to reflect the latest official behavior.
+  + `pm` was updated to reflect the latest official behavior.
+  + `ncm` was partially updated to reflect the latest official behavior.
+  + `erpt` was updated to reflect the latest official behavior.
++ Atmosphère was updated to use GCC 15/newlib (latest devkitA64/devkitARM releases).
++ A number of improvements were made to the dmnt cheat engine.
+  + New instructions were added, and instructions were updated for improved/new functionality.
+  + Please see the documents for details -- thanks @tomvita!
++ General system stability improvements to enhance the user's experience.
+## 1.8.0
++ Basic support was added for 19.0.0.
+  + The console should boot and atmosphère should be fully functional. However, not all modules have been fully updated to reflect the latest changes.
+    + There shouldn't be anything user visible resulting from this, but it will be addressed in a future atmosphère update. There is still one action item from 18.0.0 to be addressed, as well.
+  + `exosphère` was updated to reflect the latest official secure monitor behavior.
+  + `mesosphère` was updated to reflect the latest official kernel behavior.
+  + `loader` was updated to reflect the latest official behavior.
+  + `pm` was updated to reflect the latest official behavior.
+  + `ro` was updated to reflect the latest official behavior.
++ `creport`'s file acces patterns were optimized, greatly improving performance when generating a crash report.
++ Atmosphère now uses `relr` relocations where possible.
+  + This reduces the filesize of a number of atmosphère's modules.
++ A number of minor issues were fixed and improvements were made, including:
+  + Support was fixed for running Atmosphère on newer units with specific Hynix/Micron DRAM chips.
++ General system stability improvements to enhance the user's experience.
+## 1.7.1
++ Support was added for 18.1.0.
++ Atmosphère was updated to use GCC 14/newlib (latest devkitA64/devkitARM releases).
++ Further changes were for 18.0.0:
+  + `loader` was updated to reflect the latest official behavior.
++ General system stability improvements to enhance the user's experience.
+## 1.7.0
++ Basic support was added for 18.0.0.
+  + The console should boot and atmosphère should be fully functional. However, not all modules have been fully updated to reflect the latest changes.
+    + There shouldn't be anything user visible resulting from this, but it will be addressed in a future atmosphère update, once I am not traveling so much.
+  + `exosphère` was updated to reflect the latest official secure monitor behavior.
+  + `mesosphère` was updated to reflect the latest official kernel behavior.
+  + `spl` was updated to reflect the latest official behavior.
++ `fusee`'s no longer supports applying IPS patches to KIPs.
+  + The only KIPs that are ever present are a) atmosphère modules, b) custom system modules, or c) FS.
+  + The IPS subsystem was originally designed to make nogc patches work for FS, but these are now internal, and it appears the literal only kip patches that exist are for piracy.
+    + I could not find any kip patches posted anywhere made for any other purpose.
+  + It fundamentally does not make sense to slow down boot for every normal user for a feature that has no actual use-case, especially when `fusee` seeks to be a minimal bootloader.
++ Minor improvements were made to atmosphere's gdbstub, including:
+  + Support was added for QStartNoAckMode.
+  + An issue was fixed that could cause a fatal error when creating too many breakpoints.
++ A number of minor issues were fixed and improvements were made, including:
+  + `pt-BR` (`PortugueseBr`) is now accepted as a valid language when overriding game locales.
+  + A bug was fixed that could cause atmosphere to incorrectly serialize output object IDs over IPC when using domain objects.
+  + A bug was fixed in `pm`'s resource limit boost logic that could potentially cause legitimate boosts to fail in certain circumstances.
+  + `loader`/`ro` will now throw a fatal error when using invalid IPS patches that go out of bounds, instead of corrupting memory.
+  + Support was fixed for booting using a memory configuration of half of the true available memory (e.g. forcing a 4GB configuration on an 8GB board).
++ General system stability improvements to enhance the user's experience.
+## 1.6.2
++ Support was finished for 17.0.0.
+  + `erpt` was updated to support the latest official behavior.
+  + `jpegdec` was updated to support the latest official behavior.
+  + `pm` was updated to support the latest official behavior.
++ General system stability improvements to enhance the user's experience.
+## 1.6.1
++ An improved solution to [the problem that would cause consoles which had previously re-built their SYSTEM partition to brick on update-to-17.0.0](https://gist.github.com/SciresM/2ddb708c812ed585c4d99f54e25205ff) was added.
+  + In particular, booting atmosphère will now automatically detect the problem and unbrick any consoles which have fallen into this state.
++ Some improvements were made to `haze`, including:
+  + Performance was greatly improved:
+    + Support was added for GetObjectPropList, which decreases the amount of requests made by ~8x.
+    + Haze now performs rendering on the GPU, freeing up the CPU to respond to requests in a more timely manner.
+  + An issue was fixed with how `haze` configures `bMaxPacketSize0` which improves support for USB3.
++ General system stability improvements to enhance the user's experience.
+## 1.6.0
++ Basic support was added for 17.0.0.
+  + The console should boot and atmosphère should be fully functional. However, not all modules have been fully updated to reflect the latest changes.
+    + There shouldn't be anything user visible resulting from this, but it will be addressed in a soon-to-come atmosphère update.
+  + `exosphère` was updated to reflect the latest official secure monitor behavior.
+  + `mesosphère` was updated to reflect the latest official kernel behavior.
+  + `ncm` was updated to reflect the latest official behavior.
+  + `erpt` was partially updated to support the latest official behavior.
++ Atmosphere's gdbstub now supports waiting to attach to a specific program id on launch (as opposed to any application).
+  + The monitor command for this is `monitor wait <hex program id>`, where program id can optionally have an `0x` prefix.
++ Support was added to `haze` for editing files in-place and performing 64-bit transfers (files larger than 4 GB).
++ `bpc.mitm` was enabled on Mariko units, and now triggers pmic-based shutdowns/reboots (thanks @CTCaer).
+  + This should cause the console to no longer wake ~15 seconds after shutdown on Mariko.
++ A number of minor issues were fixed and improvements were made, including:
+  + A workaround was added for a change in 17.0.0 that would cause consoles which had previously re-built their SYSTEM partition to brick on update-to-17.0.0.
++ General system stability improvements to enhance the user's experience.
+## 1.5.5
++ Support was added for 16.1.0.
++ General system stability improvements to enhance the user's experience.
+## 1.5.4
++ Experimental new functionality was implemented to prevent crashing when building romfs for certain games with obscene file counts.
+  + This includes both Fire Emblem: Engage (~190000 files), and The Legend of Zelda: Tears of the Kingdom (~300000) files.
+  + The solution involved adding functionality to ams.mitm/pm to dynamically steal memory from the application (and system) pool as needed when the games have romfs mods.
+    + No memory is taken, and there is no cost to this functionality when playing without mods (or with overrides disabled).
+  + The Legend of Zelda: Tears of the Kingdom is currently the absolute worst case game, requiring ~48 MB of memory to build a romfs image to play with mods.
+    + Right now, the memory is sourced as follows: 32 MB (base ams.mitm heap), 10 MB (stolen from application pool), 8 MB (dynamically stolen from system pool).
+    + This is 50 MB, which allows a little overhead in the worst case (prevents crashing due to exhausting the heap for other allocations in ams.mitm).
+    + Zelda is remarkably sensitive to memory being stolen from the application pool, tolerating no more than 16 MB on 1.0.0 and 12 MB on 1.1.0. I have chosen to steal 10 MB, to be safe, for now.
+      + This may break on a future game update, but I will fix it if and when that happens. There is no perfect solution; the game simply requires too much memory to support mods flawlessly, and I am forced to compromise.
+  + As usual, if you encounter a game that exhausts ams.mitm's memory (crashing it) when loading layeredfs mods, please contact `SciresM#0524`.
+    "I am jinxing myself by saying this, but it's really hard to imagine any game being worse than The Legend of Zelda: Tears of the Kingdom, but if it happens again I will drop everything to fix it as usual".
++ General system stability improvements to enhance the user's experience.
+## 1.5.3
++ Support was added for 16.0.3.
++ Atmosphère was updated to use GCC 13/newlib (latest devkitA64/devkitARM releases).
+  + **Please note**: This introduces a known issue, which is currently being worked on.
+    + As you may recall from the 1.4.1 changelog, Fire Emblem: Engage requires enormous amounts of memory to support using layeredfs mods with the game.
+    + Latest GCC/newlib slightly increases malloc overhead size, which makes the previous memory increase insufficient.
+    + A general-case solution to this is in the works, which should hopefully fix the problem in a way that doesn't jinx me for the future.
++ A number of minor issues were fixed and improvements were made, including:
+  + An issue was fixed that caused system font replacement to not work on 16.0.0+.
+  + An minor accuracy issue was addressed in mesosphere's management of certain memory ranges; this issue would have had zero visible impact to the end-user.
++ General system stability improvements to enhance the user's experience.
+## 1.5.2
++ A homebrew application (`haze`) was added for performing USB file transfer (with thanks to @liamwhite for both design and implementation).
+  + `haze` is included with atmosphère, and provides access to the SD card via the PTP/MTP protocol.
+    + **Please note**: haze will show inside the homebrew menu under the name "USB File Transfer".
+  + **Please note**: Atmosphère cannot be updated at runtime, and trying to install an atmosphère update via haze will fail as usual.
++ General system stability improvements to enhance the user's experience.
+## 1.5.1
++ `fatal` was updated to reduce memory footprint.
+  + Starting in 16.0.0, official `fatal` has no framebuffer or rendering logic, and instead calls other system service commands to draw the screen.
+  + However, these commands aren't usable by atmosphère (too small rendering window, bad color support).
+  + To reduce the relative memory footprint differential between atmosphère and official code, the framebuffer (2 MB) is now dynamically allocated when needed.
+    + This will try to allocate from multiple pools (preferring System > System_NonSecure > Application).
+    + This technically requires that 2 MB be available in at least one of these pools for the fatal screen to render (otherwise, a reboot-to-black-and-white-fatal will occur), but this should be a non-issue in almost all cases.
++ A feature was added to optionally mirror the bluetooth pairing database to the SD card (thanks @ndeadly).
+  + This allows device pairings to be automatically kept in-sync across sysmmc/all emummcs.
+  + This is opt-in, and can be controlled by setting `atmosphere!enable_external_bluetooth_db = u8!0x1`.
+  + When enabled, the pairing database will be synchronized to `/atmosphere/bluetooth_devices.db`.
++ General system stability improvements to enhance the user's experience.
+## 1.5.0
++ Support was added for 16.0.0
+  + `mesosphère` was updated to reflect the latest official kernel behavior.
+  + `ncm` was updated to reflect the latest official behavior.
+  + Many FS apis were updated under the hood to reflect the latest official behavior.
+  + **Please Note**: 16.0.0 made breaking changes to a number of system APIs, including in FS/NCM/Shared Font commands that some homebrew programs may use.
+    + These programs may encounter strange errors, and may need to be recompiled with a libnx updated to support 16.0.0's changes to function properly.
++ A number of minor issues were fixed and improvements were made, including:
+  + An issue was fixed that could cause GPIO outputs to be misconfigured under certain circumstances.
++ General system stability improvements to enhance the user's experience.
+## 1.4.1
++ A number of minor issues were fixed and improvements were made, including:
+  + `dmnt` cheat toggle files are no longer ignored when they are missing a trailing newline.
+  + The mechanism for automatically cleaning up `erpt_reports` added in 1.3.0 was fixed.
+    + This was actually just very fundamentally broken and has never worked, but it is verified working now.
+  + Minor fixes were made in `mesosphère` to match official kernel behavior (spin lock assembly was corrected, wrong result on failure in in GetProcessId was corrected).
+  + A missing call to GetSdStatus when initializing SD cards at non uhs-i mode was added in the sdmmc driver.
++ `ams.mitm`'s memory usage was increased by 16 MB, to prevent crashing when building romfs for games with obscene file counts.
+  + To quote the changelog for 1.2.3: "Animal Crossing's 2.0.0 update contains >99000 files [...] It's really hard to imagine any game being worse than Animal Crossing".
+  + As it turns out, Fire Emblem: Engage has ~186000 files, and is approximately twice as bad as animal crossing.
+  + The additional memory here is taken from the applet pool; no issues are expected to arise from this, but please report anything you may run into.
+  + As usual, if you encounter a game that exhausts ams.mitm's memory (crashing it) when loading layeredfs mods, please contact `SciresM#0524`.
+    + I am jinxing myself by saying this, but it's really hard to imagine any game being worse than Fire Emblem: Engage, but if it happens again I will drop everything to fix it as usual.
++ General system stability improvements to enhance the user's experience.
+## 1.4.0
++ Support was added for 15.0.0.
+  + `mesosphère` was updated to reflect the latest official kernel behavior.
+  + `ncm` was updated to reflect the latest official behavior.
++ A number of minor issues were fixed and improvements were made, including:
+  + The capacity limit on registered add-on contents was fixed in NCM to reflect the increase that occurred in 12.0.0.
+  + An off-by-one was fixed in mesosphere when computing the new value for an address arbiter signaled with ModifyByWaitingCountIfEqual.
+  + dmnt.gen2's gdbstub now sanitizes thread names to prevent invalid characters from breaking gdb.
+  + dmnt.gen2's gdbstub now reports the architecture tag correctly when attached to 32-bit processes.
+  + Support for program-specific html manual content overrides was added for non-hbl takeover context.
+  + A bug was fixed in how emummc constructed the alternate Nintendo directory path.
+    + Previously, this was using `/*/Nintendo/Nintendo` instead of `/*/Nintendo`.
+    + Code was added to automatically move the old folders to the new ones when booting into emummc.
+  + A bug was fixed in boot that caused an incorrectly low input voltage limit to be set.
++ General system stability improvements to enhance the user's experience.
+## 1.3.2
++ Support was improved for 14.0.0+.
+  + `loader` was updated to reflect the latest official behaviors.
+  + `ro` was  updated to reflect the latest official behaviors.
++ A number of minor issues were fixed and improvements were made, including:
+  + A memory leak was fixed in filesystem path management; this could cause a crash when launching games ~100 times, or when deleting/re-downloading games.
+  + A bug was fixed that could cause threads to not see a newly signaled semaphore.
+  + A number of minor inaccuracies were fixed in the updated FileSystem APIs.
++ General system stability improvements to enhance the user's experience.
+## 1.3.1
++ Support was added for 14.1.0.
++ A number of minor under the hood improvements to accuracy were made to better reflect latest official system module behavior, particularly around FS apis.
++ General system stability improvements to enhance the user's experience.
+## 1.3.0
++ Support was added for 14.0.0.
+  + `mesosphère` was updated to reflect the latest official kernel behavior.
+  + `erpt` was  updated to reflect the latest official behaviors.
+  + `pm` was  updated to reflect the latest official behaviors.
+  + `fatal` was  updated to reflect the latest official behaviors.
++ A mechanism for automatically cleaning up `erpt_reports` was added.
+  + When booting, if the console has more than 1000 reports inside `/atmosphere/erpt_reports`, the folder will be cleaned to empty.
+  + This behavior can be disabled by setting `erpt!disable_automatic_report_cleanup` = u8!0x1 in system_settings.ini.
++ Atmosphère's build system was re-written, and now allows globally building for various builds/configs.
+  + All boards now automatically support release/debugging/auditing targets; it is now possible to build a full debugging/auditing build of atmosphère for the first time.
++ Support was added for compiling libstratosphère to run on PC.
+  + The currently implemented/tested targets are Windows (x64), Linux (x64, arm64), macOS (x64, arm64).
+    + If you are a developer interested in adding support for another target, please reach out to `SciresM#0524` on discord.
+  + This is intended to finally allow sanely testing Atmosphère's code, by allowing most of it to run on a PC (with access to a debugger) instead of on game console hardware.
+  + In addition, this will allow making PC tools which reuse code written for Atmosphère directly..
+  + **Please Note**: This has no relation to interacting with official software on PC whatsoever. This really allows for making tests and self-contained atmosphère-based command-line tools; the Atmosphère project continues to have zero interest in attempting to run official software of any kind.
+  + In the course of adding this support (and working on tooling using it), a number of fairly major revisions were made to stratosphere (particularly surrounding filesystem code).
+    + **Please Note**: A number of changes made for this (and ones necessary in the process of adding support for 14.0.0) are api-breaking.
+      + If you're a developer and any of this caused your code to break, please feel free to contact `SciresM#0524` for help updating your program.
++ General system stability improvements to enhance the user's experience.
+## 1.2.6
++ Support was added for 13.2.1.
++ A number of minor issues were fixed and improvements were made, including:
+  + A minor performance improvement was implemented in service table dispatch by sorting and binary-searching the service command table instead of using linear search.
+  + Static initialization logic in Atmosphere was made much more regular.
++ General system stability improvements to enhance the user's experience.
+## 1.2.5
++ Support was added for 13.2.0.
++ A number of minor issues were fixed and improvements were made, including:
+  + A bug was fixed that caused `mesosphère` to underreport the total memory size by 8MB for certain games which use newer system-resource-size memory management.
+    + This caused FIFA 19 to crash, and possibly other issues.
+  + Memory management changes were made to `sm` that save 0x5000 of memory.
+  + A microoptimization was made to the way `mesosphère` manages updating the debug register for hardware single-step support.
+  + Support was fixed for enabling `usb!usb30_force_enabled` on 13.0.0+.
+  + The work-in-progress unit testing framework was updated to use doctest instead of catch2.
++ General system stability improvements to enhance the user's experience.
+## 1.2.4
++ Changes were made to the way fs.mitm builds images when providing a layeredfs romfs.
+  + Cache management (to avoid unnecessary rebuild) was revised, to add a grace period of ~500ms-1s between process closing romfs image and ams.mitm needing to rebuild if romfs is re-opened.
+    + This makes our cache much more effective, previously we were re-building romfs several times.
+  + RomFS image ownership was overhauled, with a new reference-counting implementation added (used to implement the above grace period).
+    + Certain games (e.g. Puyo Puyo Tetris 2, probably others) were sensitive to this timing, and could use access patterns which would trigger creation of romfs image while previous romfs image was in the middle of destructor.
+    + This could cause a fatal error, because the destructor for the old image could run simultaneously with building the new image.
+  + This also provides a speedup versus the 1.2.3 code, with Animal Crossing now taking ~8 fewer seconds to get past the Nintendo Switch logo.
++ General system stability improvements to enhance the user's experience.
+## 1.2.3
++ Because ams.TMA is taking longer to develop than expected, experimental support for Atmosphère's gdbstub as a standalone is now available.
+  + To enable it, set `atmosphere!enable_standalone_gdbstub` = u8!0x1 in system_settings.ini.
+    + The standalone also requires `atmosphere!enable_htc` = u8!0x0, but this should be the case for everyone since ams.TMA isn't actually usable yet.
+  + Once enabled, open the devkitPro provided-gdb (`aarch64-none-elf-gdb` for 64-bit or `arm-none-eabi-gdb` for 32-bit).
+    + The standalone stub exposes itself on port 22225 -- so the command to connect is `target extended-remote <ip address>:22225`.
+    + Type `info os processes` to get a list of process IDs that can be attached to.
+      + The stub should work on both system programs, games, and homebrew -- but please note that debugging certain processes (like sockets) can cause hang due to the stub using them itself.
+  + Software break-points, hardware break-points, hardware watch-points, and hardware single-step are all supported/implemented.
+  + The following monitor commands are currently supported:
+    + `monitor get info`: Get process info, address space layout, and information on modules.
+    + `monitor get mappings`: Get all memory mappings.
+    + `monitor get mapping <addr>`: Get the memory mapping for a specific address.
+    + `monitor wait application`: Causes the stub to wait for an application to be launched. The next application will be started suspended.
+      + User is expected to send `attach <pid>` after launching, which will cause attach-on-first-instruction. Failure to attach may cause system instability, this probably needs work.
+  + **Please Note**: The GDBstub is new and may have bugs/need work. If you find issues, please report them to SciresM#0524 -- all help finding/fixing bugs is appreciated, here.
+  + Generally speaking, if you would like to report information about fixes needed/discuss development of the gdbstub, join ReSwitched's #dev-support channel.
++ Changes were made to the way fs.mitm builds images when providing a layeredfs romfs.
+  + Animal Crossing's 2.0.0 update contains >99000 files, and has tables so big that we ran out of memory even after the optimizations made in 0.10.5.
+    + Previously, we used fixed-sized 0x40000 work buffers for file/directory tables and simultaneously built hash/content tables in one loop over files/directories.
+    + We now iterate over the file/directory tables multiple times, first once to determine the hash table indices, then repeatedly to build hash tables, then once to build content tables.
+    + We also now allow smaller-than-0x40000 work buffers, trying half-as-big buffers until allocation succeeds (or work buffer would be <0x4000, which is a safeguard against truly horrible performance).
+  + There is a slight speed penalty to these changes, but it's on the order of seconds for the worst case (Animal Crossing) and trivial for most games with reasonable tables.
+  + If you encounter a game that exhausts ams.mitm's memory (crashing it) when loading layeredfs mods, please contact `SciresM#0524`.
+    + It's really hard to imagine any game being worse than Animal Crossing, but if it happens again I will drop everything to fix it as usual.
++ `creport` now attempts to parse symbol tables if present.
+  + If a game executable has a symbol for a given address, the function-relative-offset will now be printed after the module-relative-offset.
++ General system stability improvements to enhance the user's experience.
+## 1.2.2
++ A number of fixes were made to Atmosphère's implementation of the new "sprofile" service added in 13.0.0.
+  + Nintendo is finally transmitting data over the internet to certain consoles, which has allowed for validating our service implementation.
+    + Unfortunately, there were several problems, and if your console began trying to use the new services atmosphere would show a fatal error with code 0xCAF6 (sprofile::ResultInvalidState()).
+  + With actual test data in hand, a test program was written and it was verified that our implementation can successfully import/access profile data now.
+    + Hopefully there are no more issues, and I sincerely apologize for anyone who got an 0xCAF6 fatal due to this.
++ A number of minor improvements were made to `mesosphère`, including:
+  + KThread::GetContextForSchedulerLoop was implemented in assembly (using static assertions to verify offset-of-context-in-struct is correct).
+    + This saves an unnecessary function call in the middle of the scheduler hot loop, replacing it with an addition instruction, which should improve microperformance.
+  + Mesosphere's hardware maintenance instructions were audited via a script and now directly match Nintendo's kernels.
+    + Notably, this inserts a missing instruction synchronization barrier when validating that slab heaps may be constructed.
+    + This missing ISB could cause an abort on certain (see: particularly sensitive) hardware on boot if the relevant codepath was speculatively executed (it normally only executes on game launch...)
+  + The SVC handlers for performing light IPC (normally unused) from 32-bit process were fixed in Mesosphere.
+  + A bug was fixed that would cause the register x27 to be overwritten with the contents of x26 when returning from a user exception handler.
+  + A bug was fixed that would cause the kernel to use the userland stack pointer instead of the kernel stack pointer while generating an error report for a kernel abort.
++ General system stability improvements to enhance the user's experience.
+## 1.2.1
++ Support was implemented for 13.1.0.
+  + `mesosphère` was updated to reflect the kernel behavioral changes made in 13.1.0.
+    + KScheduler now issues a data memory barrier when unlocking the scheduler lock and when early-returning due to top-thread-is-current during scheduling.
+  + `erpt` was  updated to reflect the latest official behaviors.
+    + The new service added in 13.0.0 ("sprofile") was revised, and the data formats it expects was changed.
+      + This still appears to be (possibly(?)) untestable due to data not being transmitted yet, but I have greater confidence things will go smoothly than I did when 1.1.0 released.
++ A number of improvements were made to `mesosphère`, including:
+  + A build target was created to build targeting the qemu `virt` board.
+    + This facilitates writing unit tests for the kernel (and other atmosphere components) and running them under PC.
+      + **Please Note**: Official system software will not work at all under this, and the Atmosphère project has zero interest in attempting to run official software of any kind. This is unit testing machinery, and explicitly not more than that.
+    + This should hopefully allow us to have greater confidence that all of atmosphere's components work the way they're theoretically supposed to in the future.
+    + **Please Note**: If you are a developer who is familiar with the Horizon operating system (or capable of becoming familiar), I would greatly appreciate help writing tests and improving the testing framework.
+      + Please contact `SciresM#0524` if you are capable and interested.
+        + Really, if you are actually a developer who would like to help me get this off the ground, I would deeply appreciate it.
+        + That said, if you are not a developer but want to be one, this probably isn't the best opportunity; I expect it to be highly technical.
+          + Consider the ReSwitched discord's #hack-n-all channel for your educational purposes.
+      + We are (at least for now) using [catch2](https://github.com/catchorg/Catch2) for unit tests.
+  + Almost all virtual calls in the kernel are now resolved statically.
+    + This eliminates substantial virtual call overhead, and should lead to improved kernel microperformance in pretty much every function.
+  + The remaining red black tree find operations which weren't using the optimized "find key" variant are now using the optimized version.
+  + Custom assembly was written to improve tick-to-timespan conversion.
+    + This works around gcc emitting suboptimal assembly at -Os (it emits good assembly at -O3, clang is fine at both -O3 and -Os).
+  + KThread and KSession structures were updated to optimize member layout, saving 0x10 bytes per KThread/KSession object.
+  + Rather than unnecessarily zero-ing all data in kernel objects only to overwrite members later, we now only initialize the members we need to in kernel object constructors.
+    + This is what Nintendo was doing already.
+  + A set of custom optimized atomic primitives were implemented and are used in place of std::atomic<>
+    + This works around a gcc bug which downgrades specified memory order to seq_cst, and introduces clrex in places where it is appropriate.
+    + This should strictly improve microperformance of many system calls.
+  + An compile-time toggleable extension was added to support 40-bit physical addresses in MapRange capabilities (using currently reserved bits).
+  + A number of minor bugs were fixed, including:
+    + Initial cache management now better reflects official behavior.
+      + This fixes an issue that caused certain hardware with cache sensitivity to produce cryptic kernel panics during boot.
+    + Incorrect logic when checking thread priority capabilities was fixed to reflect official behavior.
+    + The scheduler was updated to reflect latest official behavior, and a number of minor bugs involving clz/ctz were fixed.
+    + Accesses to the processes local region were fixed to properly use kernel linear region, not userland pointers.
+    + The cache SVCs exposed for 32-bit processes now better reflect official core mask request semantics.
+    + A bug was fixed that could cause a kernel panic if SvcArbitrateLock was called on a thread with exactly one reference in the middle of handling a user-mode exception.
++ General system stability improvements to enhance the user's experience.
+## 1.2.0
++ `boot` was updated to reflect the latest official behavior for display/battery management.
+  + This should fix any issues that might result from running older releases on the OLED model, if you're somehow in a position to do so.
++ The "target firmware" system was changed to allow the bootloader to specify an approximation, rather than the true target firmware.
+  + Previously we expected compliant bootloaders to inspect SYSTEM:/ to determine the specific target firmware.
+  + Now, we only require an approximate version, with major version == true major version and approximate version <= true version.
+  + This greatly simplifies bootloader requirements, and correspondingly all code for accessing SYSTEM has been removed from fusee.
+    + This should result in a substantial speedup when booting emummc with fusee, as SYSTEM accesses were the most expensive thing done previously.
+  + This should resolve any inconsistency in firmware detection when booting via fusee vs hekate.
+  + This should also improve our compatibility with micro firmware releases, making it more likely that atmosphere "just works" if nothing important has changed.
++ Dynamic resource limit determination logic was implemented in `pm` to match latest official behavior.
+  + This greatly simplifies/makes consistent the resource limits on older firmwares, as well.
++ An enormous amount of refactoring was performed under the hood, including:
+  + **Please Note**: If you are a developer who uses Atmosphere-libs, a number of changes here are breaking.
+    + Feel free to contact SciresM#0524 for help updating your program.
+  + The OS namespace had many primitives implemented/made more accurate.
+  + Since mesosphere is now always-on, os::LightEvent (which required newer SVCs) is now globally usable (and used by stratosphere where relevant).
+  + Assertions are now true no-ops when building for release.
+  + Stratosphere is now built with -Wextra/-Werror.
+  + Most "common" logic in system module main.cpp files was moved into libstratosphere.
+    + **Please Note**: main.cpp files for prior atmosphere-libs will no longer work, for a really large number of reasons.
+  + A number of longstanding code style issues were corrected.
+  + Mesosphere now uses util::BitFlagSet for SVC permissions.
+  + Mesosphere now puts its relocation table inside .bss, which allows that memory to be reclaimed after relocations are performed.
+    + These changes save ~16KB of memory in the kernel, all said and done.
+  + A number of locations in stratosphere where memory could be saved were spotted and taken advantage of, leading to ~150-200KB of saved memory.
+  + The `spl` and `loader` system module was refactored to better reflect official logic.
+  + `sf` ipc server code was updated to only emit mitm/defer logic when that logic is actually required somewhere in process.
+  + `tipc` ipc server code was updated to reflect changes to official logic made in 13.0.0.
+  + Many, many other minor changes, please talk to SciresM#0524 or read the relevant commits if you want to know more.
++ A number of minor issues were fixed, including:
+  + Mesosphere's handling of SVC permissions on thread pin/unpin was updated to reflect official kernel behavior.
+  + util::CountTrailingZeros() was fixed to calculate the correct value when used at compile-time.
++ General system stability improvements to enhance the user's experience.
+## 1.1.1
++ A bug was fixed which caused some memory to leak when launching a game with mods enabled, eventually causing a crash after enough game launches without rebooting.
++ General system stability improvements to enhance the user's experience.
+## 1.1.0
++ Support was implemented for 13.0.0.
+  + `mesosphère` was updated to reflect the latest official kernel behavior.
+  + `ncm` was updated to reflect the latest official behaviors.
+  + `erpt` was  updated to reflect the latest official behaviors.
+    + Two new services ("sprofile") were added to `erpt`, and have been fully reimplemented.
+    + **Please Note**: These services provide a way for settings to be pushed to consoles over the internet without system update.
+      + Because there appear to be no settings pushed out yet, this implementation fundamentally cannot be fully tested right now, but hopefully there are no issues once settings begin being distributed.
++ The `LogManager` system module was reimplemented.
+  + This system module provides services that some games use for logging.
+  + Atmosphere's reimplementation supports logging to the SD card (if `lm!enable_sd_card_logging` is true) and to ams.TMA.
+    + To control the directory where logs are saved, modify the `lm!sd_card_log_output_directory` setting.
+  + Atmosphere's reimplementation is disabled by default (in order to save memory), but can be enabled by setting `lm!enable_log_manager` to true.
+    + This will allow reading over logs from games which use the services (or potentially logging from homebrew in the future), which can be useful to developers.
+    + Please note that when TMA is fully implemented in the future, enabling TMA will forcibly enable `LogManager`.
++ General system stability improvements to enhance the user's experience.
+## 1.0.0
++ `fusee` was completely re-written in C++ to use the same atmosphere-libs APIs as the rest of atmosphere's code.
+  + The rewrite was performed with a big emphasis on ensuring a good boot speed, and generally boot should be much faster than it was previously.
+    + Depending on SD card/environment, boot speed may now be slightly faster than, roughly the same as, or slightly slower than when booting with hekate.
+    + The obvious low-hanging fruit for performance improvements has been picked, so hopefully the improved performance is to everybody's liking.
+  + SD card compatibility was improved: fusee should now have SD card compatibility identical to the official OS driver.
+  + **Please Note**: various components were renamed (fusee-primary.bin -> fusee.bin, fusee-secondary.bin -> package3).
+    + If you use another bootloader (like hekate), you may need to update your configuration to use the new layout.
+  + **Please Note**: BCT.ini no longer exists, nogc configuration has been moved to `/atmosphere/stratosphere.ini`.
+    + If you rely on custom nogc configuration, please be sure to update accordingly.
+  + Custom splash screen BMP parsing is no longer supported (as it slows down boot for 99% of users).
+    + To compensate for this, a script to insert a custom splash screen into a `package3` binary has been added to the `utilities` folder of the atmosphere repository.
+    + The release build should be equivalent to running the following command from the root of the atmosphere repository: `python utilities/insert_splash_screen.py img/splash.png fusee/package3`
++ A number of pending changes were made, following the end of the relevant testing periods:
+  + `mesosphere` is no longer opt-out, and stratosphere code will begin depending on its being present/in use.
+  + `NCM` is no longer opt-out.
+  + The cleanup to ease the transition from < 0.19.0 to 0.19.0 has been removed.
++ General system stability improvements to enhance the user's experience.
+## 0.20.1
++ An issue was fixed that caused severely degraded performance after wake-from-sleep on Mariko hardware.
+  + This was due to Mariko MTC resulting in a frequency of 1599.999MHz instead of 1600MHz.
+  + Due to this off-by-one, Nintendo's EMC management code failed to initialize/take over, and after wake from sleep RAM would be in a strange state.
++ General system stability improvements to enhance the user's experience.
+## 0.20.0
++ DRAM training (MTC) was implemented for Mariko hardware, increasing RAM speed from 204MHz to 1600MHz.
+  + This significantly optimizes Mariko boot speed, cutting boot time roughly in half.
+  + Typical boot time reductions (measured as "select fusee" to "home menu visible"):
+    + Normal (Iowa): ~35 seconds -> ~18 seconds.
+    + Lite (Hoag): ~65 seconds -> ~30 seconds.
+  + NOTE: Work is being started on a re-written `fusee` component, with an eye specifically towards ensuring a good boot speed.
+    + With any luck, boot will be much much faster on all units (Mariko and Erista) in an upcoming release.
++ Sept was replaced, and deleted from the repository.
+  + Erista units now use a custom TSEC firmware to manage key derivation.
+    + For more details, contact SciresM#0524 on discord.
+  + This has a number of benefits, including:
+    + This greatly simplifies key derivation logic by making it consistent on all firmwares.
+      + Fusee no longer accesses/uses keyblobs at all, so units which have accidentally destroyed/lost keyblobs can boot without them.
+    + This greatly increases stability (sept was the biggest source of boot failures).
+    + This improves boot speed (sept rebooted multiple times, performed hardware init multiple times, and was generally very slow).
+    + Atmosphère build process is now much saner.
++ A number of improvements were made to the dmnt cheat engine.
+  + Cheats which take in a memory region operand may now use types "2" or "3" to perform accesses relative to the alias/aslr regions, respectively.
+  + Support was added for an "else" opcode in the cheat engine, to make writing certain conditional logic more natural.
+  + Support was added for a cheat orchestrator homebrew (like edizon) to detach from a cheat process/set the master cheat programmatically.
++ Daybreak now provides a warning when attempting to install a firmware newer than the highest version atmosphère knows it supports.
+  + To facilitate this, exosphere now exposes the supported HOS version via an extension ConfigItem.
++ A number of minor issues were fixed, including:
+  + Several mesosphere debug SVC implementations were updated to reflect the semantics of the latest kernel.
+  + Support was fixed for deriving BIS encryption keys on certain prototype hardware.
++ General system stability improvements to enhance the user's experience.
 ## 0.19.5
 + Support was added for 12.1.0.
 + LayeredFS support was added for OpenDataStorageWithProgramIndex commands.

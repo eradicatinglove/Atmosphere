@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -17,11 +17,12 @@
 
 namespace ams::hid {
 
+    #if defined(ATMOSPHERE_OS_HORIZON)
     namespace {
 
         /* Global lock. */
-        os::Mutex g_hid_lock(false);
-        bool g_initialized_hid = false;
+        constinit os::SdkMutex g_hid_lock;
+        constinit bool g_initialized_hid = false;
 
         /* Set of supported NpadIds (we want to read from any connected controllers). */
         constexpr const HidNpadIdType NpadIdTypes[] = {
@@ -51,14 +52,14 @@ namespace ams::hid {
             if (!g_initialized_hid) {
                 if (!serviceIsActive(hidGetServiceSession())) {
                     if (!pm::info::HasLaunchedBootProgram(ncm::SystemProgramId::Hid)) {
-                        return MAKERESULT(Module_Libnx, LibnxError_InitFail_HID);
+                        R_THROW(MAKERESULT(Module_Libnx, LibnxError_InitFail_HID));
                     }
                     InitializeHid();
                 }
                 g_initialized_hid = true;
             }
 
-            return ResultSuccess();
+            R_SUCCEED();
         }
 
         u64 ReadHidNpad(HidNpadIdType id) {
@@ -85,7 +86,8 @@ namespace ams::hid {
             *out |= ReadHidNpad(static_cast<HidNpadIdType>(controller));
         }
 
-        return ResultSuccess();
+        R_SUCCEED();
     }
+    #endif
 
 }

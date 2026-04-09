@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -35,14 +35,53 @@ namespace ams::fatal::srv {
         constexpr u32 FatalScreenBpp = 2;
         constexpr u32 FatalLayerZ = 100;
 
-        constexpr u32 FatalScreenWidthAlignedBytes = (FatalScreenWidth * FatalScreenBpp + 63) & ~63;
+        constexpr u32 FatalScreenWidthAlignedBytes = util::AlignUp(FatalScreenWidth * FatalScreenBpp, 64);
         constexpr u32 FatalScreenWidthAligned = FatalScreenWidthAlignedBytes / FatalScreenBpp;
 
         /* There should only be a single transfer memory (for nv). */
         alignas(os::MemoryPageSize) constinit u8 g_nv_transfer_memory[0x40000];
 
         /* There should only be a single (1280*768) framebuffer. */
-        alignas(os::MemoryPageSize) constinit u8 g_framebuffer_memory[FatalScreenWidthAlignedBytes * util::AlignUp(FatalScreenHeight, 128)];
+        constexpr size_t FrameBufferRequiredSizeBytes       = FatalScreenWidthAlignedBytes * util::AlignUp(FatalScreenHeight, 128);
+        constexpr size_t FrameBufferRequiredSizePageAligned = util::AlignUp(FrameBufferRequiredSizeBytes, os::MemoryPageSize);
+        constexpr size_t FrameBufferRequiredSizeHeapAligned = util::AlignUp(FrameBufferRequiredSizeBytes, os::MemoryHeapUnitSize);
+
+        constinit u8 *g_framebuffer_pointer = nullptr;
+
+        void InitializeFrameBufferPointer() {
+            /* Try to get a framebuffer from heap. */
+            {
+                if (R_SUCCEEDED(os::SetMemoryHeapSize(FrameBufferRequiredSizeHeapAligned))) {
+                    g_framebuffer_pointer = reinterpret_cast<u8 *>(os::GetMemoryHeapAddress());
+                    return;
+                }
+            }
+
+            /* We couldn't use heap, so try insecure memory, from the system nonsecure pool. */
+            {
+                uintptr_t address = 0;
+                if (R_SUCCEEDED(os::AllocateInsecureMemory(std::addressof(address), FrameBufferRequiredSizePageAligned))) {
+                    g_framebuffer_pointer = reinterpret_cast<u8 *>(address);
+                    return;
+                }
+            }
+
+            /* Neither heap nor insecure is available, so we're going to have to try to raid the unsafe pool. */
+            {
+                /* First, increase the limit to an extremely high value. */
+                size_t large_size = std::max(128_MB, FrameBufferRequiredSizeHeapAligned);
+                while (svc::ResultLimitReached::Includes(svc::SetUnsafeLimit(large_size))) {
+                    large_size *= 2;
+                }
+
+                /* Next, map some unsafe memory. */
+                uintptr_t address = 0;
+                if (R_SUCCEEDED(os::AllocateUnsafeMemory(std::addressof(address), FrameBufferRequiredSizePageAligned))) {
+                    g_framebuffer_pointer = reinterpret_cast<u8 *>(address);
+                    return;
+                }
+            }
+        }
 
     }
 
@@ -70,10 +109,10 @@ namespace ams::fatal::srv {
         /* Task definitions. */
         class ShowFatalTask : public ITaskWithStack<0x8000> {
             private:
-                ViDisplay display;
-                ViLayer layer;
-                NWindow win;
-                NvMap map;
+                ViDisplay m_display;
+                ViLayer m_layer;
+                NWindow m_win;
+                NvMap m_map;
             private:
                 Result SetupDisplayInternal();
                 Result SetupDisplayExternal();
@@ -107,41 +146,41 @@ namespace ams::fatal::srv {
         Result ShowFatalTask::SetupDisplayInternal() {
             ViDisplay temp_display;
             /* Try to open the display. */
-            R_TRY_CATCH(viOpenDisplay("Internal", &temp_display)) {
+            R_TRY_CATCH(viOpenDisplay("Internal", std::addressof(temp_display))) {
                 R_CONVERT(vi::ResultNotFound, ResultSuccess());
             } R_END_TRY_CATCH;
 
             /* Guarantee we close the display. */
-            ON_SCOPE_EXIT { viCloseDisplay(&temp_display); };
+            ON_SCOPE_EXIT { viCloseDisplay(std::addressof(temp_display)); };
 
             /* Turn on the screen. */
             if (hos::GetVersion() >= hos::Version_3_0_0) {
-                R_TRY(viSetDisplayPowerState(&temp_display, ViPowerState_On));
+                R_TRY(viSetDisplayPowerState(std::addressof(temp_display), ViPowerState_On));
             } else {
                 /* Prior to 3.0.0, the ViPowerState enum was different (0 = Off, 1 = On). */
-                R_TRY(viSetDisplayPowerState(&temp_display, ViPowerState_On_Deprecated));
+                R_TRY(viSetDisplayPowerState(std::addressof(temp_display), ViPowerState_On_Deprecated));
             }
 
             /* Set alpha to 1.0f. */
-            R_TRY(viSetDisplayAlpha(&temp_display, 1.0f));
+            R_TRY(viSetDisplayAlpha(std::addressof(temp_display), 1.0f));
 
-            return ResultSuccess();
+            R_SUCCEED();
         }
 
         Result ShowFatalTask::SetupDisplayExternal() {
             ViDisplay temp_display;
             /* Try to open the display. */
-            R_TRY_CATCH(viOpenDisplay("External", &temp_display)) {
+            R_TRY_CATCH(viOpenDisplay("External", std::addressof(temp_display))) {
                 R_CONVERT(vi::ResultNotFound, ResultSuccess());
             } R_END_TRY_CATCH;
 
             /* Guarantee we close the display. */
-            ON_SCOPE_EXIT { viCloseDisplay(&temp_display); };
+            ON_SCOPE_EXIT { viCloseDisplay(std::addressof(temp_display)); };
 
             /* Set alpha to 1.0f. */
-            R_TRY(viSetDisplayAlpha(&temp_display, 1.0f));
+            R_TRY(viSetDisplayAlpha(std::addressof(temp_display), 1.0f));
 
-            return ResultSuccess();
+            R_SUCCEED();
         }
 
         Result ShowFatalTask::PrepareScreenForDrawing() {
@@ -156,19 +195,19 @@ namespace ams::fatal::srv {
             R_TRY(SetupDisplayExternal());
 
             /* Open the default display. */
-            R_TRY(viOpenDefaultDisplay(&this->display));
+            R_TRY(viOpenDefaultDisplay(std::addressof(m_display)));
 
             /* Reset the display magnification to its default value. */
             s32 display_width, display_height;
-            R_TRY(viGetDisplayLogicalResolution(&this->display, &display_width, &display_height));
+            R_TRY(viGetDisplayLogicalResolution(std::addressof(m_display), std::addressof(display_width), std::addressof(display_height)));
 
             /* viSetDisplayMagnification was added in 3.0.0. */
             if (hos::GetVersion() >= hos::Version_3_0_0) {
-                R_TRY(viSetDisplayMagnification(&this->display, 0, 0, display_width, display_height));
+                R_TRY(viSetDisplayMagnification(std::addressof(m_display), 0, 0, display_width, display_height));
             }
 
             /* Create layer to draw to. */
-            R_TRY(viCreateLayer(&this->display, &this->layer));
+            R_TRY(viCreateLayer(std::addressof(m_display), std::addressof(m_layer)));
 
             /* Setup the layer. */
             {
@@ -183,27 +222,31 @@ namespace ams::fatal::srv {
                 const float layer_x = static_cast<float>((display_width - LayerWidth) / 2);
                 const float layer_y = static_cast<float>((display_height - LayerHeight) / 2);
 
-                R_TRY(viSetLayerSize(&this->layer, LayerWidth, LayerHeight));
+                R_TRY(viSetLayerSize(std::addressof(m_layer), LayerWidth, LayerHeight));
 
                 /* Set the layer's Z at display maximum, to be above everything else .*/
-                R_TRY(viSetLayerZ(&this->layer, FatalLayerZ));
+                R_TRY(viSetLayerZ(std::addressof(m_layer), FatalLayerZ));
 
                 /* Center the layer in the screen. */
-                R_TRY(viSetLayerPosition(&this->layer, layer_x, layer_y));
+                R_TRY(viSetLayerPosition(std::addressof(m_layer), layer_x, layer_y));
 
                 /* Create framebuffer. */
-                R_TRY(nwindowCreateFromLayer(&this->win, &this->layer));
+                R_TRY(nwindowCreateFromLayer(std::addressof(m_win), std::addressof(m_layer)));
                 R_TRY(this->InitializeNativeWindow());
             }
 
-            return ResultSuccess();
+            R_SUCCEED();
         }
 
         void ShowFatalTask::PreRenderFrameBuffer() {
             const FatalConfig &config = GetFatalConfig();
 
+            /* Allocate a frame buffer. */
+            InitializeFrameBufferPointer();
+            AMS_ABORT_UNLESS(g_framebuffer_pointer != nullptr);
+
             /* Pre-render the image into the static framebuffer. */
-            u16 *tiled_buf = reinterpret_cast<u16 *>(g_framebuffer_memory);
+            u16 *tiled_buf = reinterpret_cast<u16 *>(g_framebuffer_pointer);
 
             /* Temporarily use the NV transfer memory as font backing heap. */
             font::SetHeapMemory(g_nv_transfer_memory, sizeof(g_nv_transfer_memory));
@@ -214,8 +257,8 @@ namespace ams::fatal::srv {
             font::SetFontColor(0xFFFF);
 
             /* Draw a background. */
-            for (size_t i = 0; i < sizeof(g_framebuffer_memory) / sizeof(*tiled_buf); i++) {
-                tiled_buf[i] = 0x39C9;
+            for (size_t i = 0; i < FrameBufferRequiredSizeBytes / sizeof(*tiled_buf); i++) {
+                tiled_buf[i] = AtmosphereLogoData[0];
             }
 
             /* Draw the atmosphere logo in the upper right corner. */
@@ -229,15 +272,14 @@ namespace ams::fatal::srv {
             /* Draw error message and firmware. */
             font::SetPosition(start_x, start_y);
             font::SetFontSize(16.0f);
-            font::PrintFormat(config.GetErrorMessage(), this->context->result.GetModule(), this->context->result.GetDescription(), this->context->result.GetValue());
+            font::PrintFormat(config.GetErrorMessage(), m_context->result.GetModule(), m_context->result.GetDescription(), m_context->result.GetValue());
             font::AddSpacingLines(0.5f);
-            font::PrintFormatLine(  "Program:  %016lX", static_cast<u64>(this->context->program_id));
+            font::PrintFormatLine(  "Program:  %016lX", static_cast<u64>(m_context->program_id));
             font::AddSpacingLines(0.5f);
 
-            /* TODO: Remove Mesosphere identifier in 1.0.0. */
-            font::PrintFormatLine("Firmware: %s (Atmosphère%s %u.%u.%u-%s)", config.GetFirmwareVersion().display_version, svc::IsKernelMesosphere() ? " M" : "", ATMOSPHERE_RELEASE_VERSION, ams::GetGitRevision());
+            font::PrintFormatLine("Firmware: %s (Atmosphère %u.%u.%u-%s)", config.GetFirmwareVersion().display_version, ATMOSPHERE_RELEASE_VERSION, ams::GetGitRevision());
             font::AddSpacingLines(1.5f);
-            if (!exosphere::ResultVersionMismatch::Includes(this->context->result)) {
+            if (!exosphere::ResultVersionMismatch::Includes(m_context->result)) {
                 font::Print(config.GetErrorDescription());
             } else {
                 /* Print a special message for atmosphere version mismatch. */
@@ -261,7 +303,7 @@ namespace ams::fatal::srv {
             u32 pc_x = 0;
 
             /* Note architecutre. */
-            const bool is_aarch32 = this->context->cpu_ctx.architecture == CpuContext::Architecture_Aarch32;
+            const bool is_aarch32 = m_context->cpu_ctx.architecture == CpuContext::Architecture_Aarch32;
 
             /* Print GPRs. */
             font::SetFontSize(14.0f);
@@ -274,8 +316,8 @@ namespace ams::fatal::srv {
                     u32 x = font::GetX();
                     font::PrintFormat("%s:", aarch32::CpuContext::RegisterNameStrings[i]);
                     font::SetPosition(x + 47, font::GetY());
-                    if (this->context->cpu_ctx.aarch32_ctx.HasRegisterValue(static_cast<aarch32::RegisterName>(i))) {
-                        font::PrintMonospaceU32(this->context->cpu_ctx.aarch32_ctx.r[i]);
+                    if (m_context->cpu_ctx.aarch32_ctx.HasRegisterValue(static_cast<aarch32::RegisterName>(i))) {
+                        font::PrintMonospaceU32(m_context->cpu_ctx.aarch32_ctx.r[i]);
                         font::PrintMonospaceBlank(8);
                     } else {
                         font::PrintMonospaceBlank(16);
@@ -284,8 +326,8 @@ namespace ams::fatal::srv {
                     pc_x = font::GetX();
                     font::PrintFormat("%s:", aarch32::CpuContext::RegisterNameStrings[i + (aarch32::RegisterName_GeneralPurposeCount / 2)]);
                     font::SetPosition(pc_x + 47, font::GetY());
-                    if (this->context->cpu_ctx.aarch32_ctx.HasRegisterValue(static_cast<aarch32::RegisterName>(i + (aarch32::RegisterName_GeneralPurposeCount / 2)))) {
-                        font::PrintMonospaceU32(this->context->cpu_ctx.aarch32_ctx.r[i + (aarch32::RegisterName_GeneralPurposeCount / 2)]);
+                    if (m_context->cpu_ctx.aarch32_ctx.HasRegisterValue(static_cast<aarch32::RegisterName>(i + (aarch32::RegisterName_GeneralPurposeCount / 2)))) {
+                        font::PrintMonospaceU32(m_context->cpu_ctx.aarch32_ctx.r[i + (aarch32::RegisterName_GeneralPurposeCount / 2)]);
                         font::PrintMonospaceBlank(8);
                     } else {
                         font::PrintMonospaceBlank(16);
@@ -304,8 +346,8 @@ namespace ams::fatal::srv {
                     u32 x = font::GetX();
                     font::PrintFormat("%s:", aarch64::CpuContext::RegisterNameStrings[i]);
                     font::SetPosition(x + 47, font::GetY());
-                    if (this->context->cpu_ctx.aarch64_ctx.HasRegisterValue(static_cast<aarch64::RegisterName>(i))) {
-                        font::PrintMonospaceU64(this->context->cpu_ctx.aarch64_ctx.x[i]);
+                    if (m_context->cpu_ctx.aarch64_ctx.HasRegisterValue(static_cast<aarch64::RegisterName>(i))) {
+                        font::PrintMonospaceU64(m_context->cpu_ctx.aarch64_ctx.x[i]);
                     } else {
                         font::PrintMonospaceBlank(16);
                     }
@@ -313,8 +355,8 @@ namespace ams::fatal::srv {
                     pc_x = font::GetX();
                     font::PrintFormat("%s:", aarch64::CpuContext::RegisterNameStrings[i + (aarch64::RegisterName_GeneralPurposeCount / 2)]);
                     font::SetPosition(pc_x + 47, font::GetY());
-                    if (this->context->cpu_ctx.aarch64_ctx.HasRegisterValue(static_cast<aarch64::RegisterName>(i + (aarch64::RegisterName_GeneralPurposeCount / 2)))) {
-                        font::PrintMonospaceU64(this->context->cpu_ctx.aarch64_ctx.x[i + (aarch64::RegisterName_GeneralPurposeCount / 2)]);
+                    if (m_context->cpu_ctx.aarch64_ctx.HasRegisterValue(static_cast<aarch64::RegisterName>(i + (aarch64::RegisterName_GeneralPurposeCount / 2)))) {
+                        font::PrintMonospaceU64(m_context->cpu_ctx.aarch64_ctx.x[i + (aarch64::RegisterName_GeneralPurposeCount / 2)]);
                     } else {
                         font::PrintMonospaceBlank(16);
                     }
@@ -337,17 +379,17 @@ namespace ams::fatal::srv {
                 font::SetPosition(x + 47, font::GetY());
             }
             if (is_aarch32) {
-                font::PrintMonospaceU32(this->context->cpu_ctx.aarch32_ctx.pc);
+                font::PrintMonospaceU32(m_context->cpu_ctx.aarch32_ctx.pc);
             } else {
-                font::PrintMonospaceU64(this->context->cpu_ctx.aarch64_ctx.pc);
+                font::PrintMonospaceU64(m_context->cpu_ctx.aarch64_ctx.pc);
             }
 
             /* Print Backtrace. */
             u32 bt_size;
             if (is_aarch32) {
-                bt_size = this->context->cpu_ctx.aarch32_ctx.stack_trace_size;
+                bt_size = m_context->cpu_ctx.aarch32_ctx.stack_trace_size;
             } else {
-                bt_size = this->context->cpu_ctx.aarch64_ctx.stack_trace_size;
+                bt_size = m_context->cpu_ctx.aarch64_ctx.stack_trace_size;
             }
 
 
@@ -355,29 +397,29 @@ namespace ams::fatal::srv {
             if (bt_size == 0) {
                 if (is_aarch32) {
                     font::Print("Start Address: ");
-                    font::PrintMonospaceU32(this->context->cpu_ctx.aarch32_ctx.base_address);
+                    font::PrintMonospaceU32(m_context->cpu_ctx.aarch32_ctx.base_address);
                     font::PrintLine("");
                 } else {
                     font::Print("Start Address: ");
-                    font::PrintMonospaceU64(this->context->cpu_ctx.aarch64_ctx.base_address);
+                    font::PrintMonospaceU64(m_context->cpu_ctx.aarch64_ctx.base_address);
                     font::PrintLine("");
                 }
             } else {
                 if (is_aarch32) {
                     font::Print("Backtrace - Start Address: ");
-                    font::PrintMonospaceU32(this->context->cpu_ctx.aarch32_ctx.base_address);
+                    font::PrintMonospaceU32(m_context->cpu_ctx.aarch32_ctx.base_address);
                     font::PrintLine("");
                     font::AddSpacingLines(0.5f);
                     for (u32 i = 0; i < aarch32::CpuContext::MaxStackTraceDepth / 2; i++) {
                         u32 bt_cur = 0, bt_next = 0;
-                        if (i < this->context->cpu_ctx.aarch32_ctx.stack_trace_size) {
-                            bt_cur = this->context->cpu_ctx.aarch32_ctx.stack_trace[i];
+                        if (i < m_context->cpu_ctx.aarch32_ctx.stack_trace_size) {
+                            bt_cur = m_context->cpu_ctx.aarch32_ctx.stack_trace[i];
                         }
-                        if (i + aarch32::CpuContext::MaxStackTraceDepth / 2 < this->context->cpu_ctx.aarch32_ctx.stack_trace_size) {
-                            bt_next = this->context->cpu_ctx.aarch32_ctx.stack_trace[i + aarch32::CpuContext::MaxStackTraceDepth / 2];
+                        if (i + aarch32::CpuContext::MaxStackTraceDepth / 2 < m_context->cpu_ctx.aarch32_ctx.stack_trace_size) {
+                            bt_next = m_context->cpu_ctx.aarch32_ctx.stack_trace[i + aarch32::CpuContext::MaxStackTraceDepth / 2];
                         }
 
-                        if (i < this->context->cpu_ctx.aarch32_ctx.stack_trace_size) {
+                        if (i < m_context->cpu_ctx.aarch32_ctx.stack_trace_size) {
                             u32 x = font::GetX();
                             font::PrintFormat("BT[%02d]: ", i);
                             font::SetPosition(x + 72, font::GetY());
@@ -386,7 +428,7 @@ namespace ams::fatal::srv {
                             font::Print("  ");
                         }
 
-                        if (i + aarch32::CpuContext::MaxStackTraceDepth / 2 < this->context->cpu_ctx.aarch32_ctx.stack_trace_size) {
+                        if (i + aarch32::CpuContext::MaxStackTraceDepth / 2 < m_context->cpu_ctx.aarch32_ctx.stack_trace_size) {
                             u32 x = font::GetX();
                             font::PrintFormat("BT[%02d]: ", i + aarch32::CpuContext::MaxStackTraceDepth / 2);
                             font::SetPosition(x + 72, font::GetY());
@@ -399,19 +441,19 @@ namespace ams::fatal::srv {
                     }
                 } else {
                     font::Print("Backtrace - Start Address: ");
-                    font::PrintMonospaceU64(this->context->cpu_ctx.aarch64_ctx.base_address);
+                    font::PrintMonospaceU64(m_context->cpu_ctx.aarch64_ctx.base_address);
                     font::PrintLine("");
                     font::AddSpacingLines(0.5f);
                     for (u32 i = 0; i < aarch64::CpuContext::MaxStackTraceDepth / 2; i++) {
                         u64 bt_cur = 0, bt_next = 0;
-                        if (i < this->context->cpu_ctx.aarch64_ctx.stack_trace_size) {
-                            bt_cur = this->context->cpu_ctx.aarch64_ctx.stack_trace[i];
+                        if (i < m_context->cpu_ctx.aarch64_ctx.stack_trace_size) {
+                            bt_cur = m_context->cpu_ctx.aarch64_ctx.stack_trace[i];
                         }
-                        if (i + aarch64::CpuContext::MaxStackTraceDepth / 2 < this->context->cpu_ctx.aarch64_ctx.stack_trace_size) {
-                            bt_next = this->context->cpu_ctx.aarch64_ctx.stack_trace[i + aarch64::CpuContext::MaxStackTraceDepth / 2];
+                        if (i + aarch64::CpuContext::MaxStackTraceDepth / 2 < m_context->cpu_ctx.aarch64_ctx.stack_trace_size) {
+                            bt_next = m_context->cpu_ctx.aarch64_ctx.stack_trace[i + aarch64::CpuContext::MaxStackTraceDepth / 2];
                         }
 
-                        if (i < this->context->cpu_ctx.aarch64_ctx.stack_trace_size) {
+                        if (i < m_context->cpu_ctx.aarch64_ctx.stack_trace_size) {
                             u32 x = font::GetX();
                             font::PrintFormat("BT[%02d]: ", i);
                             font::SetPosition(x + 72, font::GetY());
@@ -419,7 +461,7 @@ namespace ams::fatal::srv {
                             font::Print("  ");
                         }
 
-                        if (i + aarch64::CpuContext::MaxStackTraceDepth / 2 < this->context->cpu_ctx.aarch64_ctx.stack_trace_size) {
+                        if (i + aarch64::CpuContext::MaxStackTraceDepth / 2 < m_context->cpu_ctx.aarch64_ctx.stack_trace_size) {
                             u32 x = font::GetX();
                             font::PrintFormat("BT[%02d]: ", i + aarch64::CpuContext::MaxStackTraceDepth / 2);
                             font::SetPosition(x + 72, font::GetY());
@@ -440,7 +482,7 @@ namespace ams::fatal::srv {
             R_TRY(nvFenceInit());
 
             /* Create nvmap. */
-            R_TRY(nvMapCreate(&this->map, g_framebuffer_memory, sizeof(g_framebuffer_memory), 0x20000, NvKind_Pitch, true));
+            R_TRY(nvMapCreate(std::addressof(m_map), g_framebuffer_pointer, FrameBufferRequiredSizeBytes, 0x20000, NvKind_Pitch, true));
 
             /* Setup graphics buffer. */
             {
@@ -459,24 +501,24 @@ namespace ams::fatal::srv {
                 grbuf.planes[0].layout              = NvLayout_BlockLinear;
                 grbuf.planes[0].kind                = NvKind_Generic_16BX2;
                 grbuf.planes[0].block_height_log2   = 4;
-                grbuf.nvmap_id                      = nvMapGetId(&this->map);
+                grbuf.nvmap_id                      = nvMapGetId(std::addressof(m_map));
                 grbuf.stride                        = FatalScreenWidthAligned;
-                grbuf.total_size                    = sizeof(g_framebuffer_memory);
+                grbuf.total_size                    = FrameBufferRequiredSizeBytes;
                 grbuf.planes[0].pitch               = FatalScreenWidthAlignedBytes;
-                grbuf.planes[0].size                = sizeof(g_framebuffer_memory);
+                grbuf.planes[0].size                = FrameBufferRequiredSizeBytes;
                 grbuf.planes[0].offset              = 0;
 
-                R_TRY(nwindowConfigureBuffer(&this->win, 0, &grbuf));
+                R_TRY(nwindowConfigureBuffer(std::addressof(m_win), 0, std::addressof(grbuf)));
             }
 
-            return ResultSuccess();
+            R_SUCCEED();
         }
 
         void ShowFatalTask::DisplayPreRenderedFrame() {
             s32 slot;
-            R_ABORT_UNLESS(nwindowDequeueBuffer(&this->win, &slot, nullptr));
-            dd::FlushDataCache(g_framebuffer_memory, sizeof(g_framebuffer_memory));
-            R_ABORT_UNLESS(nwindowQueueBuffer(&this->win, this->win.cur_slot, NULL));
+            R_ABORT_UNLESS(nwindowDequeueBuffer(std::addressof(m_win), std::addressof(slot), nullptr));
+            dd::FlushDataCache(g_framebuffer_pointer, FrameBufferRequiredSizeBytes);
+            R_ABORT_UNLESS(nwindowQueueBuffer(std::addressof(m_win), m_win.cur_slot, NULL));
         }
 
         Result ShowFatalTask::ShowFatal() {
@@ -489,35 +531,37 @@ namespace ams::fatal::srv {
             /* Display the pre-rendered frame. */
             this->DisplayPreRenderedFrame();
 
-            return ResultSuccess();
+            R_SUCCEED();
         }
 
         Result ShowFatalTask::Run() {
             /* Don't show the fatal error screen until we've verified the battery is okay. */
-            this->context->battery_event->Wait();
+            m_context->battery_event->Wait();
 
-            return ShowFatal();
+            R_RETURN(ShowFatal());
         }
 
         void BacklightControlTask::TurnOnBacklight() {
-            lblSwitchBacklightOn(0);
+            R_ABORT_UNLESS(::lblInitialize());
+            ::lblSwitchBacklightOn(0);
+            ::lblExit();
         }
 
         Result BacklightControlTask::Run() {
             TurnOnBacklight();
-            return ResultSuccess();
+            R_SUCCEED();
         }
 
     }
 
     ITask *GetShowFatalTask(const ThrowContext *ctx) {
         g_show_fatal_task.Initialize(ctx);
-        return &g_show_fatal_task;
+        return std::addressof(g_show_fatal_task);
     }
 
     ITask *GetBacklightControlTask(const ThrowContext *ctx) {
         g_backlight_control_task.Initialize(ctx);
-        return &g_backlight_control_task;
+        return std::addressof(g_backlight_control_task);
     }
 
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -25,4 +25,4 @@
     AMS_SF_METHOD_INFO(C, H,  1, Result, OpenSession,                        (ams::sf::Out<ams::sf::SharedPointer<pwm::sf::IChannelSession>> out, pwm::ChannelName channel_name), (out, channel_name)                    ) \
     AMS_SF_METHOD_INFO(C, H,  2, Result, OpenSession2,                       (ams::sf::Out<ams::sf::SharedPointer<pwm::sf::IChannelSession>> out, DeviceCode device_code),        (out, device_code),  hos::Version_6_0_0)
 
-AMS_SF_DEFINE_INTERFACE(ams::pwm::sf, IManager, AMS_PWM_I_MANAGER_INTERFACE_INFO)
+AMS_SF_DEFINE_INTERFACE(ams::pwm::sf, IManager, AMS_PWM_I_MANAGER_INTERFACE_INFO, 0xBC382479)

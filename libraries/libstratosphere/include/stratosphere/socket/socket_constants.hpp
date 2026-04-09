@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -20,6 +20,8 @@ namespace ams::socket {
 
     constexpr inline s32 InvalidSocket = -1;
     constexpr inline s32 SocketError   = -1;
+
+    constexpr inline u32 MaxSocketsPerClient = 0x80;
 
     constexpr inline auto DefaultTcpAutoBufferSizeMax      = 192_KB;
     constexpr inline auto MinTransferMemorySize            = (2 * DefaultTcpAutoBufferSizeMax + 128_KB);

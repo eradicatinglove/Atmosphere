@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -16,8 +16,16 @@
 
 #pragma once
 
+/* Ensure that on windows we use lean-windows headers. */
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+
 /* libvapours (pulls in util, svc, results). */
 #include <vapours.hpp>
+
+/* Libstratosphere diagnostics. */
+#include <stratosphere/diag.hpp>
 
 /* Libstratosphere definitions. */
 #include <stratosphere/ams/impl/ams_system_thread_definitions.hpp>
@@ -51,6 +59,7 @@
 #include <stratosphere/erpt.hpp>
 #include <stratosphere/err.hpp>
 #include <stratosphere/fatal.hpp>
+#include <stratosphere/gc.hpp>
 #include <stratosphere/gpio.hpp>
 #include <stratosphere/hid.hpp>
 #include <stratosphere/hos.hpp>
@@ -59,14 +68,17 @@
 #include <stratosphere/htclow.hpp>
 #include <stratosphere/htcs.hpp>
 #include <stratosphere/i2c.hpp>
+#include <stratosphere/init.hpp>
 #include <stratosphere/kvdb.hpp>
 #include <stratosphere/ldr.hpp>
 #include <stratosphere/lr.hpp>
-#include <stratosphere/map.hpp>
+#include <stratosphere/lm.hpp>
+#include <stratosphere/mitm.hpp>
 #include <stratosphere/ncm.hpp>
 #include <stratosphere/nim.hpp>
 #include <stratosphere/ns.hpp>
 #include <stratosphere/nsd.hpp>
+#include <stratosphere/osdbg.hpp>
 #include <stratosphere/patcher.hpp>
 #include <stratosphere/pcv.hpp>
 #include <stratosphere/pgl.hpp>
@@ -83,6 +95,7 @@
 #include <stratosphere/sm.hpp>
 #include <stratosphere/socket.hpp>
 #include <stratosphere/spl.hpp>
+#include <stratosphere/sprofile.hpp>
 #include <stratosphere/time.hpp>
 #include <stratosphere/tipc.hpp>
 #include <stratosphere/tma.hpp>

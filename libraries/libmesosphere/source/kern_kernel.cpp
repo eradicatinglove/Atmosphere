@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -50,10 +50,10 @@ namespace ams::kern {
         void    *main_thread_stack = GetVoidPointer(KMemoryLayout::GetMainStackTopAddress(core_id));
         KThread *idle_thread       = std::addressof(Kernel::GetIdleThread(core_id));
         void    *idle_thread_stack = GetVoidPointer(KMemoryLayout::GetIdleStackTopAddress(core_id));
-        KAutoObject::Create(main_thread);
-        KAutoObject::Create(idle_thread);
-        main_thread->Initialize(nullptr, 0, main_thread_stack, 0, KThread::MainThreadPriority, core_id, nullptr, KThread::ThreadType_Main);
-        idle_thread->Initialize(nullptr, 0, idle_thread_stack, 0, KThread::IdleThreadPriority, core_id, nullptr, KThread::ThreadType_Main);
+        KAutoObject::Create<KThread>(main_thread);
+        KAutoObject::Create<KThread>(idle_thread);
+        MESOSPHERE_R_ABORT_UNLESS(main_thread->Initialize(nullptr, 0, main_thread_stack, 0, KThread::MainThreadPriority, core_id, nullptr, KThread::ThreadType_Main));
+        MESOSPHERE_R_ABORT_UNLESS(idle_thread->Initialize(nullptr, 0, idle_thread_stack, 0, KThread::IdleThreadPriority, core_id, nullptr, KThread::ThreadType_Main));
 
         /* Set the current thread to be the main thread, and we have no processes running yet. */
         SetCurrentThread(main_thread);
@@ -66,29 +66,53 @@ namespace ams::kern {
 
     void Kernel::InitializeResourceManagers(KVirtualAddress address, size_t size) {
         /* Ensure that the buffer is suitable for our use. */
-        //const size_t app_size   = ApplicationMemoryBlockSlabHeapSize * sizeof(KMemoryBlock);
-        //const size_t sys_size   = SystemMemoryBlockSlabHeapSize      * sizeof(KMemoryBlock);
-        //const size_t info_size  = BlockInfoSlabHeapSize              * sizeof(KBlockInfo);
-        //const size_t fixed_size = util::AlignUp(app_size + sys_size + info_size, PageSize);
         MESOSPHERE_ABORT_UNLESS(util::IsAligned(GetInteger(address), PageSize));
         MESOSPHERE_ABORT_UNLESS(util::IsAligned(size, PageSize));
 
         /* Ensure that we have space for our reference counts. */
-        const size_t rc_size = util::AlignUp(KPageTableManager::CalculateReferenceCountSize(size), PageSize);
+        const size_t rc_size = util::AlignUp(KPageTableSlabHeap::CalculateReferenceCountSize(size), PageSize);
         MESOSPHERE_ABORT_UNLESS(rc_size < size);
         size -= rc_size;
 
+        /* Determine dynamic page managers. */
+        KDynamicPageManager * const app_dynamic_page_manager = nullptr;
+        KDynamicPageManager * const sys_dynamic_page_manager = KTargetSystem::IsDynamicResourceLimitsEnabled() ? std::addressof(g_resource_manager_page_manager) : nullptr;
+
         /* Initialize the resource managers' shared page manager. */
-        g_resource_manager_page_manager.Initialize(address, size);
+        MESOSPHERE_R_ABORT_UNLESS(g_resource_manager_page_manager.Initialize(address, size, std::max<size_t>(PageSize, KPageBufferSlabHeap::BufferSize)));
 
-        /* Initialize the fixed-size slabheaps. */
-        s_app_memory_block_manager.Initialize(std::addressof(g_resource_manager_page_manager), ApplicationMemoryBlockSlabHeapSize);
-        s_sys_memory_block_manager.Initialize(std::addressof(g_resource_manager_page_manager), SystemMemoryBlockSlabHeapSize);
-        s_block_info_manager.Initialize(std::addressof(g_resource_manager_page_manager), BlockInfoSlabHeapSize);
+        /* Initialize the KPageBuffer slab heap. */
+        KPageBuffer::InitializeSlabHeap(g_resource_manager_page_manager);
 
-        /* Reserve all remaining pages for the page table manager. */
-        const size_t num_pt_pages = g_resource_manager_page_manager.GetCount() - g_resource_manager_page_manager.GetUsed();
-        s_page_table_manager.Initialize(std::addressof(g_resource_manager_page_manager), num_pt_pages, GetPointer<KPageTableManager::RefCount>(address + size));
+        /* Initialize the block info heap. */
+        s_block_info_heap.Initialize(std::addressof(g_resource_manager_page_manager), BlockInfoSlabHeapSize);
+
+        /* Initialize the system slab managers. */
+        s_sys_block_info_manager.Initialize(sys_dynamic_page_manager, std::addressof(s_block_info_heap));
+        s_sys_memory_block_heap.Initialize(std::addressof(g_resource_manager_page_manager), SystemMemoryBlockSlabHeapSize);
+        s_sys_memory_block_manager.Initialize(sys_dynamic_page_manager, std::addressof(s_sys_memory_block_heap));
+
+        /* Initialize the application slab managers. */
+        s_app_block_info_manager.Initialize(app_dynamic_page_manager, std::addressof(s_block_info_heap));
+        s_app_memory_block_heap.Initialize(std::addressof(g_resource_manager_page_manager), ApplicationMemoryBlockSlabHeapSize);
+        s_app_memory_block_manager.Initialize(app_dynamic_page_manager, std::addressof(s_app_memory_block_heap));
+
+        /* Reserve all but a fixed number of remaining pages for the page table heap. */
+        const size_t num_pt_pages = g_resource_manager_page_manager.GetCount() - g_resource_manager_page_manager.GetUsed() - ReservedDynamicPageCount;
+        s_page_table_heap.Initialize(std::addressof(g_resource_manager_page_manager), num_pt_pages, GetPointer<KPageTableManager::RefCount>(address + size));
+
+        /* Create and initialize the system system resource. */
+        s_sys_page_table_manager.Initialize(sys_dynamic_page_manager, std::addressof(s_page_table_heap));
+        KAutoObject::Create<KSystemResource>(std::addressof(s_sys_system_resource));
+        s_sys_system_resource.SetManagers(s_sys_memory_block_manager, s_sys_block_info_manager, s_sys_page_table_manager);
+
+        /* Create and initialize the application system resource. */
+        s_app_page_table_manager.Initialize(app_dynamic_page_manager, std::addressof(s_page_table_heap));
+        KAutoObject::Create<KSystemResource>(std::addressof(s_app_system_resource));
+        s_app_system_resource.SetManagers(s_app_memory_block_manager, s_app_block_info_manager, s_app_page_table_manager);
+
+        /* Check that we have the correct number of dynamic pages available. */
+        MESOSPHERE_ABORT_UNLESS(g_resource_manager_page_manager.GetCount() - g_resource_manager_page_manager.GetUsed() == ReservedDynamicPageCount);
     }
 
     void Kernel::PrintLayout() {
@@ -124,23 +148,32 @@ namespace ams::kern {
         PrintMemoryRegion("    KernelRegion",       KMemoryLayout::GetKernelRegionPhysicalExtents());
         PrintMemoryRegion("        Code",           KMemoryLayout::GetKernelCodeRegionPhysicalExtents());
         PrintMemoryRegion("        Slab",           KMemoryLayout::GetKernelSlabRegionPhysicalExtents());
+        if constexpr (KSystemControl::SecureAppletMemorySize > 0) {
+            PrintMemoryRegion("        SecureApplet", KMemoryLayout::GetKernelSecureAppletMemoryRegionPhysicalExtents());
+        }
         PrintMemoryRegion("        PageTableHeap",  KMemoryLayout::GetKernelPageTableHeapRegionPhysicalExtents());
         PrintMemoryRegion("        InitPageTable",  KMemoryLayout::GetKernelInitPageTableRegionPhysicalExtents());
+        if constexpr (IsKTraceEnabled) {
+            MESOSPHERE_LOG("    DebugRegion\n");
+            PrintMemoryRegion("        Trace Buffer",   KMemoryLayout::GetKernelTraceBufferRegionPhysicalExtents());
+        }
         PrintMemoryRegion("    MemoryPoolRegion",   KMemoryLayout::GetKernelPoolPartitionRegionPhysicalExtents());
         if (GetTargetFirmware() >= TargetFirmware_5_0_0) {
-            PrintMemoryRegion("        System",         KMemoryLayout::GetKernelSystemPoolRegionPhysicalExtents());
             PrintMemoryRegion("        Management",     KMemoryLayout::GetKernelPoolManagementRegionPhysicalExtents());
-            PrintMemoryRegion("        SystemUnsafe",   KMemoryLayout::GetKernelSystemNonSecurePoolRegionPhysicalExtents());
-            PrintMemoryRegion("        Applet",         KMemoryLayout::GetKernelAppletPoolRegionPhysicalExtents());
-            PrintMemoryRegion("        Application",    KMemoryLayout::GetKernelApplicationPoolRegionPhysicalExtents());
+            PrintMemoryRegion("        System",         KMemoryLayout::GetKernelSystemPoolRegionPhysicalExtents());
+            if (KMemoryLayout::HasKernelSystemNonSecurePoolRegion()) {
+                PrintMemoryRegion("        SystemUnsafe",   KMemoryLayout::GetKernelSystemNonSecurePoolRegionPhysicalExtents());
+            }
+            if (KMemoryLayout::HasKernelAppletPoolRegion()) {
+                PrintMemoryRegion("        Applet",         KMemoryLayout::GetKernelAppletPoolRegionPhysicalExtents());
+            }
+            if (KMemoryLayout::HasKernelApplicationPoolRegion()) {
+                PrintMemoryRegion("        Application",    KMemoryLayout::GetKernelApplicationPoolRegionPhysicalExtents());
+            }
         } else {
-            PrintMemoryRegion("        Secure",     KMemoryLayout::GetKernelSystemPoolRegionPhysicalExtents());
             PrintMemoryRegion("        Management", KMemoryLayout::GetKernelPoolManagementRegionPhysicalExtents());
+            PrintMemoryRegion("        Secure",     KMemoryLayout::GetKernelSystemPoolRegionPhysicalExtents());
             PrintMemoryRegion("        Unsafe",     KMemoryLayout::GetKernelApplicationPoolRegionPhysicalExtents());
-        }
-        if constexpr (IsKTraceEnabled) {
-            MESOSPHERE_LOG("    Debug\n");
-            PrintMemoryRegion("        Trace Buffer",   KMemoryLayout::GetKernelTraceBufferRegionPhysicalExtents());
         }
         MESOSPHERE_LOG("\n");
     }

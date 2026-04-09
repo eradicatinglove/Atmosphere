@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -22,6 +22,8 @@ namespace ams::pm {
         public:
             /* Actual command implementations. */
             Result GetProgramId(sf::Out<ncm::ProgramId> out, os::ProcessId process_id);
+            Result GetAppletResourceLimitCurrentValue(sf::Out<pm::ResourceLimitValue> out);
+            Result GetAppletResourceLimitPeakValue(sf::Out<pm::ResourceLimitValue> out);
 
             /* Atmosphere extension commands. */
             Result AtmosphereGetProcessId(sf::Out<os::ProcessId> out, ncm::ProgramId program_id);

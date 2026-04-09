@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020 Adubbz, Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -20,21 +20,21 @@ namespace ams::ncm::impl {
 
     namespace {
 
-        std::atomic<u32> g_mount_name_count;
+        constinit std::atomic<u32> g_mount_name_count;
 
     }
 
     bool PathView::HasPrefix(util::string_view prefix) const {
-        return this->path.compare(0, prefix.length(), prefix) == 0;
+        return m_path.compare(0, prefix.length(), prefix) == 0;
     }
 
     bool PathView::HasSuffix(util::string_view suffix) const {
-        return this->path.compare(this->path.length() - suffix.length(), suffix.length(), suffix) == 0;
+        return m_path.compare(m_path.length() - suffix.length(), suffix.length(), suffix) == 0;
     }
 
     util::string_view PathView::GetFileName() const {
-        auto pos = this->path.find_last_of("/");
-        return pos != util::string_view::npos ? this->path.substr(pos + 1) : this->path;
+        auto pos = m_path.find_last_of("/");
+        return pos != util::string_view::npos ? m_path.substr(pos + 1) : m_path;
     }
 
     MountName CreateUniqueMountName() {
@@ -84,7 +84,7 @@ namespace ams::ncm::impl {
         /* Flush the destination file. */
         R_TRY(fs::FlushFile(dst_file));
 
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
 }

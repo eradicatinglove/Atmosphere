@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -265,6 +265,10 @@ namespace ams::kern::arch::arm64::cpu {
                 return this->GetBits(12, 1) != 0;
             }
 
+            constexpr ALWAYS_INLINE bool GetSoftwareStep() const {
+                return this->GetBits(0, 1) != 0;
+            }
+
             constexpr ALWAYS_INLINE decltype(auto) SetMde(bool set) {
                 this->SetBit(15, set);
                 return *this;
@@ -272,6 +276,11 @@ namespace ams::kern::arch::arm64::cpu {
 
             constexpr ALWAYS_INLINE decltype(auto) SetTdcc(bool set) {
                 this->SetBit(12, set);
+                return *this;
+            }
+
+            constexpr ALWAYS_INLINE decltype(auto) SetSoftwareStep(bool set) {
+                this->SetBit(0, set);
                 return *this;
             }
     };
@@ -362,6 +371,10 @@ namespace ams::kern::arch::arm64::cpu {
             constexpr ALWAYS_INLINE decltype(auto) SetWxn(bool en) {
                 this->SetBit(19, en);
                 return *this;
+            }
+
+            constexpr ALWAYS_INLINE bool GetWxn() const {
+                return this->GetBits(19, 1) != 0;
             }
     };
 

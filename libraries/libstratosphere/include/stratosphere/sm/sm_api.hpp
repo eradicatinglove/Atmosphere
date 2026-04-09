@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -16,7 +16,7 @@
 
 #pragma once
 
-#include "sm_types.hpp"
+#include <stratosphere/sm/sm_types.hpp>
 
 namespace ams::sm {
 
@@ -25,8 +25,8 @@ namespace ams::sm {
     Result Finalize();
 
     /* Ordinary SM API. */
-    Result GetService(Service *out, ServiceName name);
-    Result RegisterService(Handle *out, ServiceName name, size_t max_sessions, bool is_light);
+    Result GetServiceHandle(os::NativeHandle *out, ServiceName name);
+    Result RegisterService(os::NativeHandle *out, ServiceName name, size_t max_sessions, bool is_light);
     Result UnregisterService(ServiceName name);
 
     /* Atmosphere extensions. */

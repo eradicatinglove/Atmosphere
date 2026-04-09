@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -31,4 +31,4 @@
     AMS_SF_METHOD_INFO(C, H, 22, Result, DeallocateAesKeySlot,        (s32 keyslot),                                                                                                (keyslot))                                        \
     AMS_SF_METHOD_INFO(C, H, 23, Result, GetAesKeySlotAvailableEvent, (sf::OutCopyHandle out_hnd),                                                                                  (out_hnd))
 
-AMS_SF_DEFINE_INTERFACE_WITH_BASE(ams::spl::impl, ICryptoInterface, ::ams::spl::impl::IGeneralInterface, AMS_SPL_I_CRYPTO_INTERFACE_INTERFACE_INFO)
+AMS_SF_DEFINE_INTERFACE_WITH_BASE(ams::spl::impl, ICryptoInterface, ::ams::spl::impl::IGeneralInterface, AMS_SPL_I_CRYPTO_INTERFACE_INTERFACE_INFO, 0xEF3598D9)

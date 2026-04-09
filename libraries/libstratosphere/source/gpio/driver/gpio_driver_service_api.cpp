@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -28,7 +28,7 @@ namespace ams::gpio::driver {
     }
 
     Result RegisterDeviceCode(DeviceCode device_code, Pad *pad) {
-        return impl::RegisterDeviceCode(device_code, pad);
+        R_RETURN(impl::RegisterDeviceCode(device_code, pad));
     }
 
     bool UnregisterDeviceCode(DeviceCode device_code) {
@@ -44,11 +44,15 @@ namespace ams::gpio::driver {
     }
 
     void SetInitialGpioConfig() {
+        #if defined(ATMOSPHERE_BOARD_NINTENDO_NX)
         return board::SetInitialGpioConfig();
+        #endif
     }
 
     void SetInitialWakePinConfig() {
+        #if defined(ATMOSPHERE_BOARD_NINTENDO_NX)
         return board::SetInitialWakePinConfig();
+        #endif
     }
 
 }

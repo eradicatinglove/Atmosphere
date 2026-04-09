@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -59,7 +59,7 @@ namespace ams::i2c {
 
         {
             std::scoped_lock lk(g_i2c_pcv_mutex);
-            g_i2c_pcv_manager = std::move(sp);
+            g_i2c_pcv_manager = std::move(sp_pcv);
             AMS_ABORT_UNLESS(g_i2c_pcv_count == 0);
             g_i2c_pcv_count = 1;
         }
@@ -118,7 +118,7 @@ namespace ams::i2c {
         out->_session = session.Detach();
 
         /* We succeeded. */
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     void CloseSession(I2cSession &session) {
@@ -130,20 +130,20 @@ namespace ams::i2c {
     Result Send(const I2cSession &session, const void *src, size_t src_size, TransactionOption option) {
         const ams::sf::InAutoSelectBuffer buf(src, src_size);
 
-        return GetInterface(session)->Send(buf, option);
+        R_RETURN(GetInterface(session)->Send(buf, option));
     }
 
     Result Receive(void *dst, size_t dst_size, const I2cSession &session, TransactionOption option) {
         const ams::sf::OutAutoSelectBuffer buf(dst, dst_size);
 
-        return GetInterface(session)->Receive(buf, option);
+        R_RETURN(GetInterface(session)->Receive(buf, option));
     }
 
     Result ExecuteCommandList(void *dst, size_t dst_size, const I2cSession &session, const void *src, size_t src_size) {
         const ams::sf::OutAutoSelectBuffer buf(dst, dst_size);
         const ams::sf::InPointerArray<i2c::I2cCommand> arr(static_cast<const i2c::I2cCommand *>(src), src_size);
 
-        return GetInterface(session)->ExecuteCommandList(buf, arr);
+        R_RETURN(GetInterface(session)->ExecuteCommandList(buf, arr));
     }
 
     void SetRetryPolicy(const I2cSession &session, int max_retry_count, int retry_interval_us) {

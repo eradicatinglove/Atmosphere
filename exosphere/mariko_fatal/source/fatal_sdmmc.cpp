@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -48,16 +48,17 @@ namespace ams::secmon::fatal {
         //sdmmc::Deactivate(Port);
         R_TRY(sdmmc::Activate(Port));
 
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     Result CheckSdCardConnection(sdmmc::SpeedMode *out_sm, sdmmc::BusWidth *out_bw) {
-        return sdmmc::CheckSdCardConnection(out_sm, out_bw, Port);
+        R_RETURN(sdmmc::CheckSdCardConnection(out_sm, out_bw, Port));
     }
 
     Result ReadSdCard(void *dst, size_t size, size_t sector_index, size_t sector_count) {
         /* Validate that our buffer is valid. */
         AMS_ASSERT(size >= sector_count * sdmmc::SectorSize);
+        AMS_UNUSED(size);
 
         /* Repeatedly read sectors. */
         u8 *dst_u8 = static_cast<u8 *>(dst);
@@ -77,12 +78,13 @@ namespace ams::secmon::fatal {
             sector_count -= cur_sectors;
         }
 
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     Result WriteSdCard(size_t sector_index, size_t sector_count, const void *src, size_t size) {
         /* Validate that our buffer is valid. */
         AMS_ASSERT(size >= sector_count * sdmmc::SectorSize);
+        AMS_UNUSED(size);
 
         /* Repeatedly read sectors. */
         const u8 *src_u8 = static_cast<const u8 *>(src);
@@ -102,7 +104,7 @@ namespace ams::secmon::fatal {
             sector_count -= cur_sectors;
         }
 
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
 }

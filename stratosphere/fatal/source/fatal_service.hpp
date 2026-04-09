@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -23,7 +23,9 @@ namespace ams::fatal::srv {
             Result ThrowFatal(Result error, const sf::ClientProcessId &client_pid);
             Result ThrowFatalWithPolicy(Result error, const sf::ClientProcessId &client_pid, FatalPolicy policy);
             Result ThrowFatalWithCpuContext(Result error, const sf::ClientProcessId &client_pid, FatalPolicy policy, const CpuContext &cpu_ctx);
+            Result ThrowFatalWithHashedTraceContext(Result error, const sf::ClientProcessId &client_pid, ncm::ProgramId program_id, const fatal::HashedTraceContext &htc);
             Result GetFatalEvent(sf::OutCopyHandle out_h);
+            Result GetFatalContext(sf::Out<Result> out_error, sf::Out<ncm::ProgramId> out_program_id, sf::Out<fatal::FatalPolicy> out_policy, sf::Out<fatal::CpuContext> out_ctx);
     };
     static_assert(fatal::impl::IsIService<Service>);
     static_assert(fatal::impl::IsIPrivateService<Service>);

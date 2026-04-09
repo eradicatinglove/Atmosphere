@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -33,7 +33,7 @@ namespace ams::pwm::driver::board::nintendo::nx::impl {
 
     }
 
-    PwmDriverImpl::PwmDriverImpl(dd::PhysicalAddress paddr, size_t sz, const ChannelDefinition *c, size_t nc) : registers_phys_addr(paddr), registers_size(sz), channels(c), num_channels(nc), registers(0) {
+    PwmDriverImpl::PwmDriverImpl(dd::PhysicalAddress paddr, size_t sz, const ChannelDefinition *c, size_t nc) : m_registers_phys_addr(paddr), m_registers_size(sz), m_channels(c), m_num_channels(nc), m_registers(0) {
         /* ... */
     }
 
@@ -60,8 +60,8 @@ namespace ams::pwm::driver::board::nintendo::nx::impl {
 
     void PwmDriverImpl::InitializeDriver() {
         /* Get the registers virtual address. */
-        this->registers = dd::QueryIoMapping(this->registers_phys_addr, this->registers_size);
-        AMS_ABORT_UNLESS(this->registers != 0);
+        m_registers = dd::QueryIoMapping(m_registers_phys_addr, m_registers_size);
+        AMS_ABORT_UNLESS(m_registers != 0);
 
         /* Setup power to pwm. */
         this->PowerOn();
@@ -79,9 +79,9 @@ namespace ams::pwm::driver::board::nintendo::nx::impl {
         /* Configure initial settings. */
         /* NOTE: None of these results are checked. */
         this->SetEnabled(device, false);
-        this->SetDuty(device, 0);
+        this->SetScale(device, 0.0);
         this->SetPeriod(device, DefaultChannelPeriod);
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     void PwmDriverImpl::FinalizeDevice(IPwmDevice *device) {
@@ -113,7 +113,7 @@ namespace ams::pwm::driver::board::nintendo::nx::impl {
         /* Update the period. */
         reg::ReadWrite(this->GetRegistersFor(device) + PWM_CONTROLLER_PWM_CSR, PWM_REG_BITS_VALUE(PWM_CSR_PFM, pfm));
 
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     Result PwmDriverImpl::GetPeriod(TimeSpan *out, IPwmDevice *device) {
@@ -133,7 +133,7 @@ namespace ams::pwm::driver::board::nintendo::nx::impl {
 
         /* Set the output. */
         *out = TimeSpan::FromNanoSeconds(ns);
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     Result PwmDriverImpl::SetDuty(IPwmDevice *device, int duty) {
@@ -149,7 +149,7 @@ namespace ams::pwm::driver::board::nintendo::nx::impl {
         /* Update the duty. */
         reg::ReadWrite(this->GetRegistersFor(device) + PWM_CONTROLLER_PWM_CSR, PWM_REG_BITS_VALUE(PWM_CSR_PWM, static_cast<u32>(duty)));
 
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     Result PwmDriverImpl::GetDuty(int *out, IPwmDevice *device) {
@@ -159,7 +159,7 @@ namespace ams::pwm::driver::board::nintendo::nx::impl {
 
         /* Get the duty. */
         *out = static_cast<int>(reg::GetValue(this->GetRegistersFor(device) + PWM_CONTROLLER_PWM_CSR, PWM_REG_BITS_MASK(PWM_CSR_PWM)));
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     Result PwmDriverImpl::SetScale(IPwmDevice *device, double scale) {
@@ -169,8 +169,16 @@ namespace ams::pwm::driver::board::nintendo::nx::impl {
         /* Convert the scale to a duty. */
         const int duty = static_cast<int>(((scale * 256.0) / 100.0) + 0.5);
 
-        /* Set the duty. */
-        return this->SetDuty(device, duty);
+        /* Validate the duty. */
+        R_UNLESS(0 <= duty && duty <= MaxDuty, pwm::ResultInvalidArgument());
+
+        /* Acquire exclusive access to the device registers. */
+        std::scoped_lock lk(device->SafeCastTo<PwmDeviceImpl>());
+
+        /* Update the duty. */
+        reg::ReadWrite(this->GetRegistersFor(device) + PWM_CONTROLLER_PWM_CSR, PWM_REG_BITS_VALUE(PWM_CSR_PWM, static_cast<u32>(duty)));
+
+        R_SUCCEED();
     }
 
     Result PwmDriverImpl::GetScale(double *out, IPwmDevice *device) {
@@ -183,7 +191,7 @@ namespace ams::pwm::driver::board::nintendo::nx::impl {
 
         /* Convert to scale. */
         *out = (static_cast<double>(duty) * 100.0) / 256.0;
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     Result PwmDriverImpl::SetEnabled(IPwmDevice *device, bool en) {
@@ -196,7 +204,7 @@ namespace ams::pwm::driver::board::nintendo::nx::impl {
         /* Update the enable. */
         reg::ReadWrite(this->GetRegistersFor(device) + PWM_CONTROLLER_PWM_CSR, PWM_REG_BITS_ENUM_SEL(PWM_CSR_ENB, en, ENABLE, DISABLE));
 
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     Result PwmDriverImpl::GetEnabled(bool *out, IPwmDevice *device) {
@@ -206,7 +214,7 @@ namespace ams::pwm::driver::board::nintendo::nx::impl {
 
         /* Get the enable. */
         *out = reg::HasValue(this->GetRegistersFor(device) + PWM_CONTROLLER_PWM_CSR, PWM_REG_BITS_ENUM(PWM_CSR_ENB, ENABLE));
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     Result PwmDriverImpl::Suspend() {
@@ -229,7 +237,7 @@ namespace ams::pwm::driver::board::nintendo::nx::impl {
         });
 
         /* Disable clock to pwm. */
-        return pcv::SetClockEnabled(pcv::Module_Pwm, false);
+        R_RETURN(pcv::SetClockEnabled(pcv::Module_Pwm, false));
     }
 
     void PwmDriverImpl::Resume() {

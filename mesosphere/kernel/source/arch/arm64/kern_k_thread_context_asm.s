@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -14,6 +14,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include <mesosphere/kern_select_assembly_offsets.h>
+#include <mesosphere/kern_select_assembly_macros.h>
 
 /* ams::kern::arch::arm64::UserModeThreadStarter() */
 .section    .text._ZN3ams4kern4arch5arm6421UserModeThreadStarterEv, "ax", %progbits
@@ -62,7 +63,7 @@ _ZN3ams4kern4arch5arm6421UserModeThreadStarterEv:
     add sp, sp, #(EXCEPTION_CONTEXT_SIZE)
 
     /* Return to EL0 */
-    eret
+    ERET_WITH_SPECULATION_BARRIER
 
 /* ams::kern::arch::arm64::SupervisorModeThreadStarter() */
 .section    .text._ZN3ams4kern4arch5arm6427SupervisorModeThreadStarterEv, "ax", %progbits
@@ -75,6 +76,9 @@ _ZN3ams4kern4arch5arm6427SupervisorModeThreadStarterEv:
     /* v                                                                        */
     /* | u64 argument | u64 entrypoint | KThread::StackParameters (size 0x30) | */
 
+    /* Clear the link register. */
+    mov x30, #0
+
     /* Load the argument and entrypoint. */
     ldp x0, x1, [sp], #0x10
 
@@ -83,62 +87,6 @@ _ZN3ams4kern4arch5arm6427SupervisorModeThreadStarterEv:
 
     /*  Mask I bit in DAIF */
     msr daifclr, #2
-    br x1
 
-    /* This should never execute, but Nintendo includes an ERET here. */
-    eret
-
-
-/* ams::kern::arch::arm64::KThreadContext::RestoreFpuRegisters64(const KThreadContext &) */
-.section    .text._ZN3ams4kern4arch5arm6414KThreadContext21RestoreFpuRegisters64ERKS3_, "ax", %progbits
-.global     _ZN3ams4kern4arch5arm6414KThreadContext21RestoreFpuRegisters64ERKS3_
-.type       _ZN3ams4kern4arch5arm6414KThreadContext21RestoreFpuRegisters64ERKS3_, %function
-_ZN3ams4kern4arch5arm6414KThreadContext21RestoreFpuRegisters64ERKS3_:
-    /* Load and restore FPCR and FPSR from the context. */
-    ldr x1, [x0, #(THREAD_CONTEXT_FPCR)]
-    msr fpcr, x1
-    ldr x1, [x0, #(THREAD_CONTEXT_FPSR)]
-    msr fpsr, x1
-
-    /* Restore the FPU registers. */
-    ldp q0,  q1,  [x0, #(16 *  0 + THREAD_CONTEXT_FPU_REGISTERS)]
-    ldp q2,  q3,  [x0, #(16 *  2 + THREAD_CONTEXT_FPU_REGISTERS)]
-    ldp q4,  q5,  [x0, #(16 *  4 + THREAD_CONTEXT_FPU_REGISTERS)]
-    ldp q6,  q7,  [x0, #(16 *  6 + THREAD_CONTEXT_FPU_REGISTERS)]
-    ldp q8,  q9,  [x0, #(16 *  8 + THREAD_CONTEXT_FPU_REGISTERS)]
-    ldp q10, q11, [x0, #(16 * 10 + THREAD_CONTEXT_FPU_REGISTERS)]
-    ldp q12, q13, [x0, #(16 * 12 + THREAD_CONTEXT_FPU_REGISTERS)]
-    ldp q14, q15, [x0, #(16 * 14 + THREAD_CONTEXT_FPU_REGISTERS)]
-    ldp q16, q17, [x0, #(16 * 16 + THREAD_CONTEXT_FPU_REGISTERS)]
-    ldp q18, q19, [x0, #(16 * 18 + THREAD_CONTEXT_FPU_REGISTERS)]
-    ldp q20, q21, [x0, #(16 * 20 + THREAD_CONTEXT_FPU_REGISTERS)]
-    ldp q22, q23, [x0, #(16 * 22 + THREAD_CONTEXT_FPU_REGISTERS)]
-    ldp q24, q25, [x0, #(16 * 24 + THREAD_CONTEXT_FPU_REGISTERS)]
-    ldp q26, q27, [x0, #(16 * 26 + THREAD_CONTEXT_FPU_REGISTERS)]
-    ldp q28, q29, [x0, #(16 * 28 + THREAD_CONTEXT_FPU_REGISTERS)]
-    ldp q30, q31, [x0, #(16 * 30 + THREAD_CONTEXT_FPU_REGISTERS)]
-
-    ret
-
-/* ams::kern::arch::arm64::KThreadContext::RestoreFpuRegisters32(const KThreadContext &) */
-.section    .text._ZN3ams4kern4arch5arm6414KThreadContext21RestoreFpuRegisters32ERKS3_, "ax", %progbits
-.global     _ZN3ams4kern4arch5arm6414KThreadContext21RestoreFpuRegisters32ERKS3_
-.type       _ZN3ams4kern4arch5arm6414KThreadContext21RestoreFpuRegisters32ERKS3_, %function
-_ZN3ams4kern4arch5arm6414KThreadContext21RestoreFpuRegisters32ERKS3_:
-    /* Load and restore FPCR and FPSR from the context. */
-    ldr x1, [x0, #(THREAD_CONTEXT_FPCR)]
-    msr fpcr, x1
-    ldr x1, [x0, #(THREAD_CONTEXT_FPSR)]
-    msr fpsr, x1
-
-    /* Restore the FPU registers. */
-    ldp q0,  q1,  [x0, #(16 *  0 + THREAD_CONTEXT_FPU_REGISTERS)]
-    ldp q2,  q3,  [x0, #(16 *  2 + THREAD_CONTEXT_FPU_REGISTERS)]
-    ldp q4,  q5,  [x0, #(16 *  4 + THREAD_CONTEXT_FPU_REGISTERS)]
-    ldp q6,  q7,  [x0, #(16 *  6 + THREAD_CONTEXT_FPU_REGISTERS)]
-    ldp q8,  q9,  [x0, #(16 *  8 + THREAD_CONTEXT_FPU_REGISTERS)]
-    ldp q10, q11, [x0, #(16 * 10 + THREAD_CONTEXT_FPU_REGISTERS)]
-    ldp q12, q13, [x0, #(16 * 12 + THREAD_CONTEXT_FPU_REGISTERS)]
-    ldp q14, q15, [x0, #(16 * 14 + THREAD_CONTEXT_FPU_REGISTERS)]
-
-    ret
+    /* Invoke the function (by calling ams::kern::arch::arm64::InvokeSupervisorModeThread(argument, entrypoint)). */
+    b _ZN3ams4kern4arch5arm6426InvokeSupervisorModeThreadEmm

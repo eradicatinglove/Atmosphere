@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -31,6 +31,8 @@ namespace ams::htc::server {
     }
 
     void InitializePowerStateMonitor(htclow::impl::DriverType driver_type, htclow::HtclowManager *htclow_manager) {
+        AMS_UNUSED(driver_type);
+
         /* Set the htclow manager. */
         g_htclow_manager = htclow_manager;
 
@@ -60,16 +62,16 @@ namespace ams::htc::server {
 
             /* Update sleeping state. */
             switch (pm_state) {
-                case psc::PmState_Awake:
+                case psc::PmState_FullAwake:
                     if (g_is_asleep) {
                         g_htclow_manager->NotifyAwake();
                         g_is_asleep = false;
                     }
                     break;
-                case psc::PmState_ReadyAwaken:
-                case psc::PmState_ReadySleep:
-                case psc::PmState_ReadySleepCritical:
-                case psc::PmState_ReadyAwakenCritical:
+                case psc::PmState_MinimumAwake:
+                case psc::PmState_SleepReady:
+                case psc::PmState_EssentialServicesSleepReady:
+                case psc::PmState_EssentialServicesAwake:
                     if (!g_is_asleep) {
                         g_htclow_manager->NotifyAsleep();
                         g_is_asleep = true;
@@ -81,16 +83,16 @@ namespace ams::htc::server {
 
             /* Update suspend state. */
             switch (pm_state) {
-                case psc::PmState_Awake:
-                case psc::PmState_ReadyAwaken:
+                case psc::PmState_FullAwake:
+                case psc::PmState_MinimumAwake:
                     if (g_is_suspended) {
                         g_htclow_manager->Resume();
                         g_is_suspended = false;
                     }
                     break;
-                case psc::PmState_ReadySleep:
-                case psc::PmState_ReadySleepCritical:
-                case psc::PmState_ReadyAwakenCritical:
+                case psc::PmState_SleepReady:
+                case psc::PmState_EssentialServicesSleepReady:
+                case psc::PmState_EssentialServicesAwake:
                     if (!g_is_suspended) {
                         g_htclow_manager->Suspend();
                         g_is_suspended = true;

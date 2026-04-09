@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -15,10 +15,6 @@
  */
 #include <stratosphere.hpp>
 #include "powctl_max17050_driver.hpp"
-
-#if defined(ATMOSPHERE_ARCH_ARM64)
-#include <arm_neon.h>
-#endif
 
 namespace ams::powctl::impl::board::nintendo::nx {
 
@@ -175,15 +171,15 @@ namespace ams::powctl::impl::board::nintendo::nx {
             const u16 new_val = (cur_val & ~mask) | (value & mask);
             R_TRY(i2c::WriteSingleRegister(session, address, new_val));
 
-            return ResultSuccess();
+            R_SUCCEED();
         }
 
         ALWAYS_INLINE Result ReadRegister(const i2c::I2cSession &session, u8 address, u16 *out) {
-            return i2c::ReadSingleRegister(session, address, out);
+            R_RETURN(i2c::ReadSingleRegister(session, address, out));
         }
 
         ALWAYS_INLINE Result WriteRegister(const i2c::I2cSession &session, u8 address, u16 val) {
-            return i2c::WriteSingleRegister(session, address, val);
+            R_RETURN(i2c::WriteSingleRegister(session, address, val));
         }
 
         ALWAYS_INLINE bool WriteValidateRegister(const i2c::I2cSession &session, u8 address, u16 val) {
@@ -209,7 +205,7 @@ namespace ams::powctl::impl::board::nintendo::nx {
             const u16 new_val = (cur_val & ~mask) | (value & mask);
             while (!WriteValidateRegister(session, address, new_val)) { /* ... */ }
 
-            return ResultSuccess();
+            R_SUCCEED();
         }
 
         double CoerceToDouble(u64 value) {
@@ -255,22 +251,22 @@ namespace ams::powctl::impl::board::nintendo::nx {
         os::SleepThread(TimeSpan::FromMilliSeconds(500));
 
         /* Write initial config. */
-        R_TRY(WriteRegister(this->i2c_session, max17050::Config, 0x7210));
+        R_TRY(WriteRegister(m_i2c_session, max17050::Config, 0x7210));
 
         /* Write initial filter config. */
-        R_TRY(WriteRegister(this->i2c_session, max17050::FilterCfg, 0x8784));
+        R_TRY(WriteRegister(m_i2c_session, max17050::FilterCfg, 0x8784));
 
         /* Write relax config. */
-        R_TRY(WriteRegister(this->i2c_session, max17050::RelaxCfg, params.relaxcfg));
+        R_TRY(WriteRegister(m_i2c_session, max17050::RelaxCfg, params.relaxcfg));
 
         /* Write initial learn config. */
-        R_TRY(WriteRegister(this->i2c_session, max17050::LearnCfg, 0x2603));
+        R_TRY(WriteRegister(m_i2c_session, max17050::LearnCfg, 0x2603));
 
         /* Write fullsocthr. */
-        R_TRY(WriteRegister(this->i2c_session, max17050::FullSocThr, params.fullsocthr));
+        R_TRY(WriteRegister(m_i2c_session, max17050::FullSocThr, params.fullsocthr));
 
         /* Write iavgempty. */
-        R_TRY(WriteRegister(this->i2c_session, max17050::IAvgEmpty, params.iavgempty));
+        R_TRY(WriteRegister(m_i2c_session, max17050::IAvgEmpty, params.iavgempty));
 
         /* Unlock model table, write model table. */
         do {
@@ -295,33 +291,33 @@ namespace ams::powctl::impl::board::nintendo::nx {
         }
 
         /* Write and validate rcomp0 */
-        while (!WriteValidateRegister(this->i2c_session, max17050::RComp0, params.rcomp0)) { /* ... */ }
+        while (!WriteValidateRegister(m_i2c_session, max17050::RComp0, params.rcomp0)) { /* ... */ }
 
         /* Write and validate tempco */
-        while (!WriteValidateRegister(this->i2c_session, max17050::TempCo, params.tempco)) { /* ... */ }
+        while (!WriteValidateRegister(m_i2c_session, max17050::TempCo, params.tempco)) { /* ... */ }
 
         /* Write ichgterm. */
-        R_TRY(WriteRegister(this->i2c_session, max17050::IChgTerm, params.ichgterm));
+        R_TRY(WriteRegister(m_i2c_session, max17050::IChgTerm, params.ichgterm));
 
         /* Write tgain. */
-        R_TRY(WriteRegister(this->i2c_session, max17050::TGain, params.tgain));
+        R_TRY(WriteRegister(m_i2c_session, max17050::TGain, params.tgain));
 
         /* Write toff. */
-        R_TRY(WriteRegister(this->i2c_session, max17050::TOff, params.toff));
+        R_TRY(WriteRegister(m_i2c_session, max17050::TOff, params.toff));
 
         /* Write and validate vempty. */
-        while (!WriteValidateRegister(this->i2c_session, max17050::VEmpty, params.vempty)) { /* ... */ }
+        while (!WriteValidateRegister(m_i2c_session, max17050::VEmpty, params.vempty)) { /* ... */ }
 
         /* Write and validate qresidual. */
-        while (!WriteValidateRegister(this->i2c_session, max17050::QResidual00, params.qresidual00)) { /* ... */ }
-        while (!WriteValidateRegister(this->i2c_session, max17050::QResidual10, params.qresidual10)) { /* ... */ }
-        while (!WriteValidateRegister(this->i2c_session, max17050::QResidual20, params.qresidual20)) { /* ... */ }
-        while (!WriteValidateRegister(this->i2c_session, max17050::QResidual30, params.qresidual30)) { /* ... */ }
+        while (!WriteValidateRegister(m_i2c_session, max17050::QResidual00, params.qresidual00)) { /* ... */ }
+        while (!WriteValidateRegister(m_i2c_session, max17050::QResidual10, params.qresidual10)) { /* ... */ }
+        while (!WriteValidateRegister(m_i2c_session, max17050::QResidual20, params.qresidual20)) { /* ... */ }
+        while (!WriteValidateRegister(m_i2c_session, max17050::QResidual30, params.qresidual30)) { /* ... */ }
 
         /* Write capacity parameters. */
-        while (!WriteValidateRegister(this->i2c_session, max17050::FullCap, params.fullcap)) { /* ... */ }
-        R_TRY(WriteRegister(this->i2c_session,           max17050::DesignCap, params.vffullcap));
-        while (!WriteValidateRegister(this->i2c_session, max17050::FullCapNom, params.vffullcap)) { /* ... */ }
+        while (!WriteValidateRegister(m_i2c_session, max17050::FullCap, params.fullcap)) { /* ... */ }
+        R_TRY(WriteRegister(m_i2c_session,           max17050::DesignCap, params.vffullcap));
+        while (!WriteValidateRegister(m_i2c_session, max17050::FullCapNom, params.vffullcap)) { /* ... */ }
 
         /* Give some time for configuration to take. */
         os::SleepThread(TimeSpan::FromMilliSeconds(350));
@@ -329,81 +325,89 @@ namespace ams::powctl::impl::board::nintendo::nx {
         /* Write vfsoc to vfsoc0, qh, to qh0. */
         u16 vfsoc, qh;
         {
-            R_TRY(ReadRegister(this->i2c_session, max17050::SocVf, std::addressof(vfsoc)));
-            R_TRY(this->UnlockVfSoc());
-            while (!WriteValidateRegister(this->i2c_session, max17050::SocVf0, vfsoc)) { /* ... */ }
-            R_TRY(ReadRegister(this->i2c_session, max17050::Qh, std::addressof(qh)));
-            R_TRY(WriteRegister(this->i2c_session, max17050::Qh0, qh));
-            R_TRY(this->LockVfSoc());
+            R_TRY(ReadRegister(m_i2c_session, max17050::SocVf, std::addressof(vfsoc)));
+            R_TRY(this->UnlockVoltageFuelGauge());
+            while (!WriteValidateRegister(m_i2c_session, max17050::SocVf0, vfsoc)) { /* ... */ }
+            R_TRY(ReadRegister(m_i2c_session, max17050::Qh, std::addressof(qh)));
+            R_TRY(WriteRegister(m_i2c_session, max17050::Qh0, qh));
+            R_TRY(this->LockVoltageFuelGauge());
         }
 
         /* Reset cycles. */
-        while (!WriteValidateRegister(this->i2c_session, max17050::Cycles, 0x0060)) { /* ... */ }
+        while (!WriteValidateRegister(m_i2c_session, max17050::Cycles, 0x0060)) { /* ... */ }
 
         /* Load new capacity parameters. */
         const u16 remcap = static_cast<u16>((vfsoc * params.vffullcap) / 0x6400);
         const u16 repcap = static_cast<u16>(remcap * (params.fullcap / params.vffullcap));
         const u16 dpacc  = 0x0C80;
         const u16 dqacc  = params.vffullcap / 0x10;
-        while (!WriteValidateRegister(this->i2c_session, max17050::RemCapMix, remcap)) { /* ... */ }
-        while (!WriteValidateRegister(this->i2c_session, max17050::RemCapRep, repcap)) { /* ... */ }
-        while (!WriteValidateRegister(this->i2c_session, max17050::DPAcc, dpacc)) { /* ... */ }
-        while (!WriteValidateRegister(this->i2c_session, max17050::DQAcc, dqacc)) { /* ... */ }
+        while (!WriteValidateRegister(m_i2c_session, max17050::RemCapMix, remcap)) { /* ... */ }
+        while (!WriteValidateRegister(m_i2c_session, max17050::RemCapRep, repcap)) { /* ... */ }
+        while (!WriteValidateRegister(m_i2c_session, max17050::DPAcc, dpacc)) { /* ... */ }
+        while (!WriteValidateRegister(m_i2c_session, max17050::DQAcc, dqacc)) { /* ... */ }
 
         /* Write capacity parameters. */
-        while (!WriteValidateRegister(this->i2c_session, max17050::FullCap, params.fullcap)) { /* ... */ }
-        R_TRY(WriteRegister(this->i2c_session,           max17050::DesignCap, params.vffullcap));
-        while (!WriteValidateRegister(this->i2c_session, max17050::FullCapNom, params.vffullcap)) { /* ... */ }
+        while (!WriteValidateRegister(m_i2c_session, max17050::FullCap, params.fullcap)) { /* ... */ }
+        R_TRY(WriteRegister(m_i2c_session,           max17050::DesignCap, params.vffullcap));
+        while (!WriteValidateRegister(m_i2c_session, max17050::FullCapNom, params.vffullcap)) { /* ... */ }
 
         /* Write soc rep. */
-        R_TRY(WriteRegister(this->i2c_session, max17050::SocRep, vfsoc));
+        R_TRY(WriteRegister(m_i2c_session, max17050::SocRep, vfsoc));
 
         /* Clear power on reset. */
-        R_TRY(ReadWriteValidateRegister(this->i2c_session, max17050::Status, 0x0002, 0x0000));
+        R_TRY(ReadWriteValidateRegister(m_i2c_session, max17050::Status, 0x0002, 0x0000));
 
         /* Set cgain. */
-        R_TRY(WriteRegister(this->i2c_session, max17050::CGain, 0x7FFF));
+        R_TRY(WriteRegister(m_i2c_session, max17050::CGain, 0x7FFF));
 
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     Result Max17050Driver::SetMaximumShutdownTimerThreshold() {
-        return WriteRegister(this->i2c_session, max17050::ShdnTimer, 0xE000);
+        R_RETURN(WriteRegister(m_i2c_session, max17050::ShdnTimer, 0xE000));
+    }
+
+    Result Max17050Driver::SetAlertByChargePercentage() {
+        R_RETURN(ReadWriteRegister(m_i2c_session, max17050::MiscCfg, 0x0003, 0x0000));
+    }
+
+    Result Max17050Driver::SetAlertByVoltageFuelGaugePercentage() {
+        R_RETURN(ReadWriteRegister(m_i2c_session, max17050::MiscCfg, 0x0003, 0x0003));
     }
 
     bool Max17050Driver::IsPowerOnReset() {
         /* Get the register. */
         u16 val;
-        R_ABORT_UNLESS(ReadRegister(this->i2c_session, max17050::Status, std::addressof(val)));
+        R_ABORT_UNLESS(ReadRegister(m_i2c_session, max17050::Status, std::addressof(val)));
 
         /* Extract the value. */
         return (val & 0x0002) != 0;
     }
 
-    Result Max17050Driver::LockVfSoc() {
-        return WriteRegister(this->i2c_session, max17050::SocVfAccess, 0x0000);
+    Result Max17050Driver::LockVoltageFuelGauge() {
+        R_RETURN(WriteRegister(m_i2c_session, max17050::SocVfAccess, 0x0000));
     }
 
-    Result Max17050Driver::UnlockVfSoc() {
-        return WriteRegister(this->i2c_session, max17050::SocVfAccess, 0x0080);
+    Result Max17050Driver::UnlockVoltageFuelGauge() {
+        R_RETURN(WriteRegister(m_i2c_session, max17050::SocVfAccess, 0x0080));
     }
 
     Result Max17050Driver::LockModelTable() {
-        R_TRY(WriteRegister(this->i2c_session, max17050::ModelAccess0, 0x0000));
-        R_TRY(WriteRegister(this->i2c_session, max17050::ModelAccess1, 0x0000));
-        return ResultSuccess();
+        R_TRY(WriteRegister(m_i2c_session, max17050::ModelAccess0, 0x0000));
+        R_TRY(WriteRegister(m_i2c_session, max17050::ModelAccess1, 0x0000));
+        R_SUCCEED();
     }
 
     Result Max17050Driver::UnlockModelTable() {
-        R_TRY(WriteRegister(this->i2c_session, max17050::ModelAccess0, 0x0059));
-        R_TRY(WriteRegister(this->i2c_session, max17050::ModelAccess1, 0x00C4));
-        return ResultSuccess();
+        R_TRY(WriteRegister(m_i2c_session, max17050::ModelAccess0, 0x0059));
+        R_TRY(WriteRegister(m_i2c_session, max17050::ModelAccess1, 0x00C4));
+        R_SUCCEED();
     }
 
     bool Max17050Driver::IsModelTableLocked() {
         for (size_t i = 0; i < max17050::ModelChrTblSize; ++i) {
             u16 val;
-            R_ABORT_UNLESS(ReadRegister(this->i2c_session, max17050::ModelChrTblStart + i, std::addressof(val)));
+            R_ABORT_UNLESS(ReadRegister(m_i2c_session, max17050::ModelChrTblStart + i, std::addressof(val)));
 
             if (val != 0) {
                 return false;
@@ -415,16 +419,16 @@ namespace ams::powctl::impl::board::nintendo::nx {
 
     Result Max17050Driver::SetModelTable(const u16 *model_table) {
         for (size_t i = 0; i < max17050::ModelChrTblSize; ++i) {
-            R_TRY(WriteRegister(this->i2c_session, max17050::ModelChrTblStart + i, model_table[i]));
+            R_TRY(WriteRegister(m_i2c_session, max17050::ModelChrTblStart + i, model_table[i]));
         }
 
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     bool Max17050Driver::IsModelTableSet(const u16 *model_table) {
         for (size_t i = 0; i < max17050::ModelChrTblSize; ++i) {
             u16 val;
-            R_ABORT_UNLESS(ReadRegister(this->i2c_session, max17050::ModelChrTblStart + i, std::addressof(val)));
+            R_ABORT_UNLESS(ReadRegister(m_i2c_session, max17050::ModelChrTblStart + i, std::addressof(val)));
 
             if (val != model_table[i]) {
                 return false;
@@ -435,74 +439,74 @@ namespace ams::powctl::impl::board::nintendo::nx {
     }
 
     Result Max17050Driver::ReadInternalState() {
-        R_TRY(ReadRegister(this->i2c_session, max17050::RComp0, std::addressof(this->internal_state.rcomp0)));
-        R_TRY(ReadRegister(this->i2c_session, max17050::TempCo, std::addressof(this->internal_state.tempco)));
-        R_TRY(ReadRegister(this->i2c_session, max17050::FullCap, std::addressof(this->internal_state.fullcap)));
-        R_TRY(ReadRegister(this->i2c_session, max17050::Cycles, std::addressof(this->internal_state.cycles)));
-        R_TRY(ReadRegister(this->i2c_session, max17050::FullCapNom, std::addressof(this->internal_state.fullcapnom)));
-        R_TRY(ReadRegister(this->i2c_session, max17050::IAvgEmpty, std::addressof(this->internal_state.iavgempty)));
-        R_TRY(ReadRegister(this->i2c_session, max17050::QResidual00, std::addressof(this->internal_state.qresidual00)));
-        R_TRY(ReadRegister(this->i2c_session, max17050::QResidual10, std::addressof(this->internal_state.qresidual10)));
-        R_TRY(ReadRegister(this->i2c_session, max17050::QResidual20, std::addressof(this->internal_state.qresidual20)));
-        R_TRY(ReadRegister(this->i2c_session, max17050::QResidual30, std::addressof(this->internal_state.qresidual30)));
-        return ResultSuccess();
+        R_TRY(ReadRegister(m_i2c_session, max17050::RComp0, std::addressof(m_internal_state.rcomp0)));
+        R_TRY(ReadRegister(m_i2c_session, max17050::TempCo, std::addressof(m_internal_state.tempco)));
+        R_TRY(ReadRegister(m_i2c_session, max17050::FullCap, std::addressof(m_internal_state.fullcap)));
+        R_TRY(ReadRegister(m_i2c_session, max17050::Cycles, std::addressof(m_internal_state.cycles)));
+        R_TRY(ReadRegister(m_i2c_session, max17050::FullCapNom, std::addressof(m_internal_state.fullcapnom)));
+        R_TRY(ReadRegister(m_i2c_session, max17050::IAvgEmpty, std::addressof(m_internal_state.iavgempty)));
+        R_TRY(ReadRegister(m_i2c_session, max17050::QResidual00, std::addressof(m_internal_state.qresidual00)));
+        R_TRY(ReadRegister(m_i2c_session, max17050::QResidual10, std::addressof(m_internal_state.qresidual10)));
+        R_TRY(ReadRegister(m_i2c_session, max17050::QResidual20, std::addressof(m_internal_state.qresidual20)));
+        R_TRY(ReadRegister(m_i2c_session, max17050::QResidual30, std::addressof(m_internal_state.qresidual30)));
+        R_SUCCEED();
     }
 
     Result Max17050Driver::WriteInternalState() {
-        while (!WriteValidateRegister(this->i2c_session, max17050::RComp0, this->internal_state.rcomp0)) { /* ... */ }
-        while (!WriteValidateRegister(this->i2c_session, max17050::TempCo, this->internal_state.tempco)) { /* ... */ }
-        while (!WriteValidateRegister(this->i2c_session, max17050::FullCapNom, this->internal_state.fullcapnom)) { /* ... */ }
-        while (!WriteValidateRegister(this->i2c_session, max17050::IAvgEmpty,  this->internal_state.iavgempty)) { /* ... */ }
-        while (!WriteValidateRegister(this->i2c_session, max17050::QResidual00, this->internal_state.qresidual00)) { /* ... */ }
-        while (!WriteValidateRegister(this->i2c_session, max17050::QResidual10, this->internal_state.qresidual10)) { /* ... */ }
-        while (!WriteValidateRegister(this->i2c_session, max17050::QResidual20, this->internal_state.qresidual20)) { /* ... */ }
-        while (!WriteValidateRegister(this->i2c_session, max17050::QResidual30, this->internal_state.qresidual30)) { /* ... */ }
+        while (!WriteValidateRegister(m_i2c_session, max17050::RComp0, m_internal_state.rcomp0)) { /* ... */ }
+        while (!WriteValidateRegister(m_i2c_session, max17050::TempCo, m_internal_state.tempco)) { /* ... */ }
+        while (!WriteValidateRegister(m_i2c_session, max17050::FullCapNom, m_internal_state.fullcapnom)) { /* ... */ }
+        while (!WriteValidateRegister(m_i2c_session, max17050::IAvgEmpty,  m_internal_state.iavgempty)) { /* ... */ }
+        while (!WriteValidateRegister(m_i2c_session, max17050::QResidual00, m_internal_state.qresidual00)) { /* ... */ }
+        while (!WriteValidateRegister(m_i2c_session, max17050::QResidual10, m_internal_state.qresidual10)) { /* ... */ }
+        while (!WriteValidateRegister(m_i2c_session, max17050::QResidual20, m_internal_state.qresidual20)) { /* ... */ }
+        while (!WriteValidateRegister(m_i2c_session, max17050::QResidual30, m_internal_state.qresidual30)) { /* ... */ }
 
         os::SleepThread(TimeSpan::FromMilliSeconds(350));
 
         u16 fullcap0, socmix;
-        R_TRY(ReadRegister(this->i2c_session, max17050::FullCap0, std::addressof(fullcap0)));
-        R_TRY(ReadRegister(this->i2c_session, max17050::SocMix, std::addressof(socmix)));
+        R_TRY(ReadRegister(m_i2c_session, max17050::FullCap0, std::addressof(fullcap0)));
+        R_TRY(ReadRegister(m_i2c_session, max17050::SocMix, std::addressof(socmix)));
 
-        while (!WriteValidateRegister(this->i2c_session, max17050::RemCapMix, static_cast<u16>((fullcap0 * socmix) / 0x6400))) { /* ... */ }
-        while (!WriteValidateRegister(this->i2c_session, max17050::FullCap, this->internal_state.fullcap)) { /* ... */ }
-        while (!WriteValidateRegister(this->i2c_session, max17050::DPAcc, 0x0C80)) { /* ... */ }
-        while (!WriteValidateRegister(this->i2c_session, max17050::DQAcc, this->internal_state.fullcapnom / 0x10)) { /* ... */ }
+        while (!WriteValidateRegister(m_i2c_session, max17050::RemCapMix, static_cast<u16>((fullcap0 * socmix) / 0x6400))) { /* ... */ }
+        while (!WriteValidateRegister(m_i2c_session, max17050::FullCap, m_internal_state.fullcap)) { /* ... */ }
+        while (!WriteValidateRegister(m_i2c_session, max17050::DPAcc, 0x0C80)) { /* ... */ }
+        while (!WriteValidateRegister(m_i2c_session, max17050::DQAcc, m_internal_state.fullcapnom / 0x10)) { /* ... */ }
 
         os::SleepThread(TimeSpan::FromMilliSeconds(350));
 
-        while (!WriteValidateRegister(this->i2c_session, max17050::Cycles, this->internal_state.cycles)) { /* ... */ }
-        if (this->internal_state.cycles >= 0x100) {
-            while (!WriteValidateRegister(this->i2c_session, max17050::LearnCfg, 0x2673)) { /* ... */ }
+        while (!WriteValidateRegister(m_i2c_session, max17050::Cycles, m_internal_state.cycles)) { /* ... */ }
+        if (m_internal_state.cycles >= 0x100) {
+            while (!WriteValidateRegister(m_i2c_session, max17050::LearnCfg, 0x2673)) { /* ... */ }
         }
 
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
-    Result Max17050Driver::GetSocRep(double *out) {
+    Result Max17050Driver::GetChargePercentage(double *out) {
         /* Validate parameters. */
         AMS_ABORT_UNLESS(out != nullptr);
 
         /* Read the value. */
         u16 val;
-        R_TRY(ReadRegister(this->i2c_session, max17050::SocRep, std::addressof(val)));
+        R_TRY(ReadRegister(m_i2c_session, max17050::SocRep, std::addressof(val)));
 
         /* Set output. */
         *out = static_cast<double>(val) * 0.00390625;
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
-    Result Max17050Driver::GetSocVf(double *out) {
+    Result Max17050Driver::GetVoltageFuelGaugePercentage(double *out) {
         /* Validate parameters. */
         AMS_ABORT_UNLESS(out != nullptr);
 
         /* Read the value. */
         u16 val;
-        R_TRY(ReadRegister(this->i2c_session, max17050::SocVf, std::addressof(val)));
+        R_TRY(ReadRegister(m_i2c_session, max17050::SocVf, std::addressof(val)));
 
         /* Set output. */
         *out = static_cast<double>(val) * 0.00390625;
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     Result Max17050Driver::GetFullCapacity(double *out, double sense_resistor) {
@@ -512,12 +516,12 @@ namespace ams::powctl::impl::board::nintendo::nx {
 
         /* Read the values. */
         u16 cgain, fullcap;
-        R_TRY(ReadRegister(this->i2c_session, max17050::CGain, std::addressof(cgain)));
-        R_TRY(ReadRegister(this->i2c_session, max17050::FullCap, std::addressof(fullcap)));
+        R_TRY(ReadRegister(m_i2c_session, max17050::CGain, std::addressof(cgain)));
+        R_TRY(ReadRegister(m_i2c_session, max17050::FullCap, std::addressof(fullcap)));
 
         /* Set output. */
         *out = ((static_cast<double>(fullcap) * 0.005) / sense_resistor) / (static_cast<double>(cgain) * 0.0000610351562);
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     Result Max17050Driver::GetRemainingCapacity(double *out, double sense_resistor) {
@@ -527,30 +531,40 @@ namespace ams::powctl::impl::board::nintendo::nx {
 
         /* Read the values. */
         u16 cgain, remcap;
-        R_TRY(ReadRegister(this->i2c_session, max17050::CGain, std::addressof(cgain)));
-        R_TRY(ReadRegister(this->i2c_session, max17050::RemCapRep, std::addressof(remcap)));
+        R_TRY(ReadRegister(m_i2c_session, max17050::CGain, std::addressof(cgain)));
+        R_TRY(ReadRegister(m_i2c_session, max17050::RemCapRep, std::addressof(remcap)));
 
         /* Set output. */
         *out = ((static_cast<double>(remcap) * 0.005) / sense_resistor) / (static_cast<double>(cgain) * 0.0000610351562);
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
-    Result Max17050Driver::SetPercentageMinimumAlertThreshold(int percentage) {
-        return ReadWriteRegister(this->i2c_session, max17050::SocAlrtThreshold, 0x00FF, static_cast<u8>(percentage));
+    Result Max17050Driver::SetChargePercentageMinimumAlertThreshold(int percentage) {
+        R_TRY(this->SetAlertByChargePercentage());
+        R_RETURN(ReadWriteRegister(m_i2c_session, max17050::SocAlrtThreshold, 0x00FF, static_cast<u8>(percentage)));
     }
 
-    Result Max17050Driver::SetPercentageMaximumAlertThreshold(int percentage) {
-        return ReadWriteRegister(this->i2c_session, max17050::SocAlrtThreshold, 0xFF00, static_cast<u16>(static_cast<u8>(percentage)) << 8);
+    Result Max17050Driver::SetChargePercentageMaximumAlertThreshold(int percentage) {
+        R_TRY(this->SetAlertByChargePercentage());
+        R_RETURN(ReadWriteRegister(m_i2c_session, max17050::SocAlrtThreshold, 0xFF00, static_cast<u16>(static_cast<u8>(percentage)) << 8));
     }
 
-    Result Max17050Driver::SetPercentageFullThreshold(double percentage) {
-        #if defined(ATMOSPHERE_ARCH_ARM64)
-            const u16 val = vcvtd_n_s64_f64(percentage, BITSIZEOF(u8));
-        #else
-            #error "Unknown architecture for floating point -> fixed point"
-        #endif
+    Result Max17050Driver::SetVoltageFuelGaugePercentageMinimumAlertThreshold(int percentage) {
+        R_TRY(this->SetAlertByVoltageFuelGaugePercentage());
+        R_RETURN(ReadWriteRegister(m_i2c_session, max17050::SocAlrtThreshold, 0x00FF, static_cast<u8>(percentage)));
+    }
 
-        return WriteRegister(this->i2c_session, max17050::FullSocThr, val);
+    Result Max17050Driver::SetVoltageFuelGaugePercentageMaximumAlertThreshold(int percentage) {
+        R_TRY(this->SetAlertByVoltageFuelGaugePercentage());
+        R_RETURN(ReadWriteRegister(m_i2c_session, max17050::SocAlrtThreshold, 0xFF00, static_cast<u16>(static_cast<u8>(percentage)) << 8));
+    }
+
+    Result Max17050Driver::SetFullChargeThreshold(double percentage) {
+        /* Convert percentage from double to signed fixed-point with 8 fractional bits. */
+        const u16 val = static_cast<u16>(static_cast<s16>(percentage * (1 << 8)));
+
+        /* Set the threshold. */
+        R_RETURN(WriteRegister(m_i2c_session, max17050::FullSocThr, val));
     }
 
     Result Max17050Driver::GetAverageCurrent(double *out, double sense_resistor) {
@@ -560,13 +574,13 @@ namespace ams::powctl::impl::board::nintendo::nx {
 
         /* Read the values. */
         u16 cgain, coff, avg_current;
-        R_TRY(ReadRegister(this->i2c_session, max17050::CGain, std::addressof(cgain)));
-        R_TRY(ReadRegister(this->i2c_session, max17050::COff, std::addressof(coff)));
-        R_TRY(ReadRegister(this->i2c_session, max17050::AverageCurrent, std::addressof(avg_current)));
+        R_TRY(ReadRegister(m_i2c_session, max17050::CGain, std::addressof(cgain)));
+        R_TRY(ReadRegister(m_i2c_session, max17050::COff, std::addressof(coff)));
+        R_TRY(ReadRegister(m_i2c_session, max17050::AverageCurrent, std::addressof(avg_current)));
 
         /* Set output. */
         *out = (((static_cast<double>(avg_current) - (static_cast<double>(coff) + static_cast<double>(coff))) / (static_cast<double>(cgain) * 0.0000610351562)) * 1.5625) / (sense_resistor * 1000.0);
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     Result Max17050Driver::GetCurrent(double *out, double sense_resistor) {
@@ -576,62 +590,62 @@ namespace ams::powctl::impl::board::nintendo::nx {
 
         /* Read the values. */
         u16 cgain, coff, current;
-        R_TRY(ReadRegister(this->i2c_session, max17050::CGain, std::addressof(cgain)));
-        R_TRY(ReadRegister(this->i2c_session, max17050::COff, std::addressof(coff)));
-        R_TRY(ReadRegister(this->i2c_session, max17050::Current, std::addressof(current)));
+        R_TRY(ReadRegister(m_i2c_session, max17050::CGain, std::addressof(cgain)));
+        R_TRY(ReadRegister(m_i2c_session, max17050::COff, std::addressof(coff)));
+        R_TRY(ReadRegister(m_i2c_session, max17050::Current, std::addressof(current)));
 
         /* Set output. */
         *out = (((static_cast<double>(current) - (static_cast<double>(coff) + static_cast<double>(coff))) / (static_cast<double>(cgain) * 0.0000610351562)) * 1.5625) / (sense_resistor * 1000.0);
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     Result Max17050Driver::GetNeedToRestoreParameters(bool *out) {
         /* Get the register. */
         u16 val;
-        R_TRY(ReadRegister(this->i2c_session, max17050::MiscCfg, std::addressof(val)));
+        R_TRY(ReadRegister(m_i2c_session, max17050::MiscCfg, std::addressof(val)));
 
         /* Extract the value. */
         *out = (val & 0x8000) != 0;
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     Result Max17050Driver::SetNeedToRestoreParameters(bool en) {
-        return ReadWriteRegister(this->i2c_session, max17050::MiscCfg, 0x8000, en ? 0x8000 : 0);
+        R_RETURN(ReadWriteRegister(m_i2c_session, max17050::MiscCfg, 0x8000, en ? 0x8000 : 0));
     }
 
     Result Max17050Driver::IsI2cShutdownEnabled(bool *out) {
         /* Get the register. */
         u16 val;
-        R_TRY(ReadRegister(this->i2c_session, max17050::Config, std::addressof(val)));
+        R_TRY(ReadRegister(m_i2c_session, max17050::Config, std::addressof(val)));
 
         /* Extract the value. */
         *out = (val & 0x0040) != 0;
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     Result Max17050Driver::SetI2cShutdownEnabled(bool en) {
-        return ReadWriteRegister(this->i2c_session, max17050::Config, 0x0040, en ? 0x0040 : 0);
+        R_RETURN(ReadWriteRegister(m_i2c_session, max17050::Config, 0x0040, en ? 0x0040 : 0));
     }
 
     Result Max17050Driver::GetStatus(u16 *out) {
         /* Validate parameters. */
         AMS_ABORT_UNLESS(out != nullptr);
 
-        return ReadRegister(this->i2c_session, max17050::Status, out);
+        R_RETURN(ReadRegister(m_i2c_session, max17050::Status, out));
     }
 
     Result Max17050Driver::GetCycles(u16 *out) {
         /* Get the register. */
         u16 val;
-        R_TRY(ReadRegister(this->i2c_session, max17050::Cycles, std::addressof(val)));
+        R_TRY(ReadRegister(m_i2c_session, max17050::Cycles, std::addressof(val)));
 
         /* Extract the value. */
         *out = std::max<u16>(val, 0x60) - 0x60;
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     Result Max17050Driver::ResetCycles() {
-        return WriteRegister(this->i2c_session, max17050::Cycles, 0x0060);
+        R_RETURN(WriteRegister(m_i2c_session, max17050::Cycles, 0x0060));
     }
 
     Result Max17050Driver::GetAge(double *out) {
@@ -640,11 +654,11 @@ namespace ams::powctl::impl::board::nintendo::nx {
 
         /* Read the value. */
         u16 val;
-        R_TRY(ReadRegister(this->i2c_session, max17050::Age, std::addressof(val)));
+        R_TRY(ReadRegister(m_i2c_session, max17050::Age, std::addressof(val)));
 
         /* Set output. */
         *out = static_cast<double>(val) * 0.00390625;
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     Result Max17050Driver::GetTemperature(double *out) {
@@ -653,11 +667,11 @@ namespace ams::powctl::impl::board::nintendo::nx {
 
         /* Read the value. */
         u16 val;
-        R_TRY(ReadRegister(this->i2c_session, max17050::Temperature, std::addressof(val)));
+        R_TRY(ReadRegister(m_i2c_session, max17050::Temperature, std::addressof(val)));
 
         /* Set output. */
         *out = static_cast<double>(val) * 0.00390625;
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     Result Max17050Driver::GetMaximumTemperature(u8 *out) {
@@ -666,19 +680,19 @@ namespace ams::powctl::impl::board::nintendo::nx {
 
         /* Read the value. */
         u16 val;
-        R_TRY(ReadRegister(this->i2c_session, max17050::MaxMinTemp, std::addressof(val)));
+        R_TRY(ReadRegister(m_i2c_session, max17050::MaxMinTemp, std::addressof(val)));
 
         /* Set output. */
         *out = static_cast<u8>(val >> 8);
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     Result Max17050Driver::SetTemperatureMinimumAlertThreshold(int c) {
-        return ReadWriteRegister(this->i2c_session, max17050::TAlrtThreshold, 0x00FF, static_cast<u8>(c));
+        R_RETURN(ReadWriteRegister(m_i2c_session, max17050::TAlrtThreshold, 0x00FF, static_cast<u8>(c)));
     }
 
     Result Max17050Driver::SetTemperatureMaximumAlertThreshold(int c) {
-        return ReadWriteRegister(this->i2c_session, max17050::TAlrtThreshold, 0xFF00, static_cast<u16>(static_cast<u8>(c)) << 8);
+        R_RETURN(ReadWriteRegister(m_i2c_session, max17050::TAlrtThreshold, 0xFF00, static_cast<u16>(static_cast<u8>(c)) << 8));
     }
 
     Result Max17050Driver::GetVCell(int *out) {
@@ -687,11 +701,11 @@ namespace ams::powctl::impl::board::nintendo::nx {
 
         /* Read the value. */
         u16 val;
-        R_TRY(ReadRegister(this->i2c_session, max17050::VCell, std::addressof(val)));
+        R_TRY(ReadRegister(m_i2c_session, max17050::VCell, std::addressof(val)));
 
         /* Set output. */
         *out = (625 * (val >> 3)) / 1000;
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     Result Max17050Driver::GetAverageVCell(int *out) {
@@ -700,11 +714,11 @@ namespace ams::powctl::impl::board::nintendo::nx {
 
         /* Read the value. */
         u16 val;
-        R_TRY(ReadRegister(this->i2c_session, max17050::AverageVCell, std::addressof(val)));
+        R_TRY(ReadRegister(m_i2c_session, max17050::AverageVCell, std::addressof(val)));
 
         /* Set output. */
         *out = (625 * (val >> 3)) / 1000;
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     Result Max17050Driver::GetAverageVCellTime(double *out) {
@@ -713,11 +727,11 @@ namespace ams::powctl::impl::board::nintendo::nx {
 
         /* Read the value. */
         u16 val;
-        R_TRY(ReadRegister(this->i2c_session, max17050::FilterCfg, std::addressof(val)));
+        R_TRY(ReadRegister(m_i2c_session, max17050::FilterCfg, std::addressof(val)));
 
         /* Set output. */
         *out = 175.8 * ExponentiateTwoToPower(6 + ((val >> 4) & 7), 1.0);
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     Result Max17050Driver::GetOpenCircuitVoltage(int *out) {
@@ -726,19 +740,19 @@ namespace ams::powctl::impl::board::nintendo::nx {
 
         /* Read the value. */
         u16 val;
-        R_TRY(ReadRegister(this->i2c_session, max17050::VFocV, std::addressof(val)));
+        R_TRY(ReadRegister(m_i2c_session, max17050::VFocV, std::addressof(val)));
 
         /* Set output. */
         *out = (1250 * (val >> 4)) / 1000;
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     Result Max17050Driver::SetVoltageMinimumAlertThreshold(int mv) {
-        return ReadWriteRegister(this->i2c_session, max17050::VAlrtThreshold, 0x00FF, static_cast<u8>(util::DivideUp(mv, 20)));
+        R_RETURN(ReadWriteRegister(m_i2c_session, max17050::VAlrtThreshold, 0x00FF, static_cast<u8>(util::DivideUp(mv, 20))));
     }
 
     Result Max17050Driver::SetVoltageMaximumAlertThreshold(int mv) {
-        return ReadWriteRegister(this->i2c_session, max17050::VAlrtThreshold, 0xFF00, static_cast<u16>(static_cast<u8>(mv / 20)) << 8);
+        R_RETURN(ReadWriteRegister(m_i2c_session, max17050::VAlrtThreshold, 0xFF00, static_cast<u16>(static_cast<u8>(mv / 20)) << 8));
     }
 
 }

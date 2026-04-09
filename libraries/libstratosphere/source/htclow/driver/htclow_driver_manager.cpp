@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -32,26 +32,26 @@ namespace ams::htclow::driver {
                 m_open_driver = m_debug_driver;
                 break;
             case impl::DriverType::Socket:
-                m_socket_driver.Open();
+                R_TRY(m_socket_driver.Open());
                 m_open_driver = std::addressof(m_socket_driver);
                 break;
             case impl::DriverType::Usb:
-                m_usb_driver.Open();
+                R_TRY(m_usb_driver.Open());
                 m_open_driver = std::addressof(m_usb_driver);
                 break;
             case impl::DriverType::PlainChannel:
-                //m_plain_channel_driver.Open();
+                //R_TRY(m_plain_channel_driver.Open());
                 //m_open_driver = std::addressof(m_plain_channel_driver);
                 //break;
-                return htclow::ResultUnknownDriverType();
+                R_THROW(htclow::ResultUnknownDriverType());
             default:
-                return htclow::ResultUnknownDriverType();
+                R_THROW(htclow::ResultUnknownDriverType());
         }
 
         /* Set the driver type. */
         m_driver_type = driver_type;
 
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     void DriverManager::CloseDriver() {

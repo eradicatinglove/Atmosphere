@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -45,7 +45,7 @@ namespace ams::htclow::driver {
         SetUsbAvailabilityChangeCallback(OnUsbAvailabilityChange, this);
 
         /* Initialize the interface. */
-        return InitializeUsbInterface();
+        R_RETURN(InitializeUsbInterface());
     }
 
     void UsbDriver::Close() {
@@ -69,7 +69,7 @@ namespace ams::htclow::driver {
 
         /* We're connected. */
         m_connected = true;
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     void UsbDriver::Shutdown() {
@@ -92,7 +92,7 @@ namespace ams::htclow::driver {
             transferred += cur;
         }
 
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     Result UsbDriver::Receive(void *dst, int dst_size) {
@@ -107,7 +107,7 @@ namespace ams::htclow::driver {
             transferred += cur;
         }
 
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     void UsbDriver::CancelSendReceive() {

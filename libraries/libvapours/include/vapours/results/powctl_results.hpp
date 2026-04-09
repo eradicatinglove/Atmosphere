@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -17,12 +17,14 @@
 #pragma once
 #include <vapours/results/results_common.hpp>
 
-namespace ams::powctl {
+R_DEFINE_NAMESPACE_RESULT_MODULE(ams::powctl, 198);
 
-    R_DEFINE_NAMESPACE_RESULT_MODULE(198);
+namespace ams::powctl {
 
     R_DEFINE_ERROR_RESULT(NotSupported,    1);
     R_DEFINE_ERROR_RESULT(InvalidArgument, 2);
     R_DEFINE_ERROR_RESULT(NotAvailable,    3);
+
+    R_DEFINE_ERROR_RESULT(CalibrationDataCrcError, 101);
 
 }

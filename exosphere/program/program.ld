@@ -106,6 +106,7 @@ SECTIONS
     .debug_code : {
         KEEP (*(.text._ZN3ams3log6PrintfEPKcz .text._ZN3ams3log7VPrintfEPKcSt9__va_list .text._ZN3ams3log4DumpEPKvm))
         KEEP (*(.text._ZN3ams4util10TVSNPrintfEPcmPKcSt9__va_list .text._ZN3ams4util12_GLOBAL__N_114TVSNPrintfImplEPcmPKcSt9__va_list .text._ZZN3ams4util12_GLOBAL__N_114TVSNPrintfImplEPcmPKcSt9__va_listENKUlbmE3_clEbm))
+        KEEP (*(.text._ZN3ams4util12_GLOBAL__N_1L14TVSNPrintfImplEPcmPKcSt9__va_list .text._ZZN3ams4util12_GLOBAL__N_1L14TVSNPrintfImplEPcmPKcSt9__va_listENKUlbmE_clEbm))
         KEEP(secmon_exception_handler.o(.text*))
         secmon_exception_handler.o(.rodata*)
         secmon_exception_handler.o(.data*)
@@ -176,13 +177,11 @@ SECTIONS
         KEEP (*(.warmboot.text.start)) /* Should be first */
         KEEP (*(.warmboot.text*))
         KEEP(secmon_setup_warm.o(.text*))
-        KEEP(tsec_*.o(.text*))
+        KEEP(*(.text._ZN3ams4tsec4LockEv))
         KEEP (*(.warmboot.rodata*))
         KEEP(secmon_setup_warm.o(.rodata*))
-        KEEP(tsec_*.o(.rodata*))
         KEEP (*(.warmboot.data*))
         KEEP(secmon_setup_warm.o(.data*))
-        KEEP(tsec_*.o(.data*))
     } >warmboot_text AT>glob
 
 	.text ORIGIN(main) + SIZEOF(.vectors) + SIZEOF(.warmboot) :

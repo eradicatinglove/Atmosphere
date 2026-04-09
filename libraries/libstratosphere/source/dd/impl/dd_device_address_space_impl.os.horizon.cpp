@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -32,7 +32,7 @@ namespace ams::dd::impl {
         } R_END_TRY_CATCH_WITH_ABORT_UNLESS;
 
         *out = static_cast<DeviceAddressSpaceHandle>(handle);
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     void DeviceAddressSpaceImplByHorizon::Close(DeviceAddressSpaceHandle handle) {
@@ -48,38 +48,25 @@ namespace ams::dd::impl {
         /* Check alignment. */
         AMS_ABORT_UNLESS((process_address & (4_MB - 1)) == (device_address & (4_MB - 1)));
 
-        R_TRY_CATCH(svc::MapDeviceAddressSpaceAligned(svc::Handle(handle), svc::Handle(process_handle), process_address, process_size, device_address, static_cast<svc::MemoryPermission>(device_perm))) {
+        R_TRY_CATCH(svc::MapDeviceAddressSpaceAligned(svc::Handle(handle), svc::Handle(process_handle), process_address, process_size, device_address, svc::MapDeviceAddressSpaceOption::Encode(static_cast<svc::MemoryPermission>(device_perm), svc::MapDeviceAddressSpaceFlag_None))) {
             R_CONVERT(svc::ResultInvalidHandle,        dd::ResultInvalidHandle())
             R_CONVERT(svc::ResultOutOfMemory,          dd::ResultOutOfMemory())
             R_CONVERT(svc::ResultOutOfResource,        dd::ResultOutOfResource())
             R_CONVERT(svc::ResultInvalidCurrentMemory, dd::ResultInvalidMemoryState())
         } R_END_TRY_CATCH_WITH_ABORT_UNLESS;
 
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     Result DeviceAddressSpaceImplByHorizon::MapNotAligned(DeviceAddressSpaceHandle handle, ProcessHandle process_handle, u64 process_address, size_t process_size, DeviceVirtualAddress device_address, dd::MemoryPermission device_perm) {
-        R_TRY_CATCH(svc::MapDeviceAddressSpaceByForce(svc::Handle(handle), svc::Handle(process_handle), process_address, process_size, device_address, static_cast<svc::MemoryPermission>(device_perm))) {
+        R_TRY_CATCH(svc::MapDeviceAddressSpaceByForce(svc::Handle(handle), svc::Handle(process_handle), process_address, process_size, device_address, svc::MapDeviceAddressSpaceOption::Encode(static_cast<svc::MemoryPermission>(device_perm), svc::MapDeviceAddressSpaceFlag_None))) {
             R_CONVERT(svc::ResultInvalidHandle,        dd::ResultInvalidHandle())
             R_CONVERT(svc::ResultOutOfMemory,          dd::ResultOutOfMemory())
             R_CONVERT(svc::ResultOutOfResource,        dd::ResultOutOfResource())
             R_CONVERT(svc::ResultInvalidCurrentMemory, dd::ResultInvalidMemoryState())
         } R_END_TRY_CATCH_WITH_ABORT_UNLESS;
 
-        return ResultSuccess();
-    }
-
-    Result DeviceAddressSpaceImplByHorizon::MapPartially(size_t *out_mapped_size, DeviceAddressSpaceHandle handle, ProcessHandle process_handle, u64 process_address, size_t process_size, DeviceVirtualAddress device_address, dd::MemoryPermission device_perm) {
-        ams::svc::Size mapped_size = 0;
-        R_TRY_CATCH(svc::MapDeviceAddressSpace(std::addressof(mapped_size), svc::Handle(handle), svc::Handle(process_handle), process_address, process_size, device_address, static_cast<svc::MemoryPermission>(device_perm))) {
-            R_CONVERT(svc::ResultInvalidHandle,        dd::ResultInvalidHandle())
-            R_CONVERT(svc::ResultOutOfMemory,          dd::ResultOutOfMemory())
-            R_CONVERT(svc::ResultOutOfResource,        dd::ResultOutOfResource())
-            R_CONVERT(svc::ResultInvalidCurrentMemory, dd::ResultInvalidMemoryState())
-        } R_END_TRY_CATCH_WITH_ABORT_UNLESS;
-
-        *out_mapped_size = mapped_size;
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     void DeviceAddressSpaceImplByHorizon::Unmap(DeviceAddressSpaceHandle handle, ProcessHandle process_handle, u64 process_address, size_t process_size, DeviceVirtualAddress device_address) {
@@ -91,7 +78,7 @@ namespace ams::dd::impl {
             R_CONVERT(svc::ResultOutOfMemory,          dd::ResultOutOfMemory())
         } R_END_TRY_CATCH_WITH_ABORT_UNLESS;
 
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     void DeviceAddressSpaceImplByHorizon::Detach(DeviceAddressSpaceType *das, DeviceName device_name) {

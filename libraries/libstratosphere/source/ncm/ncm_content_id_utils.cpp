@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020 Adubbz, Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -34,7 +34,7 @@ namespace ams::ncm {
             /* Convert each character pair to a byte until we reach the end. */
             for (size_t i = 0; i < src_size; i += 2) {
                 char tmp[3];
-                strlcpy(tmp, src + i, sizeof(tmp));
+                util::Strlcpy(tmp, src + i, sizeof(tmp));
 
                 char *err = nullptr;
                 reinterpret_cast<u8 *>(dst)[i / 2] = static_cast<u8>(std::strtoul(tmp, std::addressof(err), 16));

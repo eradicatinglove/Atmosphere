@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -25,9 +25,11 @@ namespace ams::htcs::server {
         static constexpr inline sm::ServiceName ServiceName = sm::ServiceName::Encode("htcs");
 
         struct ServerOptions {
-            static constexpr size_t PointerBufferSize = 0x80;
-            static constexpr size_t MaxDomains        = 0x10;
-            static constexpr size_t MaxDomainObjects  = 100;
+            static constexpr size_t PointerBufferSize   = 0x80;
+            static constexpr size_t MaxDomains          = 0x10;
+            static constexpr size_t MaxDomainObjects    = 100;
+            static constexpr bool CanDeferInvokeRequest = false;
+            static constexpr bool CanManageMitmServers  = false;
         };
 
         using ServerManager = sf::hipc::ServerManager<NumServers, ServerOptions, MaxSessions>;

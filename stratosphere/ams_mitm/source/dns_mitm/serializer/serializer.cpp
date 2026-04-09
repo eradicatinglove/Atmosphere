@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -20,6 +20,9 @@
 namespace ams::mitm::socket::resolver::serializer {
 
     ssize_t DNSSerializer::CheckToBufferArguments(const u8 *dst, size_t dst_size, size_t required, int error_id) {
+        /* TODO: Logging, using error_id */
+        AMS_UNUSED(error_id);
+
         if (dst == nullptr) {
             return -1;
         } else if (dst_size < required) {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -40,8 +40,8 @@ namespace ams::sm {
             return out;
         }
 
-        static constexpr ServiceName Encode(const char *name) {
-            return Encode(name, std::strlen(name));
+        static constexpr ServiceName Encode(util::string_view name) {
+            return Encode(name.data(), name.size());
         }
     };
 
@@ -50,7 +50,7 @@ namespace ams::sm {
     static_assert(alignof(ServiceName) == 1, "ServiceName definition!");
 
     inline bool operator==(const ServiceName &lhs, const ServiceName &rhs) {
-        return std::memcmp(&lhs, &rhs, sizeof(ServiceName)) == 0;
+        return std::memcmp(std::addressof(lhs), std::addressof(rhs), sizeof(ServiceName)) == 0;
     }
 
     inline bool operator!=(const ServiceName &lhs, const ServiceName &rhs) {

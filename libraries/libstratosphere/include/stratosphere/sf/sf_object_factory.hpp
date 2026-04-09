@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -297,16 +297,19 @@ namespace ams::sf {
 
             template<typename Interface, typename Smart>
             constexpr SharedPointer<Interface> CreateShared(Allocator *a, Smart &&sp) {
+                AMS_UNUSED(a);
                 return StaticObjectFactory::template CreateShared<Interface>(m_allocator, std::forward<Smart>(sp));
             }
 
             template<typename Interface, typename T>
             constexpr SharedPointer<Interface> CreateShared(Allocator *a, T *p) {
+                AMS_UNUSED(a);
                 return StaticObjectFactory::template CreateShared<Interface>(m_allocator, p);
             }
 
             template<typename Interface, typename T>
             constexpr SharedPointer<Interface> CreateSharedWithoutManagement(Allocator *a, T *p) {
+                AMS_UNUSED(a);
                 return StaticObjectFactory::template CreateSharedWithoutManagement<Interface>(m_allocator, p);
             }
     };

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -21,6 +21,7 @@ namespace ams::err::impl {
     void MakeErrorCodeString(char *dst, size_t dst_size, ErrorCode error_code) {
         const auto len = util::TSNPrintf(dst, dst_size, "%04d-%04d", error_code.category, error_code.number);
         AMS_ASSERT(static_cast<size_t>(len) < dst_size);
+        AMS_UNUSED(len);
     }
 
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -24,7 +24,7 @@ namespace ams::htcs::impl::rpc {
         m_command = command;
         m_value   = value;
 
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     void FcntlTask::Complete(htcs::SocketError err, s32 res) {
@@ -44,20 +44,24 @@ namespace ams::htcs::impl::rpc {
         *out_err = m_err;
         *out_res = m_res;
 
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     Result FcntlTask::ProcessResponse(const char *data, size_t size) {
+        AMS_UNUSED(size);
+
         /* Convert the input to a packet. */
         auto *packet = reinterpret_cast<const HtcsRpcPacket *>(data);
 
         /* Complete the task. */
         this->Complete(static_cast<htcs::SocketError>(packet->params[0]), packet->params[1]);
 
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     Result FcntlTask::CreateRequest(size_t *out, char *data, size_t size, u32 task_id) {
+        AMS_UNUSED(size);
+
         /* Create the packet. */
         auto *packet = reinterpret_cast<HtcsRpcPacket *>(data);
         *packet = {
@@ -77,7 +81,7 @@ namespace ams::htcs::impl::rpc {
         /* Set the output size. */
         *out = sizeof(*packet);
 
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
 }

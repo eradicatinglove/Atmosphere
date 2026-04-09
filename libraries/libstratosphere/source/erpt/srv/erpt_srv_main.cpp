@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -21,11 +21,12 @@
 #include "erpt_srv_journal.hpp"
 #include "erpt_srv_service.hpp"
 #include "erpt_srv_forced_shutdown.hpp"
+#include "erpt_srv_notifiable_errors.hpp"
 
 namespace ams::erpt::srv {
 
-    lmem::HeapHandle g_heap_handle;
-    ams::sf::ExpHeapAllocator g_sf_allocator;
+    constinit lmem::HeapHandle g_heap_handle;
+    constinit ams::sf::ExpHeapAllocator g_sf_allocator = {};
 
     namespace {
 
@@ -33,6 +34,9 @@ namespace ams::erpt::srv {
         constexpr                  u32 SystemSaveDataFlags       = fs::SaveDataFlags_KeepAfterResettingSystemSaveDataWithoutUserSaveData;
         constexpr                  s64 SystemSaveDataSize        = 11_MB;
         constexpr                  s64 SystemSaveDataJournalSize = 2720_KB;
+        constexpr                  u32 DefaultThrottleTimeWindowSeconds = 3;
+
+        constinit bool g_automatic_report_cleanup_enabled = true;
 
         Result ExtendSystemSaveData() {
             s64 cur_journal_size;
@@ -47,15 +51,17 @@ namespace ams::erpt::srv {
                 }
             }
 
-            return ResultSuccess();
+            R_SUCCEED();
         }
 
         Result MountSystemSaveData() {
-            fs::DisableAutoSaveDataCreation();
+            if (hos::GetVersion() < hos::Version_21_0_0) {
+                fs::DisableAutoSaveDataCreation();
+            }
 
             /* Extend the system save data. */
-            /* NOTE: Nintendo does not check result of this. */
-            ExtendSystemSaveData();
+            /* NOTE: Nintendo used to not check the result of this; they do now, but . */
+            static_cast<void>(ExtendSystemSaveData());
 
             R_TRY_CATCH(fs::MountSystemSaveData(ReportStoragePath, SystemSaveDataId)) {
                 R_CATCH(fs::ResultTargetNotFound) {
@@ -64,9 +70,75 @@ namespace ams::erpt::srv {
                 }
             } R_END_TRY_CATCH;
 
-            return ResultSuccess();
+            R_SUCCEED();
         }
 
+    }
+
+    namespace {
+
+        int MakeProductModelString(char *dst, size_t dst_size, settings::system::ProductModel model) {
+            switch (model) {
+                case settings::system::ProductModel_Invalid: return util::Strlcpy(dst, "Invalid", static_cast<int>(dst_size));
+                case settings::system::ProductModel_Nx:      return util::Strlcpy(dst, "NX", static_cast<int>(dst_size));
+                default:                                     return util::SNPrintf(dst, dst_size, "%d", static_cast<int>(model));
+            }
+        }
+
+        const char *GetRegionString(settings::system::RegionCode code) {
+            switch (code) {
+                case settings::system::RegionCode_Japan:               return "Japan";
+                case settings::system::RegionCode_Usa:                 return "Usa";
+                case settings::system::RegionCode_Europe:              return "Europe";
+                case settings::system::RegionCode_Australia:           return "Australia";
+                case settings::system::RegionCode_HongKongTaiwanKorea: return "HongKongTaiwanKorea";
+                case settings::system::RegionCode_China:               return "China";
+                default:                                               return "RegionUnknown";
+            }
+        }
+
+    }
+
+    const erpt::SystemInfo &GetSystemInfo() {
+        static const erpt::SystemInfo s_info = [] {
+            erpt::SystemInfo info = {};
+
+            settings::system::FirmwareVersion firmware_version = {};
+            settings::system::GetFirmwareVersion(std::addressof(firmware_version));
+
+            util::Strlcpy(info.os_version, firmware_version.display_version, sizeof(info.os_version));
+
+            const auto os_priv_len = util::SNPrintf(info.private_os_version, sizeof(info.private_os_version), "%s (%.8s)", firmware_version.display_name, firmware_version.revision);
+            AMS_ASSERT(static_cast<size_t>(os_priv_len) < sizeof(info.private_os_version));
+            AMS_UNUSED(os_priv_len);
+
+            const auto pm_len = MakeProductModelString(info.product_model, sizeof(info.product_model), settings::system::GetProductModel());
+            AMS_ASSERT(static_cast<size_t>(pm_len) < sizeof(info.product_model));
+            AMS_UNUSED(pm_len);
+
+            settings::system::RegionCode region_code;
+            settings::system::GetRegionCode(std::addressof(region_code));
+            info.region = GetRegionString(region_code);
+
+            return info;
+        }();
+        return s_info;
+    }
+
+    u32 GetThrottleTimeWindowSecondsImpl() {
+        u32 seconds = DefaultThrottleTimeWindowSeconds;    
+        if (settings::fwdbg::GetSettingsItemValue(std::addressof(seconds), sizeof(seconds), "erpt", "throttle_time_window_seconds") != sizeof(seconds)) {
+            return DefaultThrottleTimeWindowSeconds;
+        }
+        return seconds;
+    }
+
+    void SetReportThrottleTimeSpan() {
+        u32 seconds = GetThrottleTimeWindowSecondsImpl();
+        
+        const TimeSpan time_span = TimeSpan::FromSeconds(static_cast<s64>(seconds));
+
+        Reporter::SetThrottleTimeSpan(time_span);
     }
 
     Result Initialize(u8 *mem, size_t mem_size) {
@@ -75,25 +147,61 @@ namespace ams::erpt::srv {
         g_heap_handle = lmem::CreateExpHeap(mem, mem_size, lmem::CreateOption_ThreadSafe);
         AMS_ABORT_UNLESS(g_heap_handle != nullptr);
 
+        fs::InitializeForSystem();
         fs::SetAllocator(Allocate, DeallocateWithSize);
+        fs::SetEnabledAutoAbort(false);
 
         R_ABORT_UNLESS(fs::MountSdCardErrorReportDirectoryForAtmosphere(ReportOnSdStoragePath));
+
+        if (g_automatic_report_cleanup_enabled) {
+            constexpr s64 MinimumReportCountForCleanup = 1000;
+            s64 report_count = MinimumReportCountForCleanup;
+
+            fs::DirectoryHandle dir;
+            if (R_SUCCEEDED(fs::OpenDirectory(std::addressof(dir), ReportOnSdStorageRootDirectoryPath, fs::OpenDirectoryMode_All))) {
+                ON_SCOPE_EXIT { fs::CloseDirectory(dir); };
+
+                if (R_FAILED(fs::GetDirectoryEntryCount(std::addressof(report_count), dir))) {
+                    report_count = MinimumReportCountForCleanup;
+                }
+            }
+
+            if (report_count >= MinimumReportCountForCleanup) {
+                static_cast<void>(fs::CleanDirectoryRecursively(ReportOnSdStorageRootDirectoryPath));
+            }
+        }
+
+        if (hos::GetVersion() >= hos::Version_22_0_0) {
+            SetReportThrottleTimeSpan();
+        }
 
         R_ABORT_UNLESS(MountSystemSaveData());
 
         g_sf_allocator.Attach(g_heap_handle);
 
-        for (auto i = 0; i < CategoryId_Count; i++) {
-            Context *ctx = new Context(static_cast<CategoryId>(i), 1);
+        for (const auto category_id : CategoryIndexToCategoryIdMap) {
+            Context *ctx = new Context(category_id);
             AMS_ABORT_UNLESS(ctx != nullptr);
         }
 
-        Journal::Restore();
+        if (hos::GetVersion() >= hos::Version_21_0_0) {
+            /* >= 21.0.0, Nintendo checks the result of restore and deletes the save data if it fails. */
+            if (R_FAILED(Journal::Restore())) {
+                /* Delete and recreate the system save data. */
+                fs::Unmount(ReportStoragePath);
+                R_ABORT_UNLESS(fs::DeleteSystemSaveData(fs::SaveDataSpaceId::System, SystemSaveDataId, fs::InvalidUserId));
+    
+                R_ABORT_UNLESS(MountSystemSaveData());
+            }
+        } else{
+            /* Pre 21.0.0, Nintendo just calls restore and ignores the result. */
+            Journal::Restore();
+        }
 
         Reporter::UpdatePowerOnTime();
         Reporter::UpdateAwakeTime();
 
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     Result InitializeAndStartService() {
@@ -101,11 +209,11 @@ namespace ams::erpt::srv {
         /* NOTE: Nintendo does not check error code here. */
         InitializeForcedShutdownDetection();
 
-        return InitializeService();
+        R_RETURN(InitializeService());
     }
 
-    Result SetSerialNumberAndOsVersion(const char *sn, u32 sn_len, const char *os, u32 os_len, const char *os_priv, u32 os_priv_len) {
-        return Reporter::SetSerialNumberAndOsVersion(sn, sn_len, os, os_len, os_priv, os_priv_len);
+    Result SetSerialNumber(const char *sn, u32 sn_len) {
+        R_RETURN(Reporter::SetSerialNumber(sn, sn_len));
     }
 
     Result SetProductModel(const char *model, u32 model_len) {
@@ -116,7 +224,7 @@ namespace ams::erpt::srv {
         R_TRY(record->Add(FieldId_ProductModel, model, model_len));
         R_TRY(Context::SubmitContextRecord(std::move(record)));
 
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     Result SetRegionSetting(const char *region, u32 region_len) {
@@ -127,12 +235,17 @@ namespace ams::erpt::srv {
         R_TRY(record->Add(FieldId_RegionSetting, region, region_len));
         R_TRY(Context::SubmitContextRecord(std::move(record)));
 
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     Result SetRedirectNewReportsToSdCard(bool redirect) {
         Reporter::SetRedirectNewReportsToSdCard(redirect);
-        return ResultSuccess();
+        R_SUCCEED();
+    }
+
+    Result SetEnabledAutomaticReportCleanup(bool en) {
+        g_automatic_report_cleanup_enabled = en;
+        R_SUCCEED();
     }
 
     void Wait() {

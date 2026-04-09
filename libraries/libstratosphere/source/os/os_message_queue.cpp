@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -15,96 +15,15 @@
  */
 #include <stratosphere.hpp>
 #include "impl/os_timeout_helper.hpp"
-#include "impl/os_waitable_object_list.hpp"
-#include "impl/os_waitable_holder_impl.hpp"
+#include "impl/os_multiple_wait_object_list.hpp"
+#include "impl/os_multiple_wait_holder_impl.hpp"
+#include "impl/os_message_queue_helper.hpp"
 
 namespace ams::os {
 
     namespace {
 
-        ALWAYS_INLINE bool IsMessageQueueFull(const MessageQueueType *mq) {
-            return mq->count >= mq->capacity;
-        }
-
-        ALWAYS_INLINE bool IsMessageQueueEmpty(const MessageQueueType *mq) {
-            return mq->count == 0;
-        }
-
-        void SendUnsafe(MessageQueueType *mq, uintptr_t data) {
-            /* Ensure our limits are correct. */
-            auto count    = mq->count;
-            auto capacity = mq->capacity;
-            AMS_ASSERT(count < capacity);
-
-            /* Determine where we're writing. */
-            auto ind = mq->offset + count;
-            if (ind >= capacity) {
-                ind -= capacity;
-            }
-            AMS_ASSERT(0 <= ind && ind < capacity);
-
-            /* Write the data. */
-            mq->buffer[ind] = data;
-            ++count;
-
-            /* Update tracking. */
-            mq->count = count;
-        }
-
-        void SendNextUnsafe(MessageQueueType *mq, uintptr_t data) {
-            /* Ensure our limits are correct. */
-            auto count    = mq->count;
-            auto capacity = mq->capacity;
-            AMS_ASSERT(count < capacity);
-
-            /* Determine where we're writing. */
-            auto offset = mq->offset - 1;
-            if (offset < 0) {
-                offset += capacity;
-            }
-            AMS_ASSERT(0 <= offset && offset < capacity);
-
-            /* Write the data. */
-            mq->buffer[offset] = data;
-            ++count;
-
-            /* Update tracking. */
-            mq->offset = offset;
-            mq->count  = count;
-        }
-
-        uintptr_t ReceiveUnsafe(MessageQueueType *mq) {
-            /* Ensure our limits are correct. */
-            auto count    = mq->count;
-            auto offset   = mq->offset;
-            auto capacity = mq->capacity;
-            AMS_ASSERT(count > 0);
-            AMS_ASSERT(offset >= 0 && offset < capacity);
-
-            /* Get the data. */
-            auto data = mq->buffer[offset];
-
-            /* Calculate new tracking variables. */
-            if ((++offset) >= capacity) {
-                offset -= capacity;
-            }
-            --count;
-
-            /* Update tracking. */
-            mq->offset = offset;
-            mq->count  = count;
-
-            return data;
-        }
-
-        uintptr_t PeekUnsafe(const MessageQueueType *mq) {
-            /* Ensure our limits are correct. */
-            auto count    = mq->count;
-            auto offset   = mq->offset;
-            AMS_ASSERT(count > 0);
-
-            return mq->buffer[offset];
-        }
+        using MessageQueueHelper = impl::MessageQueueHelper<MessageQueueType>;
 
     }
 
@@ -132,7 +51,7 @@ namespace ams::os {
     }
 
     void FinalizeMessageQueue(MessageQueueType *mq) {
-        AMS_ASSERT(mq->state = MessageQueueType::State_Initialized);
+        AMS_ASSERT(mq->state == MessageQueueType::State_Initialized);
 
         AMS_ASSERT(GetReference(mq->waitlist_not_empty).IsEmpty());
         AMS_ASSERT(GetReference(mq->waitlist_not_full).IsEmpty());
@@ -158,14 +77,14 @@ namespace ams::os {
             /* Acquire mutex, wait sendable. */
             std::scoped_lock lk(GetReference(mq->cs_queue));
 
-            while (IsMessageQueueFull(mq)) {
+            while (MessageQueueHelper::IsMessageQueueFull(mq)) {
                 GetReference(mq->cv_not_full).Wait(GetPointer(mq->cs_queue));
             }
 
             /* Send, signal. */
-            SendUnsafe(mq, data);
+            MessageQueueHelper::EnqueueUnsafe(mq, data);
             GetReference(mq->cv_not_empty).Broadcast();
-            GetReference(mq->waitlist_not_empty).SignalAllThreads();
+            GetReference(mq->waitlist_not_empty).WakeupAllMultiWaitThreadsUnsafe();
         }
     }
 
@@ -176,14 +95,14 @@ namespace ams::os {
             /* Acquire mutex, check sendable. */
             std::scoped_lock lk(GetReference(mq->cs_queue));
 
-            if (IsMessageQueueFull(mq)) {
+            if (MessageQueueHelper::IsMessageQueueFull(mq)) {
                 return false;
             }
 
             /* Send, signal. */
-            SendUnsafe(mq, data);
+            MessageQueueHelper::EnqueueUnsafe(mq, data);
             GetReference(mq->cv_not_empty).Broadcast();
-            GetReference(mq->waitlist_not_empty).SignalAllThreads();
+            GetReference(mq->waitlist_not_empty).WakeupAllMultiWaitThreadsUnsafe();
         }
 
         return true;
@@ -198,7 +117,7 @@ namespace ams::os {
             impl::TimeoutHelper timeout_helper(timeout);
             std::scoped_lock lk(GetReference(mq->cs_queue));
 
-            while (IsMessageQueueFull(mq)) {
+            while (MessageQueueHelper::IsMessageQueueFull(mq)) {
                 if (timeout_helper.TimedOut()) {
                     return false;
                 }
@@ -206,54 +125,54 @@ namespace ams::os {
             }
 
             /* Send, signal. */
-            SendUnsafe(mq, data);
+            MessageQueueHelper::EnqueueUnsafe(mq, data);
             GetReference(mq->cv_not_empty).Broadcast();
-            GetReference(mq->waitlist_not_empty).SignalAllThreads();
+            GetReference(mq->waitlist_not_empty).WakeupAllMultiWaitThreadsUnsafe();
         }
 
         return true;
     }
 
-    /* Sending (LIFO functionality) */
-    void SendNextMessageQueue(MessageQueueType *mq, uintptr_t data) {
+    /* Jamming (LIFO functionality) */
+    void JamMessageQueue(MessageQueueType *mq, uintptr_t data) {
         AMS_ASSERT(mq->state == MessageQueueType::State_Initialized);
 
         {
             /* Acquire mutex, wait sendable. */
             std::scoped_lock lk(GetReference(mq->cs_queue));
 
-            while (IsMessageQueueFull(mq)) {
+            while (MessageQueueHelper::IsMessageQueueFull(mq)) {
                 GetReference(mq->cv_not_full).Wait(GetPointer(mq->cs_queue));
             }
 
             /* Send, signal. */
-            SendNextUnsafe(mq, data);
+            MessageQueueHelper::JamUnsafe(mq, data);
             GetReference(mq->cv_not_empty).Broadcast();
-            GetReference(mq->waitlist_not_empty).SignalAllThreads();
+            GetReference(mq->waitlist_not_empty).WakeupAllMultiWaitThreadsUnsafe();
         }
     }
 
-    bool TrySendNextMessageQueue(MessageQueueType *mq, uintptr_t data) {
+    bool TryJamMessageQueue(MessageQueueType *mq, uintptr_t data) {
         AMS_ASSERT(mq->state == MessageQueueType::State_Initialized);
 
         {
             /* Acquire mutex, check sendable. */
             std::scoped_lock lk(GetReference(mq->cs_queue));
 
-            if (IsMessageQueueFull(mq)) {
+            if (MessageQueueHelper::IsMessageQueueFull(mq)) {
                 return false;
             }
 
             /* Send, signal. */
-            SendNextUnsafe(mq, data);
+            MessageQueueHelper::JamUnsafe(mq, data);
             GetReference(mq->cv_not_empty).Broadcast();
-            GetReference(mq->waitlist_not_empty).SignalAllThreads();
+            GetReference(mq->waitlist_not_empty).WakeupAllMultiWaitThreadsUnsafe();
         }
 
         return true;
     }
 
-    bool TimedSendNextMessageQueue(MessageQueueType *mq, uintptr_t data, TimeSpan timeout) {
+    bool TimedJamMessageQueue(MessageQueueType *mq, uintptr_t data, TimeSpan timeout) {
         AMS_ASSERT(mq->state == MessageQueueType::State_Initialized);
         AMS_ASSERT(timeout.GetNanoSeconds() >= 0);
 
@@ -262,7 +181,7 @@ namespace ams::os {
             impl::TimeoutHelper timeout_helper(timeout);
             std::scoped_lock lk(GetReference(mq->cs_queue));
 
-            while (IsMessageQueueFull(mq)) {
+            while (MessageQueueHelper::IsMessageQueueFull(mq)) {
                 if (timeout_helper.TimedOut()) {
                     return false;
                 }
@@ -270,9 +189,9 @@ namespace ams::os {
             }
 
             /* Send, signal. */
-            SendNextUnsafe(mq, data);
+            MessageQueueHelper::JamUnsafe(mq, data);
             GetReference(mq->cv_not_empty).Broadcast();
-            GetReference(mq->waitlist_not_empty).SignalAllThreads();
+            GetReference(mq->waitlist_not_empty).WakeupAllMultiWaitThreadsUnsafe();
         }
 
         return true;
@@ -286,14 +205,14 @@ namespace ams::os {
             /* Acquire mutex, wait receivable. */
             std::scoped_lock lk(GetReference(mq->cs_queue));
 
-            while (IsMessageQueueEmpty(mq)) {
+            while (MessageQueueHelper::IsMessageQueueEmpty(mq)) {
                 GetReference(mq->cv_not_empty).Wait(GetPointer(mq->cs_queue));
             }
 
             /* Receive, signal. */
-            *out = ReceiveUnsafe(mq);
+            *out = MessageQueueHelper::DequeueUnsafe(mq);
             GetReference(mq->cv_not_full).Broadcast();
-            GetReference(mq->waitlist_not_full).SignalAllThreads();
+            GetReference(mq->waitlist_not_full).WakeupAllMultiWaitThreadsUnsafe();
         }
     }
 
@@ -304,14 +223,14 @@ namespace ams::os {
             /* Acquire mutex, check receivable. */
             std::scoped_lock lk(GetReference(mq->cs_queue));
 
-            if (IsMessageQueueEmpty(mq)) {
+            if (MessageQueueHelper::IsMessageQueueEmpty(mq)) {
                 return false;
             }
 
             /* Receive, signal. */
-            *out = ReceiveUnsafe(mq);
+            *out = MessageQueueHelper::DequeueUnsafe(mq);
             GetReference(mq->cv_not_full).Broadcast();
-            GetReference(mq->waitlist_not_full).SignalAllThreads();
+            GetReference(mq->waitlist_not_full).WakeupAllMultiWaitThreadsUnsafe();
         }
 
         return true;
@@ -326,7 +245,7 @@ namespace ams::os {
             impl::TimeoutHelper timeout_helper(timeout);
             std::scoped_lock lk(GetReference(mq->cs_queue));
 
-            while (IsMessageQueueEmpty(mq)) {
+            while (MessageQueueHelper::IsMessageQueueEmpty(mq)) {
                 if (timeout_helper.TimedOut()) {
                     return false;
                 }
@@ -334,9 +253,9 @@ namespace ams::os {
             }
 
             /* Receive, signal. */
-            *out = ReceiveUnsafe(mq);
+            *out = MessageQueueHelper::DequeueUnsafe(mq);
             GetReference(mq->cv_not_full).Broadcast();
-            GetReference(mq->waitlist_not_full).SignalAllThreads();
+            GetReference(mq->waitlist_not_full).WakeupAllMultiWaitThreadsUnsafe();
         }
 
         return true;
@@ -350,12 +269,12 @@ namespace ams::os {
             /* Acquire mutex, wait receivable. */
             std::scoped_lock lk(GetReference(mq->cs_queue));
 
-            while (IsMessageQueueEmpty(mq)) {
+            while (MessageQueueHelper::IsMessageQueueEmpty(mq)) {
                 GetReference(mq->cv_not_empty).Wait(GetPointer(mq->cs_queue));
             }
 
             /* Peek. */
-            *out = PeekUnsafe(mq);
+            *out = MessageQueueHelper::PeekUnsafe(mq);
         }
     }
 
@@ -366,12 +285,12 @@ namespace ams::os {
             /* Acquire mutex, check receivable. */
             std::scoped_lock lk(GetReference(mq->cs_queue));
 
-            if (IsMessageQueueEmpty(mq)) {
+            if (MessageQueueHelper::IsMessageQueueEmpty(mq)) {
                 return false;
             }
 
             /* Peek. */
-            *out = PeekUnsafe(mq);
+            *out = MessageQueueHelper::PeekUnsafe(mq);
         }
 
         return true;
@@ -386,7 +305,7 @@ namespace ams::os {
             impl::TimeoutHelper timeout_helper(timeout);
             std::scoped_lock lk(GetReference(mq->cs_queue));
 
-            while (IsMessageQueueEmpty(mq)) {
+            while (MessageQueueHelper::IsMessageQueueEmpty(mq)) {
                 if (timeout_helper.TimedOut()) {
                     return false;
                 }
@@ -394,26 +313,26 @@ namespace ams::os {
             }
 
             /* Peek. */
-            *out = PeekUnsafe(mq);
+            *out = MessageQueueHelper::PeekUnsafe(mq);
         }
 
         return true;
     }
 
-    void InitializeWaitableHolder(WaitableHolderType *waitable_holder, MessageQueueType *mq, MessageQueueWaitType type) {
+    void InitializeMultiWaitHolder(MultiWaitHolderType *multi_wait_holder, MessageQueueType *mq, MessageQueueWaitType type) {
         AMS_ASSERT(mq->state == MessageQueueType::State_Initialized);
 
         switch (type) {
             case MessageQueueWaitType::ForNotFull:
-                util::ConstructAt(GetReference(waitable_holder->impl_storage).holder_of_mq_for_not_full_storage, mq);
+                util::ConstructAt(GetReference(multi_wait_holder->impl_storage).holder_of_mq_not_full_storage, mq);
                 break;
             case MessageQueueWaitType::ForNotEmpty:
-                util::ConstructAt(GetReference(waitable_holder->impl_storage).holder_of_mq_for_not_empty_storage, mq);
+                util::ConstructAt(GetReference(multi_wait_holder->impl_storage).holder_of_mq_not_empty_storage, mq);
                 break;
             AMS_UNREACHABLE_DEFAULT_CASE();
         }
 
-        waitable_holder->user_data = 0;
+        multi_wait_holder->user_data = 0;
     }
 
 }

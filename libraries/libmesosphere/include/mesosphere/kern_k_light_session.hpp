@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -25,7 +25,7 @@ namespace ams::kern {
     class KClientPort;
     class KProcess;
 
-    class KLightSession final : public KAutoObjectWithSlabHeapAndContainer<KLightSession, KAutoObjectWithList> {
+    class KLightSession final : public KAutoObjectWithSlabHeapAndContainer<KLightSession, KAutoObjectWithList, true> {
         MESOSPHERE_AUTOOBJECT_TRAITS(KLightSession, KAutoObject);
         private:
             enum class State : u8 {
@@ -46,19 +46,13 @@ namespace ams::kern {
             KProcess *m_process;
             bool m_initialized;
         public:
-            constexpr KLightSession()
-                : m_server(), m_client(), m_state(State::Invalid), m_port(), m_name(), m_process(), m_initialized()
-            {
-                /* ... */
-            }
-
-            virtual ~KLightSession() { /* ... */ }
+            explicit KLightSession() : m_state(State::Invalid), m_process(), m_initialized() { /* ... */ }
 
             void Initialize(KClientPort *client_port, uintptr_t name);
-            virtual void Finalize() override;
+            void Finalize();
 
-            virtual bool IsInitialized() const override { return m_initialized; }
-            virtual uintptr_t GetPostDestroyArgument() const override { return reinterpret_cast<uintptr_t>(m_process); }
+            bool IsInitialized() const { return m_initialized; }
+            uintptr_t GetPostDestroyArgument() const { return reinterpret_cast<uintptr_t>(m_process); }
 
             static void PostDestroy(uintptr_t arg);
 
@@ -68,7 +62,7 @@ namespace ams::kern {
             bool IsServerClosed() const { return m_state != State::Normal; }
             bool IsClientClosed() const { return m_state != State::Normal; }
 
-            Result OnRequest(KThread *request_thread) { return m_server.OnRequest(request_thread); }
+            Result OnRequest(KThread *request_thread) { R_RETURN(m_server.OnRequest(request_thread)); }
 
             KLightClientSession &GetClientSession() { return m_client; }
             KLightServerSession &GetServerSession() { return m_server; }

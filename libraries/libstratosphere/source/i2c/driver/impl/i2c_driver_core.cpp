@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -24,12 +24,13 @@ namespace ams::i2c::driver::impl {
         constinit int g_init_count = 0;
 
         i2c::driver::II2cDriver::List &GetI2cDriverList() {
-            static i2c::driver::II2cDriver::List s_driver_list;
+            AMS_FUNCTION_LOCAL_STATIC_CONSTINIT(i2c::driver::II2cDriver::List, s_driver_list);
             return s_driver_list;
         }
 
         ddsf::DeviceCodeEntryManager &GetDeviceCodeEntryManager() {
-            static ddsf::DeviceCodeEntryManager s_device_code_entry_manager(ddsf::GetDeviceCodeEntryHolderMemoryResource());
+            AMS_FUNCTION_LOCAL_STATIC(ddsf::DeviceCodeEntryManager, s_device_code_entry_manager, ddsf::GetDeviceCodeEntryHolderMemoryResource());
+
             return s_device_code_entry_manager;
         }
 
@@ -78,7 +79,7 @@ namespace ams::i2c::driver::impl {
     Result RegisterDeviceCode(DeviceCode device_code, I2cDeviceProperty *device) {
         AMS_ASSERT(device != nullptr);
         R_TRY(GetDeviceCodeEntryManager().Add(device_code, device));
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     bool UnregisterDeviceCode(DeviceCode device_code) {
@@ -95,7 +96,7 @@ namespace ams::i2c::driver::impl {
 
         /* Set output. */
         *out = device->SafeCastToPointer<I2cDeviceProperty>();
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     Result FindDeviceByBusIndexAndAddress(I2cDeviceProperty **out, i2c::I2cBus bus_index, u16 slave_address) {
@@ -124,7 +125,7 @@ namespace ams::i2c::driver::impl {
         /* Check that we found the pad. */
         R_UNLESS(found, ddsf::ResultDeviceCodeNotFound());
 
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
 }

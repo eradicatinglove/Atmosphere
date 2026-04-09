@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -34,6 +34,7 @@
 #include <exosphere/uart.hpp>
 #include <exosphere/pinmux.hpp>
 #include <exosphere/pmic.hpp>
+#include <exosphere/pmic_setup.hpp>
 #include <exosphere/rtc.hpp>
 #include <exosphere/log.hpp>
 #include <exosphere/clkrst.hpp>

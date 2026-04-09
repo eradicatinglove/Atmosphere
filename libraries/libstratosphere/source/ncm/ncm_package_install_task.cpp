@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020 Adubbz, Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -23,11 +23,12 @@ namespace ams::ncm {
     }
 
     Result PackageInstallTask::Initialize(const char *package_root, StorageId storage_id, void *buffer, size_t buffer_size, bool ignore_ticket) {
-        return PackageInstallTaskBase::Initialize(package_root, buffer, buffer_size, storage_id, std::addressof(this->data), ignore_ticket ? InstallConfig_IgnoreTicket : InstallConfig_None);
+        R_RETURN(PackageInstallTaskBase::Initialize(package_root, buffer, buffer_size, storage_id, std::addressof(m_data), ignore_ticket ? InstallConfig_IgnoreTicket : InstallConfig_None));
     }
 
     Result PackageInstallTask::GetInstallContentMetaInfo(InstallContentMetaInfo *out_info, const ContentMetaKey &key) {
-        return ncm::ResultContentNotFound();
+        AMS_UNUSED(out_info, key);
+        R_THROW(ncm::ResultContentNotFound());
     }
 
     Result PackageInstallTask::PrepareInstallContentMetaData() {
@@ -41,7 +42,7 @@ namespace ams::ncm {
             s64 count;
             fs::DirectoryEntry entry;
             R_TRY(fs::ReadDirectory(std::addressof(count), std::addressof(entry), dir, 1));
-            
+
             /* No more entries remain, we are done. */
             if (count == 0) {
                 break;
@@ -56,7 +57,7 @@ namespace ams::ncm {
             }
         }
 
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -25,14 +25,10 @@ namespace ams::pwm::driver {
         Result OpenSessionImpl(ChannelSession *out, IPwmDevice *device) {
             /* Construct the session. */
             auto *session = std::construct_at(std::addressof(impl::GetChannelSessionImpl(*out)));
-            auto session_guard = SCOPE_GUARD { std::destroy_at(session); };
+            ON_RESULT_FAILURE { std::destroy_at(session); };
 
             /* Open the session. */
-            R_TRY(session->Open(device, ddsf::AccessMode_ReadWrite));
-
-            /* We succeeded. */
-            session_guard.Cancel();
-            return ResultSuccess();
+            R_RETURN(session->Open(device, ddsf::AccessMode_ReadWrite));
         }
 
     }
@@ -48,7 +44,7 @@ namespace ams::pwm::driver {
         /* Open the session. */
         R_TRY(OpenSessionImpl(out, device));
 
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     void CloseSession(ChannelSession &session) {

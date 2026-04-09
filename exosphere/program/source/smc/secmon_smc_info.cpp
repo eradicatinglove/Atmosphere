@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -33,14 +33,15 @@ namespace ams::secmon::smc {
             using PhysicalMemorySize = util::BitPack32::Field<16, 2>;
 
             /* Kernel view, from libmesosphere. */
-            using DebugFillMemory             = util::BitPack32::Field<0,                                 1, bool>;
-            using EnableUserExceptionHandlers = util::BitPack32::Field<DebugFillMemory::Next,             1, bool>;
-            using EnableUserPmuAccess         = util::BitPack32::Field<EnableUserExceptionHandlers::Next, 1, bool>;
-            using IncreaseThreadResourceLimit = util::BitPack32::Field<EnableUserPmuAccess::Next,         1, bool>;
-            using Reserved4                   = util::BitPack32::Field<IncreaseThreadResourceLimit::Next, 4, u32>;
-            using UseSecureMonitorPanicCall   = util::BitPack32::Field<Reserved4::Next,                   1, bool>;
-            using Reserved9                   = util::BitPack32::Field<UseSecureMonitorPanicCall::Next,   7, u32>;
-            using MemorySize                  = util::BitPack32::Field<Reserved9::Next,                   2, u32>; /* smc::MemorySize = pkg1::MemorySize */
+            using DebugFillMemory              = util::BitPack32::Field<0,                                  1, bool>;
+            using EnableUserExceptionHandlers  = util::BitPack32::Field<DebugFillMemory::Next,              1, bool>;
+            using EnableUserPmuAccess          = util::BitPack32::Field<EnableUserExceptionHandlers::Next,  1, bool>;
+            using IncreaseThreadResourceLimit  = util::BitPack32::Field<EnableUserPmuAccess::Next,          1, bool>;
+            using DisableDynamicResourceLimits = util::BitPack32::Field<IncreaseThreadResourceLimit::Next,  1, bool>;
+            using Reserved5                    = util::BitPack32::Field<DisableDynamicResourceLimits::Next, 3, u32>;
+            using UseSecureMonitorPanicCall    = util::BitPack32::Field<Reserved5::Next,                    1, bool>;
+            using Reserved9                    = util::BitPack32::Field<UseSecureMonitorPanicCall::Next,    7, u32>;
+            using MemorySize                   = util::BitPack32::Field<Reserved9::Next,                    2, u32>; /* smc::MemorySize = pkg1::MemorySize */
         };
 
         constexpr const pkg1::MemorySize DramIdToMemorySize[fuse::DramId_Count] = {
@@ -50,8 +51,8 @@ namespace ams::secmon::smc {
             [fuse::DramId_IowaHynix1y4GB]     = pkg1::MemorySize_4GB,
             [fuse::DramId_IcosaSamsung6GB]    = pkg1::MemorySize_6GB,
             [fuse::DramId_HoagHynix1y4GB]     = pkg1::MemorySize_4GB,
-            [fuse::DramId_CopperMicron4GB]    = pkg1::MemorySize_4GB,
-            [fuse::DramId_IowaX1X2Samsung4GB] = pkg1::MemorySize_4GB,
+            [fuse::DramId_AulaHynix1y4GB]     = pkg1::MemorySize_4GB,
+            [fuse::DramId_Deprecated7]        = pkg1::MemorySize_4GB,
             [fuse::DramId_IowaSansung4GB]     = pkg1::MemorySize_4GB,
             [fuse::DramId_IowaSamsung8GB]     = pkg1::MemorySize_8GB,
             [fuse::DramId_IowaHynix4GB]       = pkg1::MemorySize_4GB,
@@ -60,19 +61,25 @@ namespace ams::secmon::smc {
             [fuse::DramId_HoagSamsung8GB]     = pkg1::MemorySize_8GB,
             [fuse::DramId_HoagHynix4GB]       = pkg1::MemorySize_4GB,
             [fuse::DramId_HoagMicron4GB]      = pkg1::MemorySize_4GB,
-            [fuse::DramId_IowaSamsung4GBY]    = pkg1::MemorySize_4GB,
+            [fuse::DramId_Deprecated16]       = pkg1::MemorySize_4GB,
             [fuse::DramId_IowaSamsung1y4GBX]  = pkg1::MemorySize_4GB,
             [fuse::DramId_IowaSamsung1y8GBX]  = pkg1::MemorySize_8GB,
             [fuse::DramId_HoagSamsung1y4GBX]  = pkg1::MemorySize_4GB,
-            [fuse::DramId_IowaSamsung1y4GBY]  = pkg1::MemorySize_4GB,
-            [fuse::DramId_IowaSamsung1y8GBY]  = pkg1::MemorySize_8GB,
-            [fuse::DramId_AulaSamsung1y4GB]   = pkg1::MemorySize_4GB,
+            [fuse::DramId_IowaSamsung1z4GB]   = pkg1::MemorySize_4GB,
+            [fuse::DramId_HoagSamsung1z4GB]   = pkg1::MemorySize_4GB,
+            [fuse::DramId_AulaSamsung1z4GB]   = pkg1::MemorySize_4GB,
             [fuse::DramId_HoagSamsung1y8GBX]  = pkg1::MemorySize_8GB,
             [fuse::DramId_AulaSamsung1y4GBX]  = pkg1::MemorySize_4GB,
             [fuse::DramId_IowaMicron1y4GB]    = pkg1::MemorySize_4GB,
             [fuse::DramId_HoagMicron1y4GB]    = pkg1::MemorySize_4GB,
             [fuse::DramId_AulaMicron1y4GB]    = pkg1::MemorySize_4GB,
             [fuse::DramId_AulaSamsung1y8GBX]  = pkg1::MemorySize_8GB,
+            [fuse::DramId_IowaX1X2Samsung4GB] = pkg1::MemorySize_4GB,
+            [fuse::DramId_HoagX1X2Samsung4GB] = pkg1::MemorySize_4GB,
+            [fuse::DramId_AulaX1X2Samsung4GB] = pkg1::MemorySize_4GB,
+            [fuse::DramId_IowaSamsung4GBY]    = pkg1::MemorySize_4GB,
+            [fuse::DramId_HoagSamsung4GBY]    = pkg1::MemorySize_4GB,
+            [fuse::DramId_AulaSamsung4GBY]    = pkg1::MemorySize_4GB,
         };
 
         constexpr const pkg1::MemoryMode MemoryModes[] = {
@@ -125,10 +132,13 @@ namespace ams::secmon::smc {
         }
 
         u32 GetMemoryMode() {
-            /* Unless development function is enabled, we're 4 GB. */
+            /* Unless development function or forced boot config memory size is enabled, we're 4 GB. */
             u32 memory_mode = pkg1::MemoryMode_4GB;
 
-            if (const auto &bcd = GetBootConfig().data; bcd.IsDevelopmentFunctionEnabled()) {
+            const auto &bcd = GetBootConfig().data;
+            const auto &sc  = GetSecmonConfiguration(); /* Exosphere extensions */
+
+            if (bcd.IsDevelopmentFunctionEnabled() || sc.IsBootConfigMemoryModeEnabled()) {
                 memory_mode = GetMemoryMode(bcd.GetMemoryMode());
             }
 
@@ -139,17 +149,19 @@ namespace ams::secmon::smc {
             pkg1::MemorySize memory_size = pkg1::MemorySize_4GB;
             util::BitPack32 value = {};
 
-            if (const auto &bcd = GetBootConfig().data; bcd.IsDevelopmentFunctionEnabled()) {
-                memory_size = GetMemorySize(GetMemoryMode(bcd.GetMemoryMode()));
+            const auto &bcd = GetBootConfig().data;
+            const auto &sc  = GetSecmonConfiguration(); /* Exosphere extensions */
 
+            if (bcd.IsDevelopmentFunctionEnabled()) {
                 value.Set<KernelConfiguration::Flags1>(bcd.GetKernelFlags1());
                 value.Set<KernelConfiguration::Flags0>(bcd.GetKernelFlags0());
             }
 
-            value.Set<KernelConfiguration::PhysicalMemorySize>(memory_size);
+            if (bcd.IsDevelopmentFunctionEnabled() || sc.IsBootConfigMemoryModeEnabled()) {
+                memory_size = GetMemorySize(GetMemoryMode(bcd.GetMemoryMode()));
+            }
 
-            /* Exosphere extensions. */
-            const auto &sc = GetSecmonConfiguration();
+            value.Set<KernelConfiguration::PhysicalMemorySize>(memory_size);
 
             if (!sc.DisableUserModeExceptionHandlers()) {
                 value.Set<KernelConfiguration::EnableUserExceptionHandlers>(true);
@@ -162,7 +174,29 @@ namespace ams::secmon::smc {
             return value.value;
         }
 
+        fuse::DramId GetDramIdAdjusted() {
+            const auto dram_id = fuse::GetDramId();
+            AMS_ABORT_UNLESS(dram_id < fuse::DramId_Count);
+
+            const auto fuse_mem_size = DramIdToMemorySize[dram_id];
+            const auto phys_mem_size = GetPhysicalMemorySize();
+
+            AMS_ABORT_UNLESS(fuse_mem_size <= phys_mem_size);
+
+            if (fuse_mem_size == phys_mem_size) {
+                return dram_id;
+            }
+
+            /* Adjust Dram ID to match density/ranks. */
+            if (GetSocType() == fuse::SocType_Erista) {
+                return fuse::DramId_IcosaSamsung6GB;
+            } else { /* fuse::SocType_Mariko */
+                return fuse::DramId_IowaSamsung1y8GBX;
+            }
+        }
+
         constinit u64 g_payload_address = 0;
+        constinit bool g_set_true_target_firmware = false;
 
         SmcResult GetConfig(SmcArguments &args, bool kern) {
             switch (static_cast<ConfigItem>(args.r[1])) {
@@ -170,7 +204,7 @@ namespace ams::secmon::smc {
                     args.r[1] = GetBootConfig().signed_data.IsProgramVerificationDisabled();
                     break;
                 case ConfigItem::DramId:
-                    args.r[1] = fuse::GetDramId();
+                    args.r[1] = GetDramIdAdjusted(); /* Nintendo: fuse::GetDramId() */
                     break;
                 case ConfigItem::SecurityEngineInterruptNumber:
                     args.r[1] = SecurityEngineUserInterruptId;
@@ -212,8 +246,8 @@ namespace ams::secmon::smc {
                 case ConfigItem::IsChargerHiZModeEnabled:
                     args.r[1] = IsChargerHiZModeEnabled();
                     break;
-                case ConfigItem::QuestState:
-                    args.r[1] = fuse::GetQuestState();
+                case ConfigItem::RetailInteractiveDisplayState:
+                    args.r[1] = fuse::GetRetailInteractiveDisplayState();
                     break;
                 case ConfigItem::RegulatorType:
                     args.r[1] = fuse::GetRegulator();
@@ -239,11 +273,15 @@ namespace ams::secmon::smc {
                     break;
                 case ConfigItem::ExosphereApiVersion:
                     /* Get information about the current exosphere version. */
-                    args.r[1] = (static_cast<u64>(ATMOSPHERE_RELEASE_VERSION_MAJOR & 0xFF) << 56) |
-                                (static_cast<u64>(ATMOSPHERE_RELEASE_VERSION_MINOR & 0xFF) << 48) |
-                                (static_cast<u64>(ATMOSPHERE_RELEASE_VERSION_MICRO & 0xFF) << 40) |
-                                (static_cast<u64>(GetKeyGeneration())                      << 32) |
-                                (static_cast<u64>(GetTargetFirmware())                     <<  0);
+                    if (kern || g_set_true_target_firmware) {
+                        args.r[1] = (static_cast<u64>(ATMOSPHERE_RELEASE_VERSION_MAJOR & 0xFF) << 56) |
+                                    (static_cast<u64>(ATMOSPHERE_RELEASE_VERSION_MINOR & 0xFF) << 48) |
+                                    (static_cast<u64>(ATMOSPHERE_RELEASE_VERSION_MICRO & 0xFF) << 40) |
+                                    (static_cast<u64>(GetKeyGeneration())                      << 32) |
+                                    (static_cast<u64>(GetTargetFirmware())                     <<  0);
+                    } else {
+                        return SmcResult::NotInitialized;
+                    }
                     break;
                 case ConfigItem::ExosphereNeedsReboot:
                     /* We are executing, so we aren't in the process of rebooting. */
@@ -296,6 +334,18 @@ namespace ams::secmon::smc {
                                 (static_cast<u64>(ATMOSPHERE_SUPPORTED_HOS_VERSION_MINOR & 0xFF) << 16) |
                                 (static_cast<u64>(ATMOSPHERE_SUPPORTED_HOS_VERSION_MICRO & 0xFF) <<  8);
                     break;
+                case ConfigItem::ExosphereApproximateApiVersion:
+                    /* Get information about the current exosphere version. */
+                    if (!g_set_true_target_firmware) {
+                        args.r[1] = (static_cast<u64>(ATMOSPHERE_RELEASE_VERSION_MAJOR & 0xFF) << 56) |
+                                    (static_cast<u64>(ATMOSPHERE_RELEASE_VERSION_MINOR & 0xFF) << 48) |
+                                    (static_cast<u64>(ATMOSPHERE_RELEASE_VERSION_MICRO & 0xFF) << 40) |
+                                    (static_cast<u64>(GetKeyGeneration())                      << 32) |
+                                    (static_cast<u64>(GetTargetFirmware())                     <<  0);
+                    } else {
+                        return SmcResult::Busy;
+                    }
+                    break;
                 default:
                     return SmcResult::InvalidArgument;
             }
@@ -311,6 +361,14 @@ namespace ams::secmon::smc {
                     /* Configure the HiZ mode. */
                     SetChargerHiZModeEnabled(static_cast<bool>(args.r[3]));
                     break;
+                case ConfigItem::ExosphereApiVersion:
+                    if (!g_set_true_target_firmware) {
+                        ::ams::secmon::impl::SetTargetFirmware(static_cast<ams::TargetFirmware>(args.r[3] & 0xFFFFFFFF));
+                        g_set_true_target_firmware = true;
+                    } else {
+                        return SmcResult::Busy;
+                    }
+                    break;
                 case ConfigItem::ExosphereNeedsReboot:
                     if (soc_type == fuse::SocType_Erista) {
                         switch (static_cast<UserRebootType>(args.r[3])) {
@@ -325,6 +383,9 @@ namespace ams::secmon::smc {
                             case UserRebootType_ToFatalError:
                                 PerformUserRebootToFatalError();
                                 break;
+                            case UserRebootType_ByPmic:
+                                PerformUserRebootByPmic();
+                                break;
                             default:
                                 return SmcResult::InvalidArgument;
                         }
@@ -333,18 +394,17 @@ namespace ams::secmon::smc {
                             case UserRebootType_ToFatalError:
                                 PerformUserRebootToFatalError();
                                 break;
+                            case UserRebootType_ByPmic:
+                                PerformUserRebootByPmic();
+                                break;
                             default:
                                 return SmcResult::InvalidArgument;
                         }
                     }
                     break;
                 case ConfigItem::ExosphereNeedsShutdown:
-                    if (soc_type == fuse::SocType_Erista) {
-                        if (args.r[3] != 0) {
-                            PerformUserShutDown();
-                        }
-                    } else /* if (soc_type == fuse::SocType_Mariko) */ {
-                        return SmcResult::NotImplemented;
+                    if (args.r[3] != 0) {
+                        PerformUserShutDown();
                     }
                     break;
                 case ConfigItem::ExospherePayloadAddress:
@@ -388,7 +448,7 @@ namespace ams::secmon::smc {
 
         /* Validate arguments. */
         /* NOTE: In the future, configuration for non-NAND storage may be implemented. */
-        SMC_R_UNLESS(mmc == EmummcMmc_Nand,                             NotImplemented);
+        SMC_R_UNLESS(mmc == EmummcMmc_Nand,                            NotSupported);
         SMC_R_UNLESS(user_offset + 2 * sizeof(EmummcFilePath) <= 4_KB, InvalidArgument);
 
         /* Get the emummc config. */
@@ -437,9 +497,18 @@ namespace ams::secmon::smc {
 
     /* For exosphere's usage. */
     pkg1::MemorySize GetPhysicalMemorySize() {
-        const auto dram_id = fuse::GetDramId();
-        AMS_ABORT_UNLESS(dram_id < fuse::DramId_Count);
-        return DramIdToMemorySize[dram_id];
+        const uintptr_t MC = secmon::MemoryRegionVirtualDeviceMemoryController.GetAddress();
+        const u32 mem_size = reg::Read(MC + MC_EMEM_CFG) & 0x3FFF;
+
+        switch (mem_size >> 10) {
+            case 4:
+            default:
+                return pkg1::MemorySize_4GB;
+            case 6:
+                return pkg1::MemorySize_6GB;
+            case 8:
+                return pkg1::MemorySize_8GB;
+        }
     }
 
 }

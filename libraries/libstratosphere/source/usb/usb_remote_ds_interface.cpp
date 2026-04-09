@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -19,6 +19,7 @@
 
 namespace ams::usb {
 
+    #if defined(ATMOSPHERE_OS_HORIZON)
     Result RemoteDsInterface::RegisterEndpoint(u8 endpoint_address, sf::Out<sf::SharedPointer<usb::ds::IDsEndpoint>> out) {
         Service srv;
 
@@ -30,15 +31,20 @@ namespace ams::usb {
 
         *out = ObjectFactory::CreateSharedEmplaced<ds::IDsEndpoint, RemoteDsEndpoint>(m_allocator, srv);
 
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     Result RemoteDsInterface::GetSetupEvent(sf::OutCopyHandle out) {
         serviceAssumeDomain(std::addressof(m_srv));
-        return serviceDispatch(std::addressof(m_srv), 1,
+
+        os::NativeHandle event_handle;
+        R_TRY((serviceDispatch(std::addressof(m_srv), 1,
             .out_handle_attrs = { SfOutHandleAttr_HipcCopy },
-            .out_handles = out.GetHandlePointer(),
-        );
+            .out_handles = std::addressof(event_handle),
+        )));
+
+        out.SetValue(event_handle, true);
+        R_SUCCEED();
     }
 
     Result RemoteDsInterface::GetSetupPacket(const sf::OutBuffer &out) {
@@ -56,7 +62,7 @@ namespace ams::usb {
         } in = { size, address };
 
         serviceAssumeDomain(std::addressof(m_srv));
-        return serviceDispatchInOut(std::addressof(m_srv), hos::GetVersion() >= hos::Version_11_0_0 ? 3 : 5, in, *out_urb_id);
+        R_RETURN(serviceDispatchInOut(std::addressof(m_srv), hos::GetVersion() >= hos::Version_11_0_0 ? 3 : 5, in, *out_urb_id));
     }
 
     Result RemoteDsInterface::CtrlOutAsync(sf::Out<u32> out_urb_id, u64 address, u32 size) {
@@ -66,38 +72,48 @@ namespace ams::usb {
         } in = { size, address };
 
         serviceAssumeDomain(std::addressof(m_srv));
-        return serviceDispatchInOut(std::addressof(m_srv), hos::GetVersion() >= hos::Version_11_0_0 ? 4 : 6, in, *out_urb_id);
+        R_RETURN(serviceDispatchInOut(std::addressof(m_srv), hos::GetVersion() >= hos::Version_11_0_0 ? 4 : 6, in, *out_urb_id));
     }
 
     Result RemoteDsInterface::GetCtrlInCompletionEvent(sf::OutCopyHandle out) {
         serviceAssumeDomain(std::addressof(m_srv));
-        return serviceDispatch(std::addressof(m_srv), hos::GetVersion() >= hos::Version_11_0_0 ? 5 : 7,
+
+        os::NativeHandle event_handle;
+        R_TRY((serviceDispatch(std::addressof(m_srv), hos::GetVersion() >= hos::Version_11_0_0 ? 5 : 7,
             .out_handle_attrs = { SfOutHandleAttr_HipcCopy },
-            .out_handles = out.GetHandlePointer(),
-        );
+            .out_handles = std::addressof(event_handle),
+        )));
+
+        out.SetValue(event_handle, true);
+        R_SUCCEED();
     }
 
     Result RemoteDsInterface::GetCtrlInUrbReport(sf::Out<usb::UrbReport> out) {
         serviceAssumeDomain(std::addressof(m_srv));
-        return serviceDispatchOut(std::addressof(m_srv), hos::GetVersion() >= hos::Version_11_0_0 ? 6 : 8, *out);
+        R_RETURN(serviceDispatchOut(std::addressof(m_srv), hos::GetVersion() >= hos::Version_11_0_0 ? 6 : 8, *out));
     }
 
     Result RemoteDsInterface::GetCtrlOutCompletionEvent(sf::OutCopyHandle out) {
         serviceAssumeDomain(std::addressof(m_srv));
-        return serviceDispatch(std::addressof(m_srv), hos::GetVersion() >= hos::Version_11_0_0 ? 7 : 9,
+
+        os::NativeHandle event_handle;
+        R_TRY((serviceDispatch(std::addressof(m_srv), hos::GetVersion() >= hos::Version_11_0_0 ? 7 : 9,
             .out_handle_attrs = { SfOutHandleAttr_HipcCopy },
-            .out_handles = out.GetHandlePointer(),
-        );
+            .out_handles = std::addressof(event_handle),
+        )));
+
+        out.SetValue(event_handle, true);
+        R_SUCCEED();
     }
 
     Result RemoteDsInterface::GetCtrlOutUrbReport(sf::Out<usb::UrbReport> out) {
         serviceAssumeDomain(std::addressof(m_srv));
-        return serviceDispatchOut(std::addressof(m_srv), hos::GetVersion() >= hos::Version_11_0_0 ? 8 : 10, *out);
+        R_RETURN(serviceDispatchOut(std::addressof(m_srv), hos::GetVersion() >= hos::Version_11_0_0 ? 8 : 10, *out));
     }
 
     Result RemoteDsInterface::CtrlStall() {
         serviceAssumeDomain(std::addressof(m_srv));
-        return serviceDispatch(std::addressof(m_srv), hos::GetVersion() >= hos::Version_11_0_0 ? 9 : 11);
+        R_RETURN(serviceDispatch(std::addressof(m_srv), hos::GetVersion() >= hos::Version_11_0_0 ? 9 : 11));
     }
 
     Result RemoteDsInterface::AppendConfigurationData(u8 bInterfaceNumber, usb::UsbDeviceSpeed device_speed, const sf::InBuffer &data) {
@@ -125,15 +141,16 @@ namespace ams::usb {
         R_SUCCEED_IF(hos::GetVersion() >= hos::Version_11_0_0);
 
         serviceAssumeDomain(std::addressof(m_srv));
-        return serviceDispatch(std::addressof(m_srv), 3);
+        R_RETURN(serviceDispatch(std::addressof(m_srv), 3));
     }
 
     Result RemoteDsInterface::Disable() {
         R_SUCCEED_IF(hos::GetVersion() >= hos::Version_11_0_0);
 
         serviceAssumeDomain(std::addressof(m_srv));
-        return serviceDispatch(std::addressof(m_srv), 3);
+        R_RETURN(serviceDispatch(std::addressof(m_srv), 3));
     }
+    #endif
 
 
 }

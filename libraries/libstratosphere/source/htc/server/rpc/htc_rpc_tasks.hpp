@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -32,7 +32,7 @@ namespace ams::htc::server::rpc {
         PacketCategory category;
         u16 type;
         s64 body_size;
-        u32 task_id;
+        u32 task_id{};
         u64 params[5];
         char data[];
     };
@@ -88,19 +88,23 @@ namespace ams::htc::server::rpc {
             }
 
             virtual Result ProcessResponse(const char *data, size_t size) {
-                return ResultSuccess();
+                AMS_UNUSED(data, size);
+                R_SUCCEED();
             }
 
             virtual Result CreateRequest(size_t *out, char *data, size_t size, u32 task_id) {
-                return ResultSuccess();
+                AMS_UNUSED(out, data, size, task_id);
+                R_SUCCEED();
             }
 
             virtual Result ProcessNotification(const char *data, size_t size) {
-                return ResultSuccess();
+                AMS_UNUSED(data, size);
+                R_SUCCEED();
             }
 
             virtual Result CreateNotification(size_t *out, char *data, size_t size, u32 task_id) {
-                return ResultSuccess();
+                AMS_UNUSED(out, data, size, task_id);
+                R_SUCCEED();
             }
 
             virtual bool IsReceiveBufferRequired() {

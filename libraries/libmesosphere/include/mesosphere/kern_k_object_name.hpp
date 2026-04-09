@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -30,8 +30,6 @@ namespace ams::kern {
             char m_name[NameLengthMax];
             KAutoObject *m_object;
         public:
-            constexpr KObjectName() : m_name(), m_object() { /* ... */ }
-        public:
             static Result NewFromName(KAutoObject *obj, const char *name);
             static Result Delete(KAutoObject *obj, const char *name);
 
@@ -50,7 +48,7 @@ namespace ams::kern {
                 /* Check that the object is closed. */
                 R_UNLESS(derived->IsServerClosed(), svc::ResultInvalidState());
 
-                return Delete(obj.GetPointerUnsafe(), name);
+                R_RETURN(Delete(obj.GetPointerUnsafe(), name));
             }
 
             template<typename Derived> requires std::derived_from<Derived, KAutoObject>

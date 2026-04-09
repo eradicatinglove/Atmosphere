@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -15,8 +15,8 @@
  */
 #include <stratosphere.hpp>
 #include "impl/os_interrupt_event_impl.hpp"
-#include "impl/os_waitable_holder_impl.hpp"
-#include "impl/os_waitable_object_list.hpp"
+#include "impl/os_multiple_wait_holder_impl.hpp"
+#include "impl/os_multiple_wait_object_list.hpp"
 
 namespace ams::os {
 
@@ -62,12 +62,17 @@ namespace ams::os {
         return GetReference(event->impl).Clear();
     }
 
-    void InitializeWaitableHolder(WaitableHolderType *waitable_holder, InterruptEventType *event) {
+    NativeHandle GetInterruptEventHandle(const InterruptEventType *event) {
+        AMS_ASSERT(event->state == InterruptEventType::State_Initialized);
+        return GetReference(event->impl).GetHandle();
+    }
+
+    void InitializeMultiWaitHolder(MultiWaitHolderType *multi_wait_holder, InterruptEventType *event) {
         AMS_ASSERT(event->state == InterruptEventType::State_Initialized);
 
-        util::ConstructAt(GetReference(waitable_holder->impl_storage).holder_of_interrupt_event_storage, event);
+        util::ConstructAt(GetReference(multi_wait_holder->impl_storage).holder_of_interrupt_event_storage, event);
 
-        waitable_holder->user_data = 0;
+        multi_wait_holder->user_data = 0;
     }
 
 }

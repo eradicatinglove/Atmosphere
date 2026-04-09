@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -44,7 +44,7 @@ namespace ams::htclow::driver {
         /* Setup client socket. */
         R_TRY(this->SetupClientSocket(client_desc));
 
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     Result SocketDriver::CreateServerSocket() {
@@ -86,7 +86,7 @@ namespace ams::htclow::driver {
         m_server_socket       = desc;
         m_server_socket_valid = true;
 
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     void SocketDriver::DestroyServerSocket() {
@@ -116,7 +116,7 @@ namespace ams::htclow::driver {
         m_client_socket       = desc;
         m_client_socket_valid = true;
 
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     bool SocketDriver::IsAutoConnectReserved() {
@@ -175,12 +175,12 @@ namespace ams::htclow::driver {
         };
 
         /* Send the auto-connect packet. */
-        socket::SendTo(desc, auto_connect_packet, len, socket::MsgFlag::MsgFlag_None, reinterpret_cast<const socket::SockAddr *>(std::addressof(sockaddr)), sizeof(sockaddr));
+        socket::SendTo(desc, auto_connect_packet, len, socket::MsgFlag::Msg_None, reinterpret_cast<const socket::SockAddr *>(std::addressof(sockaddr)), sizeof(sockaddr));
     }
 
     Result SocketDriver::Open() {
         m_discovery_manager.OnDriverOpen();
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     void SocketDriver::Close() {
@@ -226,7 +226,7 @@ namespace ams::htclow::driver {
         }
 
         /* Return our connection result. */
-        return m_connect_result;
+        R_RETURN(m_connect_result);
     }
 
     void SocketDriver::Shutdown() {
@@ -247,11 +247,11 @@ namespace ams::htclow::driver {
         /* Repeatedly send data until it's all sent. */
         ssize_t cur_sent;
         for (ssize_t sent = 0; sent < src_size; sent += cur_sent) {
-            cur_sent = socket::Send(m_client_socket, static_cast<const u8 *>(src) + sent, src_size - sent, socket::MsgFlag::MsgFlag_None);
+            cur_sent = socket::Send(m_client_socket, static_cast<const u8 *>(src) + sent, src_size - sent, socket::MsgFlag::Msg_None);
             R_UNLESS(cur_sent > 0, htclow::ResultSocketSendError());
         }
 
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     Result SocketDriver::Receive(void *dst, int dst_size) {
@@ -261,11 +261,11 @@ namespace ams::htclow::driver {
         /* Repeatedly receive data until it's all sent. */
         ssize_t cur_recv;
         for (ssize_t received = 0; received < dst_size; received += cur_recv) {
-            cur_recv = socket::Recv(m_client_socket, static_cast<u8 *>(dst) + received, dst_size - received, socket::MsgFlag::MsgFlag_None);
+            cur_recv = socket::Recv(m_client_socket, static_cast<u8 *>(dst) + received, dst_size - received, socket::MsgFlag::Msg_None);
             R_UNLESS(cur_recv > 0, htclow::ResultSocketReceiveError());
         }
 
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     void SocketDriver::CancelSendReceive() {

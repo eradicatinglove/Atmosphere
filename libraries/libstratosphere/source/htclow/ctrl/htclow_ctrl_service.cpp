@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -107,13 +107,13 @@ namespace ams::htclow::ctrl {
                 R_UNLESS(header.body_size == 0, htclow::ResultProtocolError());
                 break;
             case HtcctrlPacketType_ReadyFromHost:
-                R_UNLESS(0 <= header.body_size && header.body_size <= sizeof(HtcctrlPacketBody), htclow::ResultProtocolError());
+                R_UNLESS(header.body_size <= sizeof(HtcctrlPacketBody), htclow::ResultProtocolError());
                 break;
             default:
-                return htclow::ResultProtocolError();
+                R_THROW(htclow::ResultProtocolError());
         }
 
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     Result HtcctrlService::ProcessReceivePacket(const HtcctrlPacketHeader &header, const void *body, size_t body_size) {
@@ -122,19 +122,19 @@ namespace ams::htclow::ctrl {
 
         switch (header.packet_type) {
             case HtcctrlPacketType_ConnectFromHost:
-                return this->ProcessReceiveConnectPacket();
+                R_RETURN(this->ProcessReceiveConnectPacket());
             case HtcctrlPacketType_ReadyFromHost:
-                return this->ProcessReceiveReadyPacket(body, body_size);
+                R_RETURN(this->ProcessReceiveReadyPacket(body, body_size));
             case HtcctrlPacketType_SuspendFromHost:
-                return this->ProcessReceiveSuspendPacket();
+                R_RETURN(this->ProcessReceiveSuspendPacket());
             case HtcctrlPacketType_ResumeFromHost:
-                return this->ProcessReceiveResumePacket();
+                R_RETURN(this->ProcessReceiveResumePacket());
             case HtcctrlPacketType_DisconnectFromHost:
-                return this->ProcessReceiveDisconnectPacket();
+                R_RETURN(this->ProcessReceiveDisconnectPacket());
             case HtcctrlPacketType_BeaconQuery:
-                return this->ProcessReceiveBeaconQueryPacket();
+                R_RETURN(this->ProcessReceiveBeaconQueryPacket());
             default:
-                return this->ProcessReceiveUnexpectedPacket();
+                R_RETURN(this->ProcessReceiveUnexpectedPacket());
         }
     }
 
@@ -142,7 +142,7 @@ namespace ams::htclow::ctrl {
         /* Try to transition to sent connect state. */
         if (R_FAILED(this->SetState(HtcctrlState_SentConnectFromHost))) {
             /* We couldn't transition to sent connect. */
-            return this->ProcessReceiveUnexpectedPacket();
+            R_RETURN(this->ProcessReceiveUnexpectedPacket());
         }
 
         /* Send a connect packet. */
@@ -151,7 +151,7 @@ namespace ams::htclow::ctrl {
         /* Signal our event. */
         m_event.Signal();
 
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     Result HtcctrlService::ProcessReceiveReadyPacket(const void *body, size_t body_size) {
@@ -160,7 +160,7 @@ namespace ams::htclow::ctrl {
 
         /* Check that our version is correct. */
         if (m_version < ProtocolVersion) {
-            return this->ProcessReceiveUnexpectedPacket();
+            R_RETURN(this->ProcessReceiveUnexpectedPacket());
         }
 
         /* Set our version. */
@@ -169,39 +169,39 @@ namespace ams::htclow::ctrl {
 
         /* Set our state. */
         if (R_FAILED(this->SetState(HtcctrlState_SentReadyFromHost))) {
-            return this->ProcessReceiveUnexpectedPacket();
+            R_RETURN(this->ProcessReceiveUnexpectedPacket());
         }
 
         /* Ready ourselves. */
         this->TryReadyInternal();
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     Result HtcctrlService::ProcessReceiveSuspendPacket() {
         /* Try to set our state to enter sleep. */
         if (R_FAILED(this->SetState(HtcctrlState_EnterSleep))) {
             /* We couldn't transition to sleep. */
-            return this->ProcessReceiveUnexpectedPacket();
+            R_RETURN(this->ProcessReceiveUnexpectedPacket());
         }
 
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     Result HtcctrlService::ProcessReceiveResumePacket() {
         /* If our state is sent-resume, change to readied. */
         if (m_state_machine->GetHtcctrlState() != HtcctrlState_SentResumeFromTarget || R_FAILED(this->SetState(HtcctrlState_Ready))) {
             /* We couldn't perform a valid resume transition. */
-            return this->ProcessReceiveUnexpectedPacket();
+            R_RETURN(this->ProcessReceiveUnexpectedPacket());
         }
 
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     Result HtcctrlService::ProcessReceiveDisconnectPacket() {
         /* Set our state. */
         R_TRY(this->SetState(HtcctrlState_Disconnected));
 
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     Result HtcctrlService::ProcessReceiveBeaconQueryPacket() {
@@ -211,7 +211,7 @@ namespace ams::htclow::ctrl {
         /* Signal our event. */
         m_event.Signal();
 
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     Result HtcctrlService::ProcessReceiveUnexpectedPacket() {
@@ -225,7 +225,7 @@ namespace ams::htclow::ctrl {
         m_event.Signal();
 
         /* Return unexpected packet error. */
-        return htclow::ResultHtcctrlReceiveUnexpectedPacket();
+        R_THROW(htclow::ResultHtcctrlReceiveUnexpectedPacket());
     }
 
     void HtcctrlService::ProcessSendConnectPacket() {
@@ -446,7 +446,7 @@ namespace ams::htclow::ctrl {
             R_TRY(this->SetState(HtcctrlState_DriverConnected));
         }
 
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     Result HtcctrlService::NotifyDriverDisconnected() {
@@ -459,7 +459,7 @@ namespace ams::htclow::ctrl {
             R_TRY(this->SetState(HtcctrlState_DriverDisconnected));
         }
 
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     Result HtcctrlService::SetState(HtcctrlState state) {
@@ -472,7 +472,7 @@ namespace ams::htclow::ctrl {
             this->ReflectState();
         }
 
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     void HtcctrlService::ReflectState() {

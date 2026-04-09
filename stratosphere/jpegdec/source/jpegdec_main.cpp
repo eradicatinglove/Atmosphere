@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -14,81 +14,46 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include <stratosphere.hpp>
-
-/* TODO: Update libjpeg-turbo to include Nintendo's changes (support for work buffer, rather than malloc) */
-
-extern "C" {
-    extern u32 __start__;
-
-    u32 __nx_applet_type = AppletType_None;
-
-    #define INNER_HEAP_SIZE 0x18000
-    size_t nx_inner_heap_size = INNER_HEAP_SIZE;
-    char   nx_inner_heap[INNER_HEAP_SIZE];
-
-    void __libnx_initheap(void);
-    void __appInit(void);
-    void __appExit(void);
-
-    /* Exception handling. */
-    alignas(16) u8 __nx_exception_stack[ams::os::MemoryPageSize];
-    u64 __nx_exception_stack_size = sizeof(__nx_exception_stack);
-    void __libnx_exception_handler(ThreadExceptionDump *ctx);
-}
+#include "jpegdec_memory_management.hpp"
 
 namespace ams {
-    ncm::ProgramId CurrentProgramId = ncm::SystemProgramId::JpegDec;
 
-}
+    namespace init {
 
-using namespace ams;
+        void InitializeSystemModule() {
+            /* Initialize heap. */
+            jpegdec::InitializeJpegHeap();
 
-void __libnx_exception_handler(ThreadExceptionDump *ctx) {
-    ams::CrashHandler(ctx);
-}
+            /* Initialize our connection to sm. */
+            R_ABORT_UNLESS(sm::Initialize());
 
-void __libnx_initheap(void) {
-    void*  addr = nx_inner_heap;
-    size_t size = nx_inner_heap_size;
+            /* Verify that we can sanely execute. */
+            ams::CheckApiVersion();
+        }
 
-    /* Newlib */
-    extern char* fake_heap_start;
-    extern char* fake_heap_end;
+        void FinalizeSystemModule() { /* ... */ }
 
-    fake_heap_start = (char*)addr;
-    fake_heap_end   = (char*)addr + size;
-}
+        void Startup() { /* ... */ }
 
-void __appInit(void) {
-    hos::InitializeForStratosphere();
-    ams::CheckApiVersion();
+    }
 
-    R_ABORT_UNLESS(sm::Initialize());
-}
+    void Main() {
+        /* Set thread name. */
+        os::SetThreadNamePointer(os::GetCurrentThread(), AMS_GET_SYSTEM_THREAD_NAME(jpegdec, Main));
 
-void __appExit(void) {
-    /* ... */
-}
+        /* Official jpegdec changes its thread priority to 21 in main. */
+        /* This is because older versions of the sysmodule had priority 20 in npdm. */
+        os::ChangeThreadPriority(os::GetCurrentThread(), AMS_GET_SYSTEM_THREAD_PRIORITY(jpegdec, Main));
+        AMS_ASSERT(os::GetThreadPriority(os::GetCurrentThread()) == AMS_GET_SYSTEM_THREAD_PRIORITY(jpegdec, Main));
 
-int main(int argc, char **argv)
-{
-    /* Set thread name. */
-    os::SetThreadNamePointer(os::GetCurrentThread(), AMS_GET_SYSTEM_THREAD_NAME(jpegdec, Main));
+        /* Initialize the capsrv library. */
+        R_ABORT_UNLESS(capsrv::server::InitializeForDecoderServer());
 
-    /* Official jpegdec changes its thread priority to 21 in main. */
-    /* This is because older versions of the sysmodule had priority 20 in npdm. */
-    os::ChangeThreadPriority(os::GetCurrentThread(), AMS_GET_SYSTEM_THREAD_PRIORITY(jpegdec, Main));
-    AMS_ASSERT(os::GetThreadPriority(os::GetCurrentThread()) == AMS_GET_SYSTEM_THREAD_PRIORITY(jpegdec, Main));
+        /* Service the decoder server. */
+        capsrv::server::DecoderControlServerThreadFunction(nullptr);
 
-    /* Initialize the capsrv library. */
-    R_ABORT_UNLESS(capsrv::server::InitializeForDecoderServer());
+        /* Finalize the capsrv library. */
+        capsrv::server::FinalizeForDecoderServer();
+    }
 
-    /* Service the decoder server. */
-    capsrv::server::DecoderControlServerThreadFunction(nullptr);
-
-    /* Finalize the capsrv library. */
-    capsrv::server::FinalizeForDecoderServer();
-
-    /* Cleanup */
-    return 0;
 }

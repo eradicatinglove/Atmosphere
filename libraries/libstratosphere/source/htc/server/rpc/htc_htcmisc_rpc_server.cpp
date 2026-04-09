@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -62,7 +62,7 @@ namespace ams::htc::server::rpc {
         m_cancelled      = false;
         m_thread_running = true;
 
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     void HtcmiscRpcServer::Cancel() {
@@ -135,6 +135,7 @@ namespace ams::htc::server::rpc {
     Result HtcmiscRpcServer::ProcessSetTargetNameRequest(const char *name, size_t size, u32 task_id) {
         /* TODO: we need to use settings::fwdbg::SetSettingsItemValue here, but this will require ams support for set:fd re-enable? */
         /* Needs some thought. */
+        AMS_UNUSED(name, size, task_id);
         AMS_ABORT("HtcmiscRpcServer::ProcessSetTargetNameRequest");
     }
 
@@ -146,7 +147,7 @@ namespace ams::htc::server::rpc {
         /* Check size. */
         R_UNLESS(static_cast<size_t>(received) == sizeof(*header), htc::ResultInvalidSize());
 
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     Result HtcmiscRpcServer::ReceiveBody(char *dst, size_t size) {
@@ -157,7 +158,7 @@ namespace ams::htc::server::rpc {
         /* Check size. */
         R_UNLESS(static_cast<size_t>(received) == size, htc::ResultInvalidSize());
 
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     Result HtcmiscRpcServer::SendRequest(const char *src, size_t size) {
@@ -171,7 +172,7 @@ namespace ams::htc::server::rpc {
         /* Check that we sent the right amount. */
         R_UNLESS(sent == static_cast<s64>(size), htc::ResultInvalidSize());
 
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
 }

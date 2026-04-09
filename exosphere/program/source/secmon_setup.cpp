@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -365,9 +365,9 @@ namespace ams::secmon {
             reg::Write(MC + MC_SECURITY_CARVEOUT4_CFG0,                                                                                                carveout_config);
 
             /* Configure carveout 5. */
-            reg::Write(MC + MC_SECURITY_CARVEOUT5_BOM,                           g_kernel_carveouts[0].address >>  0);
-            reg::Write(MC + MC_SECURITY_CARVEOUT5_BOM_HI,                        g_kernel_carveouts[0].address >> 32);
-            reg::Write(MC + MC_SECURITY_CARVEOUT5_SIZE_128KB,                    g_kernel_carveouts[0].size / 128_KB);
+            reg::Write(MC + MC_SECURITY_CARVEOUT5_BOM,                           g_kernel_carveouts[1].address >>  0);
+            reg::Write(MC + MC_SECURITY_CARVEOUT5_BOM_HI,                        g_kernel_carveouts[1].address >> 32);
+            reg::Write(MC + MC_SECURITY_CARVEOUT5_SIZE_128KB,                    g_kernel_carveouts[1].size / 128_KB);
             reg::Write(MC + MC_SECURITY_CARVEOUT5_CLIENT_ACCESS0,                                      ClientAccess0);
             reg::Write(MC + MC_SECURITY_CARVEOUT5_CLIENT_ACCESS1,                                      ClientAccess1);
             reg::Write(MC + MC_SECURITY_CARVEOUT5_CLIENT_ACCESS2,                                    client_access_2);
@@ -475,8 +475,8 @@ namespace ams::secmon {
 
             /* Lock cluster switching, to prevent usage of the A53 cores. */
             reg::Write(FLOW_CTLR + FLOW_CTLR_BPMP_CLUSTER_CONTROL, FLOW_REG_BITS_ENUM(BPMP_CLUSTER_CONTROL_ACTIVE_CLUSTER_LOCK,    ENABLE),
-                                                                FLOW_REG_BITS_ENUM(BPMP_CLUSTER_CONTROL_CLUSTER_SWITCH_ENABLE, DISABLE),
-                                                                FLOW_REG_BITS_ENUM(BPMP_CLUSTER_CONTROL_ACTIVE_CLUSTER,           FAST));
+                                                                   FLOW_REG_BITS_ENUM(BPMP_CLUSTER_CONTROL_CLUSTER_SWITCH_ENABLE, DISABLE),
+                                                                   FLOW_REG_BITS_ENUM(BPMP_CLUSTER_CONTROL_ACTIVE_CLUSTER,           FAST));
 
             /* Enable flow controller debug qualifier for legacy FIQs. */
             reg::Write(FLOW_CTLR + FLOW_CTLR_FLOW_DBG_QUAL, FLOW_REG_BITS_ENUM(FLOW_DBG_QUAL_FIQ2CCPLEX_ENABLE, ENABLE));
@@ -600,8 +600,8 @@ namespace ams::secmon {
                 g_kernel_carveouts[0].size = 200 * 128_KB;
             }
 
-            /* Configure the two kernel carveouts. */
-            SetupKernelCarveouts();
+            /* NOTE: Here Nintendo configures the two kernel carveouts; we will do this later, to allow fusee to continue using AVP_CACHE. */
+            /* SetupKernelCarveouts(); */
 
             /* Configure slave register security. */
             ConfigureSlaveSecurity();
@@ -833,7 +833,7 @@ namespace ams::secmon {
             #define MC_ENABLE_CLIENT_ACCESS(INDEX, WHICH) MC_REG_BITS_ENUM(CLIENT_ACCESS##INDEX##_##WHICH, ENABLE)
 
             constexpr u32 WarmbootCarveoutClientAccess0     = reg::Encode(MC_ENABLE_CLIENT_ACCESS(0, AVPCARM7R),
-                                                          MC_ENABLE_CLIENT_ACCESS(0, PPCSAHBSLVR));
+                                                                          MC_ENABLE_CLIENT_ACCESS(0, PPCSAHBSLVR));
 
             constexpr u32 WarmbootCarveoutClientAccess1     = reg::Encode(MC_ENABLE_CLIENT_ACCESS(1, AVPCARM7W));
 
@@ -1163,6 +1163,9 @@ namespace ams::secmon {
     void SetupSocProtections() {
         /* Setup the GPU carveout. */
         SetupGpuCarveout();
+
+        /* Configure the two kernel carveouts. */
+        SetupKernelCarveouts();
 
         /* Disable the ARC. */
         DisableArc();

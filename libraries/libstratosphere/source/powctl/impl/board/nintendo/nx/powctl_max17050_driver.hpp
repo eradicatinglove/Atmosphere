@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -37,35 +37,38 @@ namespace ams::powctl::impl::board::nintendo::nx {
 
     class Max17050Driver {
         private:
-            os::SdkMutex mutex;
-            int init_count;
-            i2c::I2cSession i2c_session;
-            max17050::InternalState internal_state;
+            os::SdkMutex m_mutex;
+            int m_init_count;
+            i2c::I2cSession m_i2c_session;
+            max17050::InternalState m_internal_state;
         private:
             Result InitializeSession(const char *battery_vendor, u8 battery_version);
             Result SetMaximumShutdownTimerThreshold();
 
+            Result SetAlertByChargePercentage();
+            Result SetAlertByVoltageFuelGaugePercentage();
+
             bool IsPowerOnReset();
-            Result LockVfSoc();
-            Result UnlockVfSoc();
+            Result LockVoltageFuelGauge();
+            Result UnlockVoltageFuelGauge();
             Result LockModelTable();
             Result UnlockModelTable();
             bool IsModelTableLocked();
             Result SetModelTable(const u16 *model_table);
             bool IsModelTableSet(const u16 *model_table);
         public:
-            Max17050Driver() : mutex(), init_count(0), i2c_session(), internal_state() {
+            constexpr Max17050Driver() : m_mutex(), m_init_count(0), m_i2c_session(), m_internal_state() {
                 /* ... */
             }
 
             void Initialize(const char *battery_vendor, u8 battery_version) {
-                std::scoped_lock lk(this->mutex);
-                if ((this->init_count++) == 0) {
+                std::scoped_lock lk(m_mutex);
+                if ((m_init_count++) == 0) {
                     /* Initialize i2c library. */
                     i2c::InitializeEmpty();
 
                     /* Open session. */
-                    R_ABORT_UNLESS(i2c::OpenSession(std::addressof(this->i2c_session), i2c::DeviceCode_Max17050));
+                    R_ABORT_UNLESS(i2c::OpenSession(std::addressof(m_i2c_session), i2c::DeviceCode_Max17050));
 
                     /* Initialize session. */
                     R_ABORT_UNLESS(this->InitializeSession(battery_vendor, battery_version));
@@ -76,10 +79,10 @@ namespace ams::powctl::impl::board::nintendo::nx {
             }
 
             void Finalize() {
-                std::scoped_lock lk(this->mutex);
-                if ((--this->init_count) == 0) {
+                std::scoped_lock lk(m_mutex);
+                if ((--m_init_count) == 0) {
                     /* Close session. */
-                    i2c::CloseSession(this->i2c_session);
+                    i2c::CloseSession(m_i2c_session);
 
                     /* Finalize i2c library. */
                     i2c::Finalize();
@@ -90,23 +93,26 @@ namespace ams::powctl::impl::board::nintendo::nx {
             Result WriteInternalState();
 
             void GetInternalState(max17050::InternalState *dst) {
-                *dst = this->internal_state;
+                *dst = m_internal_state;
             }
 
             void SetInternalState(const max17050::InternalState &src) {
-                this->internal_state = src;
+                m_internal_state = src;
             }
 
-            Result GetSocRep(double *out);
-            Result GetSocVf(double *out);
+            Result GetChargePercentage(double *out);
+            Result GetVoltageFuelGaugePercentage(double *out);
 
             Result GetFullCapacity(double *out, double sense_resistor);
             Result GetRemainingCapacity(double *out, double sense_resistor);
 
-            Result SetPercentageMinimumAlertThreshold(int percentage);
-            Result SetPercentageMaximumAlertThreshold(int percentage);
+            Result SetChargePercentageMinimumAlertThreshold(int percentage);
+            Result SetChargePercentageMaximumAlertThreshold(int percentage);
 
-            Result SetPercentageFullThreshold(double percentage);
+            Result SetVoltageFuelGaugePercentageMinimumAlertThreshold(int percentage);
+            Result SetVoltageFuelGaugePercentageMaximumAlertThreshold(int percentage);
+
+            Result SetFullChargeThreshold(double percentage);
 
             Result GetAverageCurrent(double *out, double sense_resistor);
             Result GetCurrent(double *out, double sense_resistor);

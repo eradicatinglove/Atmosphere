@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -27,8 +27,8 @@ namespace ams::kern {
         this->Open();
 
         /* Create our sub sessions. */
-        KAutoObject::Create(std::addressof(m_server));
-        KAutoObject::Create(std::addressof(m_client));
+        KAutoObject::Create<KLightServerSession>(std::addressof(m_server));
+        KAutoObject::Create<KLightClientSession>(std::addressof(m_client));
 
         /* Initialize our sub sessions. */
         m_server.Initialize(this);

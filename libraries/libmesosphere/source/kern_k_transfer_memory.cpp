@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -41,7 +41,7 @@ namespace ams::kern {
 
         /* We succeeded. */
         pg_guard.Cancel();
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     void KTransferMemory::Finalize() {
@@ -56,9 +56,6 @@ namespace ams::kern {
         /* Close the page group. */
         GetReference(m_page_group).Close();
         GetReference(m_page_group).Finalize();
-
-        /* Perform inherited finalization. */
-        KAutoObjectWithSlabHeapAndContainer<KTransferMemory, KAutoObjectWithList>::Finalize();
     }
 
     void KTransferMemory::PostDestroy(uintptr_t arg) {
@@ -89,7 +86,7 @@ namespace ams::kern {
         /* Mark ourselves as mapped. */
         m_is_mapped = true;
 
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     Result KTransferMemory::Unmap(KProcessAddress address, size_t size) {
@@ -109,7 +106,7 @@ namespace ams::kern {
         MESOSPHERE_ASSERT(m_is_mapped);
         m_is_mapped = false;
 
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
 }

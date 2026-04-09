@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -29,7 +29,7 @@
     AMS_SF_METHOD_INFO(C, H, 810, Result, RegisterProgramIndexMapInfo,     (const sf::InBuffer &info_buffer, s32 info_count),                                                                                           (info_buffer, info_count),                 hos::Version_7_0_0)
 
 
-AMS_SF_DEFINE_MITM_INTERFACE(ams::mitm::fs, IFsMitmInterface, AMS_FS_MITM_INTERFACE_INFO)
+AMS_SF_DEFINE_MITM_INTERFACE(ams::mitm::fs, IFsMitmInterface, AMS_FS_MITM_INTERFACE_INFO, 0x7DF34ED2)
 
 namespace ams::mitm::fs {
 
@@ -54,7 +54,8 @@ namespace ams::mitm::fs {
                 }
 
                 /* We want to mitm sdb, to support sd-romfs redirection of common system archives (like system font, etc). */
-                if (program_id == ncm::SystemProgramId::Sdb) {
+                /* NOTE: In 16.0.0+, this was moved to glue. */
+                if (program_id == ncm::SystemProgramId::Sdb || program_id == ncm::SystemProgramId::Glue) {
                     return true;
                 }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -20,8 +20,8 @@ namespace ams::htcfs {
 
     namespace {
 
-        constinit util::TypedStorage<Client> g_client_storage;
-        constinit bool g_initialized;
+        constinit util::TypedStorage<Client> g_client_storage = {};
+        [[maybe_unused]] constinit bool g_initialized = false;
 
     }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -26,11 +26,11 @@ namespace ams::kern {
         private:
             ThreadTree m_tree;
         public:
-            constexpr KConditionVariable() : m_tree() { /* ... */ }
+            constexpr KConditionVariable() = default;
 
             /* Arbitration. */
-            Result SignalToAddress(KProcessAddress addr);
-            Result WaitForAddress(ams::svc::Handle handle, KProcessAddress addr, u32 value);
+            static Result SignalToAddress(KProcessAddress addr);
+            static Result WaitForAddress(ams::svc::Handle handle, KProcessAddress addr, u32 value);
 
             /* Condition variable. */
             void Signal(uintptr_t cv_key, s32 count);

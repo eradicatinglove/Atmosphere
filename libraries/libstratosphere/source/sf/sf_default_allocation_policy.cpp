@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -70,10 +70,12 @@ namespace ams::sf {
         constinit DefaultAllocatorImpl g_default_allocator_impl = {};
 
         inline void *DefaultAllocate(size_t size, size_t align) {
+            AMS_UNUSED(align);
             return ::operator new(size, std::nothrow);
         }
 
         inline void DefaultDeallocate(void *ptr, size_t size, size_t align) {
+            AMS_UNUSED(size, align);
             return ::operator delete(ptr, std::nothrow);
         }
 
@@ -87,7 +89,7 @@ namespace ams::sf {
                     return DefaultDeallocate(buffer, size, alignment);
                 }
 
-                virtual bool IsEqualImpl(const MemoryResource &resource) const {
+                virtual bool IsEqualImpl(const MemoryResource &resource) const override {
                     return this == std::addressof(resource);
                 }
         };

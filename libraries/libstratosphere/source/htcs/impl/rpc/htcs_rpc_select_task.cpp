@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -23,9 +23,9 @@ namespace ams::htcs::impl::rpc {
         R_UNLESS(this->IsValid(), htcs::ResultInvalidTask());
 
         /* Sanity check the spans. */
-        AMS_ASSERT(0 <= read_handles.size() && read_handles.size() < static_cast<size_t>(SocketCountMax));
-        AMS_ASSERT(0 <= write_handles.size() && write_handles.size() < static_cast<size_t>(SocketCountMax));
-        AMS_ASSERT(0 <= exception_handles.size() && exception_handles.size() < static_cast<size_t>(SocketCountMax));
+        AMS_ASSERT(read_handles.size() < static_cast<size_t>(SocketCountMax));
+        AMS_ASSERT(write_handles.size() < static_cast<size_t>(SocketCountMax));
+        AMS_ASSERT(exception_handles.size() < static_cast<size_t>(SocketCountMax));
 
         /* Set our arguments. */
         m_read_handle_count      = static_cast<s32>(read_handles.size());
@@ -39,7 +39,7 @@ namespace ams::htcs::impl::rpc {
         std::memcpy(m_handles + m_read_handle_count, write_handles.data(), write_handles.size_bytes());
         std::memcpy(m_handles + m_read_handle_count + m_write_handle_count, exception_handles.data(), exception_handles.size_bytes());
 
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     void SelectTask::Complete(htcs::SocketError err, s32 read_handle_count, s32 write_handle_count, s32 exception_handle_count, const void *body, s64 body_size) {
@@ -49,6 +49,7 @@ namespace ams::htcs::impl::rpc {
         AMS_ASSERT(0 <= write_handle_count && write_handle_count < SocketCountMax);
         AMS_ASSERT(0 <= exception_handle_count && exception_handle_count < SocketCountMax);
         AMS_ASSERT(handle_count * static_cast<s64>(sizeof(s32)) == body_size);
+        AMS_UNUSED(handle_count, body_size);
 
         /* Set our results. */
         m_err                        = err;
@@ -101,20 +102,24 @@ namespace ams::htcs::impl::rpc {
             std::copy(exception_start, exception_end, exception_handles.begin());
         }
 
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     Result SelectTask::ProcessResponse(const char *data, size_t size) {
+        AMS_UNUSED(size);
+
         /* Convert the input to a packet. */
         auto *packet = reinterpret_cast<const HtcsRpcPacket *>(data);
 
         /* Complete the task. */
         this->Complete(static_cast<htcs::SocketError>(packet->params[0]), packet->params[1], packet->params[2], packet->params[3], packet->data, size - sizeof(*packet));
 
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     Result SelectTask::CreateRequest(size_t *out, char *data, size_t size, u32 task_id) {
+        AMS_UNUSED(size);
+
         /* Determine the body size. */
         const auto handle_count = m_read_handle_count + m_write_handle_count + m_exception_handle_count;
         const s64 body_size     = static_cast<s64>(handle_count * sizeof(s32));
@@ -144,7 +149,7 @@ namespace ams::htcs::impl::rpc {
         /* Set the output size. */
         *out = sizeof(*packet) + body_size;
 
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
 }

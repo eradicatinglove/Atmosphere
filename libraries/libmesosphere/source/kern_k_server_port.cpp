@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -36,7 +36,7 @@ namespace ams::kern {
 
         /* Cleanup the session list. */
         while (true) {
-            /* Get the last session in the list */
+            /* Get the last session in the list. */
             KServerSession *session = nullptr;
             {
                 KScopedSchedulerLock sl;
@@ -56,7 +56,7 @@ namespace ams::kern {
 
         /* Cleanup the light session list. */
         while (true) {
-            /* Get the last session in the list */
+            /* Get the last session in the list. */
             KLightServerSession *session = nullptr;
             {
                 KScopedSchedulerLock sl;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -25,22 +25,13 @@ namespace ams::dd {
     Result CreateDeviceAddressSpace(DeviceAddressSpaceType *das, u64 size);
     void DestroyDeviceAddressSpace(DeviceAddressSpaceType *das);
 
-    void AttachDeviceAddressSpaceHandle(DeviceAddressSpaceType *das, Handle handle, bool managed);
+    void AttachDeviceAddressSpaceHandle(DeviceAddressSpaceType *das, DeviceAddressSpaceHandle handle, bool managed);
 
-    Handle GetDeviceAddressSpaceHandle(DeviceAddressSpaceType *das);
+    DeviceAddressSpaceHandle GetDeviceAddressSpaceHandle(DeviceAddressSpaceType *das);
 
     Result MapDeviceAddressSpaceAligned(DeviceAddressSpaceType *das, ProcessHandle process_handle, u64 process_address, size_t size, DeviceVirtualAddress device_address, MemoryPermission device_perm);
     Result MapDeviceAddressSpaceNotAligned(DeviceAddressSpaceType *das, ProcessHandle process_handle, u64 process_address, size_t size, DeviceVirtualAddress device_address, MemoryPermission device_perm);
     void UnmapDeviceAddressSpace(DeviceAddressSpaceType *das, ProcessHandle process_handle, u64 process_address, size_t size, DeviceVirtualAddress device_address);
-
-    void InitializeDeviceAddressSpaceMapInfo(DeviceAddressSpaceMapInfo *info, DeviceAddressSpaceType *das, ProcessHandle process_handle, u64 process_address, size_t size, DeviceVirtualAddress device_address, MemoryPermission device_perm);
-
-    Result MapNextDeviceAddressSpaceRegion(size_t *out_mapped_size, DeviceAddressSpaceMapInfo *info);
-    void UnmapDeviceAddressSpaceRegion(DeviceAddressSpaceMapInfo *info);
-
-    u64 GetMappedProcessAddress(DeviceAddressSpaceMapInfo *info);
-    DeviceVirtualAddress GetMappedDeviceVirtualAddress(DeviceAddressSpaceMapInfo *info);
-    size_t GetMappedSize(DeviceAddressSpaceMapInfo *info);
 
     Result AttachDeviceAddressSpace(DeviceAddressSpaceType *das, DeviceName device_name);
     void DetachDeviceAddressSpace(DeviceAddressSpaceType *das, DeviceName device_name);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -22,7 +22,7 @@ namespace ams::htcfs {
     FileServiceObject::FileServiceObject(s32 handle) : m_handle(handle) { /* ... */ }
 
     FileServiceObject::~FileServiceObject() {
-        htcfs::GetClient().CloseFile(m_handle);
+        static_cast<void>(htcfs::GetClient().CloseFile(m_handle));
     }
 
     Result FileServiceObject::ReadFile(ams::sf::Out<s64> out, s64 offset, const ams::sf::OutNonSecureBuffer &buffer, ams::fs::ReadOption option) {
@@ -30,9 +30,9 @@ namespace ams::htcfs {
         R_UNLESS(offset >= 0, htcfs::ResultInvalidArgument());
 
         if (buffer.GetSize() >= ClientImpl::MaxPacketBodySize) {
-            return htcfs::GetClient().ReadFileLarge(out.GetPointer(), buffer.GetPointer(), m_handle, offset, buffer.GetSize(), option);
+            R_RETURN(htcfs::GetClient().ReadFileLarge(out.GetPointer(), buffer.GetPointer(), m_handle, offset, buffer.GetSize(), option));
         } else {
-            return htcfs::GetClient().ReadFile(out.GetPointer(), buffer.GetPointer(), m_handle, offset, buffer.GetSize(), option);
+            R_RETURN(htcfs::GetClient().ReadFile(out.GetPointer(), buffer.GetPointer(), m_handle, offset, buffer.GetSize(), option));
         }
     }
 
@@ -41,33 +41,33 @@ namespace ams::htcfs {
         R_UNLESS(offset >= 0, htcfs::ResultInvalidArgument());
 
         if (buffer.GetSize() >= ClientImpl::MaxPacketBodySize) {
-            return htcfs::GetClient().WriteFileLarge(buffer.GetPointer(), m_handle, offset, buffer.GetSize(), option);
+            R_RETURN(htcfs::GetClient().WriteFileLarge(buffer.GetPointer(), m_handle, offset, buffer.GetSize(), option));
         } else {
-            return htcfs::GetClient().WriteFile(buffer.GetPointer(), m_handle, offset, buffer.GetSize(), option);
+            R_RETURN(htcfs::GetClient().WriteFile(buffer.GetPointer(), m_handle, offset, buffer.GetSize(), option));
         }
     }
 
     Result FileServiceObject::GetFileSize(ams::sf::Out<s64> out) {
-        return htcfs::GetClient().GetFileSize(out.GetPointer(), m_handle);
+        R_RETURN(htcfs::GetClient().GetFileSize(out.GetPointer(), m_handle));
     }
 
     Result FileServiceObject::SetFileSize(s64 size) {
         /* Validate size. */
         R_UNLESS(size >= 0, htcfs::ResultInvalidArgument());
 
-        return htcfs::GetClient().SetFileSize(size, m_handle);
+        R_RETURN(htcfs::GetClient().SetFileSize(size, m_handle));
     }
 
     Result FileServiceObject::FlushFile() {
-        return htcfs::GetClient().FlushFile(m_handle);
+        R_RETURN(htcfs::GetClient().FlushFile(m_handle));
     }
 
     Result FileServiceObject::SetPriorityForFile(s32 priority) {
-        return htcfs::GetClient().SetPriorityForFile(priority, m_handle);
+        R_RETURN(htcfs::GetClient().SetPriorityForFile(priority, m_handle));
     }
 
     Result FileServiceObject::GetPriorityForFile(ams::sf::Out<s32> out) {
-        return htcfs::GetClient().GetPriorityForFile(out.GetPointer(), m_handle);
+        R_RETURN(htcfs::GetClient().GetPriorityForFile(out.GetPointer(), m_handle));
     }
 
 }

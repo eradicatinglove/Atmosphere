@@ -80,6 +80,51 @@ enum FS_VER
     FS_VER_12_0_3,
     FS_VER_12_0_3_EXFAT,
 
+    FS_VER_13_0_0,
+    FS_VER_13_0_0_EXFAT,
+
+    FS_VER_13_1_0,
+    FS_VER_13_1_0_EXFAT,
+
+    FS_VER_14_0_0,
+    FS_VER_14_0_0_EXFAT,
+
+    FS_VER_15_0_0,
+    FS_VER_15_0_0_EXFAT,
+
+    FS_VER_16_0_0,
+    FS_VER_16_0_0_EXFAT,
+
+    FS_VER_16_0_3,
+    FS_VER_16_0_3_EXFAT,
+
+    FS_VER_17_0_0,
+    FS_VER_17_0_0_EXFAT,
+
+    FS_VER_18_0_0,
+    FS_VER_18_0_0_EXFAT,
+
+    FS_VER_18_1_0,
+    FS_VER_18_1_0_EXFAT,
+
+    FS_VER_19_0_0,
+    FS_VER_19_0_0_EXFAT,
+
+    FS_VER_20_0_0,
+    FS_VER_20_0_0_EXFAT,
+
+    FS_VER_20_1_0,
+    FS_VER_20_1_0_EXFAT,
+
+    FS_VER_21_0_0,
+    FS_VER_21_0_0_EXFAT,
+
+    FS_VER_21_2_0,
+    FS_VER_21_2_0_EXFAT,
+
+    FS_VER_22_0_0,
+    FS_VER_22_0_0_EXFAT,
+
     FS_VER_MAX,
 };
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -107,9 +107,9 @@ namespace ams::mitm::socket::resolver {
                 HostName,
             };
 
-            ams::socket::InAddrT current_address;
+            ams::socket::InAddrT current_address{};
             char current_hostname[0x200];
-            u32 work;
+            u32 work{};
 
             State state = State::BeginLine;
             for (const char *cur = file_data; *cur != '\x00'; ++cur) {

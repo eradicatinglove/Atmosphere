@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -28,7 +28,7 @@ namespace ams::htc::server {
         using ServerOptions = sf::hipc::DefaultServerManagerOptions;
         using ServerManager = sf::hipc::ServerManager<NumServers, ServerOptions, MaxSessions>;
 
-        constinit util::TypedStorage<ServerManager> g_server_manager_storage;
+        constinit util::TypedStorage<ServerManager> g_server_manager_storage = {};
         constinit ServerManager *g_server_manager = nullptr;
 
         constinit HtcmiscImpl *g_misc_impl = nullptr;

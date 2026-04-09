@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -113,35 +113,19 @@ namespace ams::socket::impl {
     }
 
     u32 InetHtonl(u32 host) {
-        if constexpr (util::IsBigEndian()) {
-            return host;
-        } else {
-            return util::SwapBytes(host);
-        }
+        return util::ConvertToBigEndian(host);
     }
 
     u16 InetHtons(u16 host) {
-        if constexpr (util::IsBigEndian()) {
-            return host;
-        } else {
-            return util::SwapBytes(host);
-        }
+        return util::ConvertToBigEndian(host);
     }
 
     u32 InetNtohl(u32 net) {
-        if constexpr (util::IsBigEndian()) {
-            return net;
-        } else {
-            return util::SwapBytes(net);
-        }
+        return util::ConvertFromBigEndian(net);
     }
 
     u16 InetNtohs(u16 net) {
-        if constexpr (util::IsBigEndian()) {
-            return net;
-        } else {
-            return util::SwapBytes(net);
-        }
+        return util::ConvertFromBigEndian(net);
     }
 
     namespace {
@@ -206,7 +190,9 @@ namespace ams::socket::impl {
 
             /* TODO: socket::resolver::EnableResolverCalls()? Not necessary in our case (htc), but consider calling it. */
 
-            return ResultSuccess();
+            g_initialized = true;
+
+            R_SUCCEED();
         }
 
         ALWAYS_INLINE struct sockaddr *ConvertForLibnx(SockAddr *addr) {
@@ -249,7 +235,7 @@ namespace ams::socket::impl {
     }
 
     Result Initialize(const Config &config) {
-        return InitializeCommon(config);
+        R_RETURN(InitializeCommon(config));
     }
 
     Result Finalize() {
@@ -273,7 +259,7 @@ namespace ams::socket::impl {
         }
         lmem::DestroyExpHeap(heap_handle);
 
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     Result InitializeAllocatorForInternal(void *buffer, size_t size) {
@@ -282,7 +268,7 @@ namespace ams::socket::impl {
         AMS_ABORT_UNLESS(size >= 4_KB);
 
         InitializeHeapImpl(buffer, size);
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     ssize_t RecvFrom(s32 desc, void *buffer, size_t buffer_size, MsgFlag flags, SockAddr *out_address, SockLenT *out_addr_len) {
@@ -422,6 +408,22 @@ namespace ams::socket::impl {
         return result;
     }
 
+    s32 Socket(Family domain, Type type, Protocol protocol) {
+        /* Check pre-conditions. */
+        AMS_ABORT_UNLESS(IsInitialized());
+
+        /* Perform the call. */
+        Errno error = Errno::ESuccess;
+        int result  = ::bsdSocket(static_cast<int>(domain), static_cast<int>(type), static_cast<int>(protocol));
+        TranslateResultToBsdError(error, result);
+
+        if (result < 0) {
+            socket::impl::SetLastError(error);
+        }
+
+        return result;
+    }
+
     s32 SocketExempt(Family domain, Type type, Protocol protocol) {
         /* Check pre-conditions. */
         AMS_ABORT_UNLESS(IsInitialized());
@@ -478,6 +480,28 @@ namespace ams::socket::impl {
         /* Perform the call. */
         Errno error = Errno::ESuccess;
         int result  = ::bsdBind(desc, ConvertForLibnx(address), len);
+        TranslateResultToBsdError(error, result);
+
+        if (result < 0) {
+            socket::impl::SetLastError(error);
+        }
+
+        return result;
+    }
+
+    s32 Connect(s32 desc, const SockAddr *address, SockLenT len) {
+        /* Check pre-conditions. */
+        AMS_ABORT_UNLESS(IsInitialized());
+
+        /* Check input. */
+        if (address == nullptr || len == 0) {
+            socket::impl::SetLastError(Errno::EInval);
+            return -1;
+        }
+
+        /* Perform the call. */
+        Errno error = Errno::ESuccess;
+        int result  = ::bsdConnect(desc, ConvertForLibnx(address), len);
         TranslateResultToBsdError(error, result);
 
         if (result < 0) {

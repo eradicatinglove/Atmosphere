@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -25,12 +25,12 @@ namespace ams::pwm::driver {
         NON_MOVEABLE(IPwmDevice);
         AMS_DDSF_CASTABLE_TRAITS(ams::pwm::driver::IPwmDevice, ::ams::ddsf::IDevice);
         private:
-            int channel_index;
+            int m_channel_index;
         public:
-            IPwmDevice(int id) : IDevice(false), channel_index(id) { /* ... */ }
+            IPwmDevice(int id) : IDevice(false), m_channel_index(id) { /* ... */ }
             virtual ~IPwmDevice() { /* ... */ }
 
-            constexpr int GetChannelIndex() const { return this->channel_index; }
+            constexpr int GetChannelIndex() const { return m_channel_index; }
     };
 
 }

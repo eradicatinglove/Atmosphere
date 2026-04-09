@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -29,7 +29,7 @@ namespace ams::pgl::srv {
         };
 
         constexpr sm::ServiceName ShellServiceName = sm::ServiceName::Encode("pgl");
-        constexpr size_t          ShellMaxSessions = 8; /* Official maximum is 8. */
+        constexpr size_t          ShellMaxSessions = 8; /* Official maximum is 6. */
 
         using CmifServerManager = ams::sf::hipc::ServerManager<PortIndex_Count>;
 
@@ -113,7 +113,7 @@ namespace ams::pgl::srv {
                 globals.server_manager.Initialize();
 
                 /* Register the pgl service. */
-                globals.server_manager.RegisterPort<PortIndex_Shell>(ShellServiceName, ShellMaxSessions);
+                globals.server_manager.RegisterPort(ShellServiceName, ShellMaxSessions);
             } else {
                 /* Get the globals. */
                 auto &globals = GetGlobalsForCmif();
@@ -150,16 +150,29 @@ namespace ams::pgl::srv {
     }
 
     void Deallocate(void *p, size_t size) {
+        AMS_UNUSED(size);
         return lmem::FreeToExpHeap(GetHeapHandle(), p);
     }
 
     void StartServer() {
         /* Enable extra application threads, if we should. */
-        u8 enable_application_extra_thread;
-        const size_t sz = settings::fwdbg::GetSettingsItemValue(std::addressof(enable_application_extra_thread), sizeof(enable_application_extra_thread), "application_extra_thread", "enable_application_extra_thread");
-        if (sz == sizeof(enable_application_extra_thread) && enable_application_extra_thread != 0) {
-            /* NOTE: Nintendo does not check that this succeeds. */
-            pm::shell::EnableApplicationExtraThread();
+        {
+            u8 enable_application_extra_thread;
+            const size_t sz = settings::fwdbg::GetSettingsItemValue(std::addressof(enable_application_extra_thread), sizeof(enable_application_extra_thread), "application_extra_thread", "enable_application_extra_thread");
+            if (sz == sizeof(enable_application_extra_thread) && enable_application_extra_thread != 0) {
+                /* NOTE: Nintendo does not check that this succeeds. */
+                pm::shell::BoostApplicationThreadResourceLimit();
+            }
+        }
+
+        /* Enable extra system threads, if we should. */
+        {
+            u8 enable_system_extra_thread;
+            const size_t sz = settings::fwdbg::GetSettingsItemValue(std::addressof(enable_system_extra_thread), sizeof(enable_system_extra_thread), "application_extra_thread", "enable_system_extra_thread");
+            if (sz == sizeof(enable_system_extra_thread) && enable_system_extra_thread != 0) {
+                /* NOTE: Nintendo does not check that this succeeds. */
+                pm::shell::BoostSystemThreadResourceLimit();
+            }
         }
 
         /* Register service session. */
@@ -168,11 +181,11 @@ namespace ams::pgl::srv {
         /* Start the Process Tracking thread. */
         pgl::srv::InitializeProcessControlTask();
 
-        /* TODO: Loop process. */
+        /* Loop process. */
         LoopProcessServer();
     }
 
-    Result AllocateShellEventObserverForTipc(svc::Handle *out) {
+    Result AllocateShellEventObserverForTipc(os::NativeHandle *out) {
         /* Get the shell event observer allocator. */
         auto &allocator = GetGlobalsForTipc().observer_allocator;
 
@@ -188,19 +201,7 @@ namespace ams::pgl::srv {
         /* TODO: Should we avoid leaking the object? Nintendo does not. */
         R_TRY(GetGlobalsForTipc().server_manager.AddSession(out, object));
 
-        return ResultSuccess();
-    }
-
-
-    ams::tipc::ServiceObjectBase *AllocateShellEventObserverForTipc() {
-        auto &allocator = GetGlobalsForTipc().observer_allocator;
-
-        auto *object = allocator.Allocate();
-        if (object != nullptr) {
-            object->SetDeleter(std::addressof(allocator));
-        }
-
-        return object;
+        R_SUCCEED();
     }
 
 }

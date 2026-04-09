@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -30,7 +30,7 @@ namespace ams::erpt::srv {
 
     class Attachment : public Allocator, public Stream {
         private:
-            JournalRecord<AttachmentInfo> *record;
+            JournalRecord<AttachmentInfo> *m_record;
         private:
             AttachmentFileName FileName() const;
         public:
@@ -50,12 +50,12 @@ namespace ams::erpt::srv {
 
             template<typename T>
             Result Write(T val) {
-                return this->WriteStream(reinterpret_cast<const u8 *>(std::addressof(val)), sizeof(val));
+                R_RETURN(this->WriteStream(reinterpret_cast<const u8 *>(std::addressof(val)), sizeof(val)));
             }
 
             template<typename T>
             Result Write(const T *buf, u32 buffer_size) {
-                return this->WriteStream(reinterpret_cast<const u8 *>(buf), buffer_size);
+                R_RETURN(this->WriteStream(reinterpret_cast<const u8 *>(buf), buffer_size));
             }
     };
 

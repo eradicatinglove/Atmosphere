@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -72,7 +72,7 @@ namespace ams::kern {
 
                 R_UNLESS(size >= m_current_size, svc::ResultLimitReached());
                 m_limit_size = size;
-                return ResultSuccess();
+                R_SUCCEED();
             }
     };
 }

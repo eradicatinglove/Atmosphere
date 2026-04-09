@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -20,75 +20,85 @@ namespace ams::mitm::fs {
 
     class ReadOnlyLayeredFileSystem : public ams::fs::fsa::IFileSystem {
         private:
-            ams::fs::ReadOnlyFileSystem fs_1;
-            ams::fs::ReadOnlyFileSystem fs_2;
+            ams::fs::ReadOnlyFileSystem m_fs_1;
+            ams::fs::ReadOnlyFileSystem m_fs_2;
         public:
-            explicit ReadOnlyLayeredFileSystem(std::unique_ptr<ams::fs::fsa::IFileSystem> a, std::unique_ptr<ams::fs::fsa::IFileSystem> b) : fs_1(std::move(a)), fs_2(std::move(b)) { /* ... */ }
+            explicit ReadOnlyLayeredFileSystem(std::unique_ptr<ams::fs::fsa::IFileSystem> a, std::unique_ptr<ams::fs::fsa::IFileSystem> b) : m_fs_1(std::move(a)), m_fs_2(std::move(b)) { /* ... */ }
 
             virtual ~ReadOnlyLayeredFileSystem() { /* ... */ }
         private:
-            virtual Result DoCreateFile(const char *path, s64 size, int flags) override final {
-                return ams::fs::ResultUnsupportedOperation();
+            virtual Result DoCreateFile(const ams::fs::Path &path, s64 size, int flags) override final {
+                AMS_UNUSED(path, size, flags);
+                R_THROW(ams::fs::ResultUnsupportedOperation())
             }
 
-            virtual Result DoDeleteFile(const char *path) override final {
-                return ams::fs::ResultUnsupportedOperation();
+            virtual Result DoDeleteFile(const ams::fs::Path &path) override final {
+                AMS_UNUSED(path);
+                R_THROW(ams::fs::ResultUnsupportedOperation())
             }
 
-            virtual Result DoCreateDirectory(const char *path) override final {
-                return ams::fs::ResultUnsupportedOperation();
+            virtual Result DoCreateDirectory(const ams::fs::Path &path) override final {
+                AMS_UNUSED(path);
+                R_THROW(ams::fs::ResultUnsupportedOperation())
             }
 
-            virtual Result DoDeleteDirectory(const char *path) override final {
-                return ams::fs::ResultUnsupportedOperation();
+            virtual Result DoDeleteDirectory(const ams::fs::Path &path) override final {
+                AMS_UNUSED(path);
+                R_THROW(ams::fs::ResultUnsupportedOperation())
             }
 
-            virtual Result DoDeleteDirectoryRecursively(const char *path) override final {
-                return ams::fs::ResultUnsupportedOperation();
+            virtual Result DoDeleteDirectoryRecursively(const ams::fs::Path &path) override final {
+                AMS_UNUSED(path);
+                R_THROW(ams::fs::ResultUnsupportedOperation())
             }
 
-            virtual Result DoRenameFile(const char *old_path, const char *new_path) override final {
-                return ams::fs::ResultUnsupportedOperation();
+            virtual Result DoRenameFile(const ams::fs::Path &old_path, const ams::fs::Path &new_path) override final {
+                AMS_UNUSED(old_path, new_path);
+                R_THROW(ams::fs::ResultUnsupportedOperation())
             }
 
-            virtual Result DoRenameDirectory(const char *old_path, const char *new_path) override final {
-                return ams::fs::ResultUnsupportedOperation();
+            virtual Result DoRenameDirectory(const ams::fs::Path &old_path, const ams::fs::Path &new_path) override final {
+                AMS_UNUSED(old_path, new_path);
+                R_THROW(ams::fs::ResultUnsupportedOperation())
             }
 
-            virtual Result DoGetEntryType(ams::fs::DirectoryEntryType *out, const char *path) override final {
-                R_UNLESS(R_FAILED(this->fs_1.GetEntryType(out, path)), ResultSuccess());
-                return this->fs_2.GetEntryType(out, path);
+            virtual Result DoGetEntryType(ams::fs::DirectoryEntryType *out, const ams::fs::Path &path) override final {
+                R_SUCCEED_IF(R_SUCCEEDED(m_fs_1.GetEntryType(out, path)));
+                R_RETURN(m_fs_2.GetEntryType(out, path));
             }
 
-            virtual Result DoOpenFile(std::unique_ptr<ams::fs::fsa::IFile> *out_file, const char *path, ams::fs::OpenMode mode) override final {
-                R_UNLESS(R_FAILED(this->fs_1.OpenFile(out_file, path, mode)), ResultSuccess());
-                return this->fs_2.OpenFile(out_file, path, mode);
+            virtual Result DoOpenFile(std::unique_ptr<ams::fs::fsa::IFile> *out_file, const ams::fs::Path &path, ams::fs::OpenMode mode) override final {
+                R_SUCCEED_IF(R_SUCCEEDED(m_fs_1.OpenFile(out_file, path, mode)));
+                R_RETURN(m_fs_2.OpenFile(out_file, path, mode));
             }
 
-            virtual Result DoOpenDirectory(std::unique_ptr<ams::fs::fsa::IDirectory> *out_dir, const char *path, ams::fs::OpenDirectoryMode mode) override final {
-                R_UNLESS(R_FAILED(this->fs_1.OpenDirectory(out_dir, path, mode)), ResultSuccess());
-                return this->fs_2.OpenDirectory(out_dir, path, mode);
+            virtual Result DoOpenDirectory(std::unique_ptr<ams::fs::fsa::IDirectory> *out_dir, const ams::fs::Path &path, ams::fs::OpenDirectoryMode mode) override final {
+                R_SUCCEED_IF(R_SUCCEEDED(m_fs_1.OpenDirectory(out_dir, path, mode)));
+                R_RETURN(m_fs_2.OpenDirectory(out_dir, path, mode));
             }
 
             virtual Result DoCommit() override final {
-                return ResultSuccess();
+                R_SUCCEED();
             }
 
-            virtual Result DoGetFreeSpaceSize(s64 *out, const char *path) {
-                return ams::fs::ResultUnsupportedOperation();
+            virtual Result DoGetFreeSpaceSize(s64 *out, const ams::fs::Path &path) {
+                AMS_UNUSED(out, path);
+                R_THROW(ams::fs::ResultUnsupportedOperation())
             }
 
-            virtual Result DoGetTotalSpaceSize(s64 *out, const char *path) {
-                return ams::fs::ResultUnsupportedOperation();
+            virtual Result DoGetTotalSpaceSize(s64 *out, const ams::fs::Path &path) {
+                AMS_UNUSED(out, path);
+                R_THROW(ams::fs::ResultUnsupportedOperation())
             }
 
-            virtual Result DoCleanDirectoryRecursively(const char *path) {
-                return ams::fs::ResultUnsupportedOperation();
+            virtual Result DoCleanDirectoryRecursively(const ams::fs::Path &path) {
+                AMS_UNUSED(path);
+                R_THROW(ams::fs::ResultUnsupportedOperation())
             }
 
-            virtual Result DoGetFileTimeStampRaw(ams::fs::FileTimeStampRaw *out, const char *path) {
-                R_UNLESS(R_FAILED(this->fs_1.GetFileTimeStampRaw(out, path)), ResultSuccess());
-                return this->fs_2.GetFileTimeStampRaw(out, path);
+            virtual Result DoGetFileTimeStampRaw(ams::fs::FileTimeStampRaw *out, const ams::fs::Path &path) {
+                R_SUCCEED_IF(R_SUCCEEDED(m_fs_1.GetFileTimeStampRaw(out, path)));
+                R_RETURN(m_fs_2.GetFileTimeStampRaw(out, path));
             }
     };
 

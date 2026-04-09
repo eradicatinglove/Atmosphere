@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -28,7 +28,7 @@ namespace ams::pwm::driver {
     }
 
     Result RegisterDeviceCode(DeviceCode device_code, IPwmDevice *device) {
-        return impl::RegisterDeviceCode(device_code, device);
+        R_RETURN(impl::RegisterDeviceCode(device_code, device));
     }
 
     bool UnregisterDeviceCode(DeviceCode device_code) {

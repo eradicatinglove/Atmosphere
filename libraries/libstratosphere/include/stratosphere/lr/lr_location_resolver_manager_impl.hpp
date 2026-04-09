@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020 Adubbz, Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -23,18 +23,23 @@ namespace ams::lr {
 
     class LocationResolverManagerImpl {
         private:
+            static constexpr size_t ResolverCountMax = 5;
+        private:
             /* Resolver storage. */
-            ncm::BoundedMap<ncm::StorageId, sf::SharedPointer<ILocationResolver>, 5> location_resolvers;
-            sf::SharedPointer<IRegisteredLocationResolver> registered_location_resolver = nullptr;
-            sf::SharedPointer<IAddOnContentLocationResolver> add_on_content_location_resolver = nullptr;
+            ncm::BoundedMap<ncm::StorageId, sf::SharedPointer<ILocationResolver>, ResolverCountMax> m_location_resolvers{};
+            ncm::BoundedMap<ncm::StorageId, bool, ResolverCountMax> m_location_resolvers_enabled{};
+            bool m_default_enabled = true;
+            sf::SharedPointer<IRegisteredLocationResolver> m_registered_location_resolver = nullptr;
+            sf::SharedPointer<IAddOnContentLocationResolver> m_add_on_content_location_resolver = nullptr;
 
-            os::Mutex mutex{false};
+            os::SdkMutex m_mutex{};
         public:
             /* Actual commands. */
             Result OpenLocationResolver(sf::Out<sf::SharedPointer<ILocationResolver>> out, ncm::StorageId storage_id);
             Result OpenRegisteredLocationResolver(sf::Out<sf::SharedPointer<IRegisteredLocationResolver>> out);
             Result RefreshLocationResolver(ncm::StorageId storage_id);
             Result OpenAddOnContentLocationResolver(sf::Out<sf::SharedPointer<IAddOnContentLocationResolver>> out);
+            Result SetEnabled(const sf::InMapAliasArray<ncm::StorageId> &storages);
     };
     static_assert(IsILocationResolverManager<LocationResolverManagerImpl>);
 

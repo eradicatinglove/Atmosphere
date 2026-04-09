@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -93,7 +93,7 @@ namespace ams::htclow::mux {
 
         /* Determine the sendable size. */
         const auto offset = total_send_size - ring_buffer_data_size;
-        const auto sendable_size = m_flow_control_enabled ? std::min(share - offset, ring_buffer_data_size) : ring_buffer_data_size;
+        const auto sendable_size = m_flow_control_enabled ? std::min<size_t>(share - offset, ring_buffer_data_size) : ring_buffer_data_size;
         if (sendable_size == 0) {
             return false;
         }

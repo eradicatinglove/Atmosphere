@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -35,6 +35,8 @@ namespace ams::scs {
         }
 
         void Deallocate(void *p, size_t size) {
+            AMS_UNUSED(size);
+
             std::scoped_lock lk(g_mutex);
             lmem::FreeToExpHeap(g_tenv_heap_handle, p);
         }

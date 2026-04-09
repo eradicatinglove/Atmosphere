@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -15,11 +15,12 @@
  */
 
 #pragma once
-#include "../fs_common.hpp"
-#include "../fs_directory.hpp"
+#include <stratosphere/fs/fs_common.hpp>
+#include <stratosphere/fs/fs_directory.hpp>
 
 namespace ams::fs::fsa {
 
+    /* ACCURATE_TO_VERSION: Unknown */
     class IDirectory {
         public:
             virtual ~IDirectory() { /* ... */ }
@@ -28,16 +29,16 @@ namespace ams::fs::fsa {
                 R_UNLESS(out_count != nullptr, fs::ResultNullptrArgument());
                 if (max_entries == 0) {
                     *out_count = 0;
-                    return ResultSuccess();
+                    R_SUCCEED();
                 }
                 R_UNLESS(out_entries != nullptr, fs::ResultNullptrArgument());
-                R_UNLESS(max_entries > 0, fs::ResultInvalidArgument());
-                return this->DoRead(out_count, out_entries, max_entries);
+                R_UNLESS(max_entries > 0,        fs::ResultInvalidArgument());
+                R_RETURN(this->DoRead(out_count, out_entries, max_entries));
             }
 
             Result GetEntryCount(s64 *out) {
                 R_UNLESS(out != nullptr, fs::ResultNullptrArgument());
-                return this->DoGetEntryCount(out);
+                R_RETURN(this->DoGetEntryCount(out));
             }
         public:
             /* TODO: This is a hack to allow the mitm API to work. Find a better way? */

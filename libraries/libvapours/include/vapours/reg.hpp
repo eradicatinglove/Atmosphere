@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -55,6 +55,12 @@ namespace ams::reg {
     constexpr ALWAYS_INLINE u32 EncodeMask(const Masks... masks) {
         return (EncodeMask(masks) | ...);
     }
+
+    template<typename IntType> requires UnsignedNonConstIntegral<IntType>
+    constexpr ALWAYS_INLINE IntType GetField(const IntType &value, const BitsMask mask) { return (value & EncodeMask(mask)) >> GetOffset(mask); }
+
+    template<typename IntType> requires UnsignedNonConstIntegral<IntType>
+    constexpr ALWAYS_INLINE void SetField(IntType &value, const BitsValue v) { value = (value & ~EncodeMask(v)) | EncodeValue(v); }
 
     template<typename IntType> requires UnsignedNonConstIntegral<IntType>
     ALWAYS_INLINE void Write(volatile IntType *reg, std::type_identity_t<IntType> val) { *reg = val; }

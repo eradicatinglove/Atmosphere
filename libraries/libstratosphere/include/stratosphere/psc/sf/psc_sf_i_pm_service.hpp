@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -21,4 +21,4 @@
 #define AMS_PSC_I_PM_SERVICE_INTERFACE_INFO(C, H)                                                                  \
     AMS_SF_METHOD_INFO(C, H, 0, Result, Initialize, (ams::sf::Out<ams::sf::SharedPointer<psc::sf::IPmModule>> out), (out))
 
-AMS_SF_DEFINE_INTERFACE(ams::psc::sf, IPmService, AMS_PSC_I_PM_SERVICE_INTERFACE_INFO)
+AMS_SF_DEFINE_INTERFACE(ams::psc::sf, IPmService, AMS_PSC_I_PM_SERVICE_INTERFACE_INFO, 0xEABE6F26)

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -21,7 +21,7 @@ namespace ams::dd {
 
     using DeviceVirtualAddress = u64;
 
-    using DeviceAddressSpaceHandle = ::Handle;
+    using DeviceAddressSpaceHandle = os::NativeHandle;
 
     struct DeviceAddressSpaceType {
         enum State {
@@ -33,17 +33,5 @@ namespace ams::dd {
         bool     is_handle_managed;
     };
     static_assert(std::is_trivial<DeviceAddressSpaceType>::value);
-
-    struct DeviceAddressSpaceMapInfo {
-        size_t last_mapped_size;
-        size_t size;
-        u64 process_address;
-        DeviceVirtualAddress device_start_address;
-        DeviceVirtualAddress device_end_address;
-        ProcessHandle process_handle;
-        MemoryPermission device_permission;
-        DeviceAddressSpaceType *device_address_space;
-    };
-    static_assert(std::is_trivial<DeviceAddressSpaceMapInfo>::value);
 
 }

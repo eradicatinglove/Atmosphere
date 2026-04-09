@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -68,6 +68,10 @@ namespace ams::secmon {
 
         ALWAYS_INLINE void SetKeyGeneration(int generation) {
             GetConfigurationContext().secmon_cfg.key_generation = generation;
+        }
+
+        ALWAYS_INLINE void SetTargetFirmware(ams::TargetFirmware target_firmware) {
+            GetConfigurationContext().secmon_cfg.target_firmware = target_firmware;
         }
 
         ALWAYS_INLINE pkg1::BootConfig *GetBootConfigStorage() {

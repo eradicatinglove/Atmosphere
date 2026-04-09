@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020 Adubbz, Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -33,4 +33,4 @@
     AMS_SF_METHOD_INFO(C, H, 8, Result, Refresh,                            (),                                                                 (),                   hos::Version_7_0_0)                     \
     AMS_SF_METHOD_INFO(C, H, 9, Result, RefreshExcluding,                   (const sf::InArray<ncm::ProgramId> &ids),                           (ids),                hos::Version_9_0_0)
 
-AMS_SF_DEFINE_INTERFACE(ams::lr, IRegisteredLocationResolver, AMS_LR_I_REGISTERED_LOCATION_RESOLVER_INTERFACE_INFO)
+AMS_SF_DEFINE_INTERFACE(ams::lr, IRegisteredLocationResolver, AMS_LR_I_REGISTERED_LOCATION_RESOLVER_INTERFACE_INFO, 0x35346AC9)

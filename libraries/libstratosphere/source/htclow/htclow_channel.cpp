@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -30,11 +30,11 @@ namespace ams::htclow {
         };
 
         /* Open the channel. */
-        return m_manager->Open(impl::ConvertChannelType(m_channel));
+        R_RETURN(m_manager->Open(impl::ConvertChannelType(m_channel)));
     }
 
     void Channel::Close() {
-        m_manager->Close(impl::ConvertChannelType(m_channel));
+        static_cast<void>(m_manager->Close(impl::ConvertChannelType(m_channel)));
     }
 
     ChannelState Channel::GetChannelState() {
@@ -49,30 +49,30 @@ namespace ams::htclow {
         const auto channel = impl::ConvertChannelType(m_channel);
 
         /* Begin the flush. */
-        u32 task_id;
+        u32 task_id{};
         R_TRY(m_manager->ConnectBegin(std::addressof(task_id), channel));
 
         /* Wait for the task to finish. */
         this->WaitEvent(m_manager->GetTaskEvent(task_id), false);
 
         /* End the flush. */
-        return m_manager->ConnectEnd(channel, task_id);
+        R_RETURN(m_manager->ConnectEnd(channel, task_id));
     }
 
     Result Channel::Flush() {
         /* Begin the flush. */
-        u32 task_id;
+        u32 task_id{};
         R_TRY(m_manager->FlushBegin(std::addressof(task_id), impl::ConvertChannelType(m_channel)));
 
         /* Wait for the task to finish. */
         this->WaitEvent(m_manager->GetTaskEvent(task_id), true);
 
         /* End the flush. */
-        return m_manager->FlushEnd(task_id);
+        R_RETURN(m_manager->FlushEnd(task_id));
     }
 
     void Channel::Shutdown() {
-        m_manager->Shutdown(impl::ConvertChannelType(m_channel));
+        static_cast<void>(m_manager->Shutdown(impl::ConvertChannelType(m_channel)));
     }
 
     Result Channel::Receive(s64 *out, void *dst, s64 size, ReceiveOption option) {
@@ -101,7 +101,7 @@ namespace ams::htclow {
                 if (htclow::ResultChannelNotExist::Includes(result)) {
                     *out = received;
                 }
-                return result;
+                R_RETURN(result);
             }
 
             received += static_cast<size_t>(cur_received);
@@ -111,7 +111,7 @@ namespace ams::htclow {
         AMS_ASSERT(received <= size);
         *out = received;
 
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     Result Channel::Send(s64 *out, const void *src, s64 size) {
@@ -128,13 +128,13 @@ namespace ams::htclow {
             AMS_ASSERT(util::IsIntValueRepresentable<size_t>(size - total_sent));
 
             /* Begin the send. */
-            u32 task_id;
+            u32 task_id{};
             const auto begin_result = m_manager->SendBegin(std::addressof(task_id), std::addressof(cur_sent), static_cast<const u8 *>(src) + total_sent, size - total_sent, channel);
             if (R_FAILED(begin_result)) {
                 if (total_sent != 0) {
                     break;
                 } else {
-                    return begin_result;
+                    R_RETURN(begin_result);
                 }
             }
 
@@ -149,7 +149,7 @@ namespace ams::htclow {
         AMS_ASSERT(total_sent <= size);
         *out = total_sent;
 
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     void Channel::SetConfig(const ChannelConfig &config) {
@@ -172,7 +172,7 @@ namespace ams::htclow {
         /* Check pre-conditions. */
         AMS_ASSERT(util::IsIntValueRepresentable<size_t>(size));
 
-        return this->WaitReceiveInternal(size, nullptr);
+        R_RETURN(this->WaitReceiveInternal(size, nullptr));
     }
 
     Result Channel::WaitReceive(s64 size, os::EventType *event) {
@@ -180,7 +180,7 @@ namespace ams::htclow {
         AMS_ASSERT(util::IsIntValueRepresentable<size_t>(size));
         AMS_ASSERT(event != nullptr);
 
-        return this->WaitReceiveInternal(size, event);
+        R_RETURN(this->WaitReceiveInternal(size, event));
     }
 
     void Channel::WaitEvent(os::EventType *event, bool) {
@@ -192,7 +192,7 @@ namespace ams::htclow {
         const bool blocking = option != ReceiveOption_NonBlocking;
 
         /* Begin the receive. */
-        u32 task_id;
+        u32 task_id{};
         R_TRY(m_manager->ReceiveBegin(std::addressof(task_id), channel, blocking ? 1 : 0));
 
         /* Wait for the task to finish. */
@@ -207,29 +207,29 @@ namespace ams::htclow {
         AMS_ASSERT(util::IsIntValueRepresentable<s64>(received));
         *out = static_cast<s64>(received);
 
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     Result Channel::WaitReceiveInternal(s64 size, os::EventType *event) {
         const auto channel = impl::ConvertChannelType(m_channel);
 
         /* Begin the wait. */
-        u32 task_id;
+        u32 task_id{};
         R_TRY(m_manager->WaitReceiveBegin(std::addressof(task_id), channel, size));
 
 
         /* Perform the wait. */
         if (event != nullptr) {
             if (os::WaitAny(event, m_manager->GetTaskEvent(task_id)) == 0) {
-                m_manager->WaitReceiveEnd(task_id);
-                return htclow::ResultChannelWaitCancelled();
+                static_cast<void>(m_manager->WaitReceiveEnd(task_id));
+                R_THROW(htclow::ResultChannelWaitCancelled());
             }
         } else {
             this->WaitEvent(m_manager->GetTaskEvent(task_id), false);
         }
 
         /* End the wait. */
-        return m_manager->WaitReceiveEnd(task_id);
+        R_RETURN(m_manager->WaitReceiveEnd(task_id));
     }
 
 }

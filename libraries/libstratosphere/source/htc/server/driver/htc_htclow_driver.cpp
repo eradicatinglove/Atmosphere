@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -36,6 +36,7 @@ namespace ams::htc::server::driver {
 
     void HtclowDriver::SetDisconnectionEmulationEnabled(bool en) {
         /* NOTE: Nintendo ignores the input, here. */
+        AMS_UNUSED(en);
         m_disconnection_emulation_enabled = false;
     }
 
@@ -49,7 +50,7 @@ namespace ams::htc::server::driver {
             AMS_ABORT("Unsupported channel");
         }
 
-        return this->Open(channel, m_default_receive_buffer, sizeof(m_default_receive_buffer), m_default_send_buffer, sizeof(m_default_send_buffer));
+        R_RETURN(this->Open(channel, m_default_receive_buffer, sizeof(m_default_receive_buffer), m_default_send_buffer, sizeof(m_default_send_buffer)));
     }
 
     Result HtclowDriver::Open(htclow::ChannelId channel, void *receive_buffer, size_t receive_buffer_size, void *send_buffer, size_t send_buffer_size) {
@@ -60,7 +61,7 @@ namespace ams::htc::server::driver {
         m_manager->SetReceiveBuffer(GetHtclowChannel(channel, m_module_id), receive_buffer, receive_buffer_size);
         m_manager->SetSendBuffer(GetHtclowChannel(channel, m_module_id), send_buffer, send_buffer_size);
 
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     void HtclowDriver::Close(htclow::ChannelId channel) {
@@ -74,7 +75,7 @@ namespace ams::htc::server::driver {
         R_UNLESS(!m_disconnection_emulation_enabled, htclow::ResultConnectionFailure());
 
         /* Begin connecting. */
-        u32 task_id;
+        u32 task_id{};
         R_TRY(m_manager->ConnectBegin(std::addressof(task_id), GetHtclowChannel(channel, m_module_id)));
 
         /* Wait for the task to complete. */
@@ -83,12 +84,12 @@ namespace ams::htc::server::driver {
         /* Finish connecting. */
         R_TRY(m_manager->ConnectEnd(GetHtclowChannel(channel, m_module_id), task_id));
 
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     void HtclowDriver::Shutdown(htclow::ChannelId channel) {
         /* Shut down the channel. */
-        m_manager->Shutdown(GetHtclowChannel(channel, m_module_id));
+        static_cast<void>(m_manager->Shutdown(GetHtclowChannel(channel, m_module_id)));
     }
 
     Result HtclowDriver::Send(s64 *out, const void *src, s64 src_size, htclow::ChannelId channel) {
@@ -103,7 +104,7 @@ namespace ams::htc::server::driver {
         size_t sent;
         for (sent = 0; sent < static_cast<size_t>(src_size); sent += cur_send) {
             /* Begin sending. */
-            u32 task_id;
+            u32 task_id{};
             R_TRY(m_manager->SendBegin(std::addressof(task_id), std::addressof(cur_send), static_cast<const u8 *>(src) + sent, static_cast<size_t>(src_size) - sent, GetHtclowChannel(channel, m_module_id)));
 
             /* Wait for the task to complete. */
@@ -116,7 +117,7 @@ namespace ams::htc::server::driver {
         /* Set the output sent size. */
         *out = static_cast<s64>(sent);
 
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     Result HtclowDriver::ReceiveInternal(size_t *out, void *dst, size_t dst_size, htclow::ChannelId channel, htclow::ReceiveOption option) {
@@ -124,14 +125,14 @@ namespace ams::htc::server::driver {
         const bool blocking = option != htclow::ReceiveOption_NonBlocking;
 
         /* Begin receiving. */
-        u32 task_id;
+        u32 task_id{};
         R_TRY(m_manager->ReceiveBegin(std::addressof(task_id), GetHtclowChannel(channel, m_module_id), blocking ? 1 : 0));
 
         /* Wait for the task to complete. */
         this->WaitTask(task_id);
 
         /* Finish receiving. */
-        return m_manager->ReceiveEnd(out, dst, dst_size, GetHtclowChannel(channel, m_module_id), task_id);
+        R_RETURN(m_manager->ReceiveEnd(out, dst, dst_size, GetHtclowChannel(channel, m_module_id), task_id));
     }
 
     Result HtclowDriver::Receive(s64 *out, void *dst, s64 dst_size, htclow::ChannelId channel, htclow::ReceiveOption option) {
@@ -163,7 +164,7 @@ namespace ams::htc::server::driver {
                 if (htclow::ResultChannelNotExist::Includes(result)) {
                     *out = received;
                 }
-                return result;
+                R_RETURN(result);
             }
 
             received += cur_received;
@@ -172,7 +173,7 @@ namespace ams::htc::server::driver {
         /* Set the output received size. */
         *out = static_cast<s64>(received);
 
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     htclow::ChannelState HtclowDriver::GetChannelState(htclow::ChannelId channel) {

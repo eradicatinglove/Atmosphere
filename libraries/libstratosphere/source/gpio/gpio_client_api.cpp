@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -22,10 +22,12 @@ namespace ams::gpio {
 
         constinit os::SdkMutex g_init_mutex;
         constinit int g_initialize_count = 0;
-        constinit bool g_remote = false;
         ams::sf::SharedPointer<gpio::sf::IManager> g_manager;
 
+        #if defined(ATMOSPHERE_OS_HORIZON)
+        constinit bool g_remote = false;
         ams::sf::UnmanagedServiceObject<gpio::sf::IManager, RemoteManagerImpl> g_remote_manager_impl;
+        #endif
 
         gpio::sf::IPadSession *GetInterface(GpioPadSession *session) {
             AMS_ASSERT(session->_session != nullptr);
@@ -38,9 +40,13 @@ namespace ams::gpio {
         std::scoped_lock lk(g_init_mutex);
 
         if ((g_initialize_count++) == 0) {
+            #if defined(ATMOSPHERE_OS_HORIZON)
             R_ABORT_UNLESS(::gpioInitialize());
             g_manager = g_remote_manager_impl.GetShared();
             g_remote  = true;
+            #else
+            AMS_ABORT("TODO");
+            #endif
         }
     }
 
@@ -60,9 +66,13 @@ namespace ams::gpio {
 
         if ((--g_initialize_count) == 0) {
             g_manager = nullptr;
+            #if defined(ATMOSPHERE_OS_HORIZON)
             if (g_remote) {
                 ::gpioExit();
             }
+            #else
+            AMS_ABORT("TODO");
+            #endif
         }
     }
 
@@ -82,7 +92,7 @@ namespace ams::gpio {
         out_session->_event   = nullptr;
 
         /* We succeeded. */
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     void CloseSession(GpioPadSession *session) {
@@ -105,7 +115,7 @@ namespace ams::gpio {
             R_TRY(g_manager->IsWakeEventActive(out_is_active, ConvertToGpioPadName(device_code)));
         }
 
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     Direction GetDirection(GpioPadSession *session) {
@@ -181,13 +191,14 @@ namespace ams::gpio {
     Result BindInterrupt(os::SystemEventType *event, GpioPadSession *session) {
         AMS_ASSERT(session->_event == nullptr);
 
-        ams::sf::CopyHandle handle;
+        ams::sf::NativeHandle handle;
         R_TRY(GetInterface(session)->BindInterrupt(std::addressof(handle)));
 
-        os::AttachReadableHandleToSystemEvent(event, handle.GetValue(), true, os::EventClearMode_ManualClear);
+        os::AttachReadableHandleToSystemEvent(event, handle.GetOsHandle(), handle.IsManaged(), os::EventClearMode_ManualClear);
+        handle.Detach();
 
         session->_event = event;
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     void UnbindInterrupt(GpioPadSession *session) {

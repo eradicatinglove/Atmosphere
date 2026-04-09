@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -43,13 +43,14 @@ namespace ams::kern {
                 }
             }
         public:
-            constexpr ALWAYS_INLINE KMemoryRegion() : m_address(0), m_pair_address(0), m_last_address(0), m_attributes(0), m_type_id(0) { /* ... */ }
-            constexpr ALWAYS_INLINE KMemoryRegion(uintptr_t a, size_t la, uintptr_t p, u32 r, u32 t) :
+            constexpr ALWAYS_INLINE KMemoryRegion() : util::IntrusiveRedBlackTreeBaseNode<KMemoryRegion>(util::ConstantInitialize), m_address(0), m_pair_address(0), m_last_address(0), m_attributes(0), m_type_id(0) { /* ... */ }
+
+            ALWAYS_INLINE KMemoryRegion(uintptr_t a, size_t la, uintptr_t p, u32 r, u32 t) :
                 m_address(a), m_pair_address(p), m_last_address(la), m_attributes(r), m_type_id(t)
             {
                 /* ... */
             }
-            constexpr ALWAYS_INLINE KMemoryRegion(uintptr_t a, size_t la, u32 r, u32 t) : KMemoryRegion(a, la, std::numeric_limits<uintptr_t>::max(), r, t) { /* ... */ }
+            ALWAYS_INLINE KMemoryRegion(uintptr_t a, size_t la, u32 r, u32 t) : KMemoryRegion(a, la, std::numeric_limits<uintptr_t>::max(), r, t) { /* ... */ }
         private:
             constexpr ALWAYS_INLINE void Reset(uintptr_t a, uintptr_t la, uintptr_t p, u32 r, u32 t) {
                 m_address      = a;
@@ -237,12 +238,6 @@ namespace ams::kern {
         public:
             NOINLINE void InsertDirectly(uintptr_t address, uintptr_t last_address, u32 attr = 0, u32 type_id = 0);
             NOINLINE bool Insert(uintptr_t address, size_t size, u32 type_id, u32 new_attr = 0, u32 old_attr = 0);
-
-            NOINLINE KVirtualAddress GetRandomAlignedRegion(size_t size, size_t alignment, u32 type_id);
-
-            ALWAYS_INLINE KVirtualAddress GetRandomAlignedRegionWithGuard(size_t size, size_t alignment, u32 type_id, size_t guard_size) {
-                return this->GetRandomAlignedRegion(size + 2 * guard_size, alignment, type_id) + guard_size;
-            }
         public:
             /* Iterator accessors. */
             iterator begin() {

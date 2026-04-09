@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -13,7 +13,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include <mesosphere/kern_select_assembly_offsets.h>
+#include <mesosphere/kern_select_assembly_macros.h>
 
 /* ams::kern::svc::CallReturnFromException64(Result result) */
 .section    .text._ZN3ams4kern3svc25CallReturnFromException64Ev, "ax", %progbits
@@ -28,7 +28,7 @@ _ZN3ams4kern3svc25CallReturnFromException64Ev:
     stp     x20, x21, [sp, #(EXCEPTION_CONTEXT_X20_X21)]
     stp     x22, x23, [sp, #(EXCEPTION_CONTEXT_X22_X23)]
     stp     x24, x25, [sp, #(EXCEPTION_CONTEXT_X24_X25)]
-    stp     x26, x26, [sp, #(EXCEPTION_CONTEXT_X26_X27)]
+    stp     x26, x27, [sp, #(EXCEPTION_CONTEXT_X26_X27)]
     stp     x28, x29, [sp, #(EXCEPTION_CONTEXT_X28_X29)]
 
     /* Call ams::kern::arch::arm64::ReturnFromException(result). */
@@ -82,13 +82,32 @@ _ZN3ams4kern3svc14RestoreContextEm:
     b 0b
 
 1:  /* We're done with DPC, and should return from the svc. */
-    /* Clear our in-SVC note. */
-    strb    wzr, [sp, #(EXCEPTION_CONTEXT_SIZE + THREAD_STACK_PARAMETERS_IS_CALLING_SVC)]
+
+    /* Get our exception flags. */
+    ldrb    w9, [sp, #(EXCEPTION_CONTEXT_SIZE + THREAD_STACK_PARAMETERS_EXCEPTION_FLAGS)]
+
+    /* Clear in-svc, in-user-exception, and needs-fpu-restore flags. */
+    and     w10, w9,  #(~(THREAD_EXCEPTION_FLAG_IS_FPU_CONTEXT_RESTORE_NEEDED))
+    and     w10, w10, #(~(THREAD_EXCEPTION_FLAG_IS_CALLING_SVC))
+    and     w10, w10, #(~(THREAD_EXCEPTION_FLAG_IS_IN_USERMODE_EXCEPTION_HANDLER))
+    strb    w10, [sp, #(EXCEPTION_CONTEXT_SIZE + THREAD_STACK_PARAMETERS_EXCEPTION_FLAGS)]
+
+    /* If we don't need to restore the fpu, skip restoring it. */
+    tbz     w9, #(THREAD_EXCEPTION_FLAG_BIT_INDEX_IS_FPU_CONTEXT_RESTORE_NEEDED), 3f
+
+    /* Enable and restore the fpu. */
+    ENABLE_AND_RESTORE_FPU(x10, x8, x9, w8, w9, 2, 3)
 
     /* Restore registers. */
     ldp     x30, x8,  [sp, #(EXCEPTION_CONTEXT_X30_SP)]
     ldp     x9,  x10, [sp, #(EXCEPTION_CONTEXT_PC_PSR)]
     ldr     x11,      [sp, #(EXCEPTION_CONTEXT_TPIDR)]
+
+    #if defined(MESOSPHERE_ENABLE_HARDWARE_SINGLE_STEP)
+    /* Since we're returning from an exception, set SPSR.SS so that we advance an instruction if single-stepping. */
+    orr x10, x10, #(1 << 21)
+    #endif
+
     msr     sp_el0, x8
     msr     elr_el1, x9
     msr     spsr_el1, x10
@@ -111,4 +130,4 @@ _ZN3ams4kern3svc14RestoreContextEm:
 
     /* Return. */
     add     sp, sp, #(EXCEPTION_CONTEXT_SIZE)
-    eret
+    ERET_WITH_SPECULATION_BARRIER

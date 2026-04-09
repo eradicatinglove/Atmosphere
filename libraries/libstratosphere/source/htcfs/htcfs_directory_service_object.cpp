@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -22,27 +22,27 @@ namespace ams::htcfs {
     DirectoryServiceObject::DirectoryServiceObject(s32 handle) : m_handle(handle) { /* ... */ }
 
     DirectoryServiceObject::~DirectoryServiceObject() {
-        htcfs::GetClient().CloseDirectory(m_handle);
+        static_cast<void>(htcfs::GetClient().CloseDirectory(m_handle));
     }
 
     Result DirectoryServiceObject::GetEntryCount(ams::sf::Out<s64> out) {
-        return htcfs::GetClient().GetEntryCount(out.GetPointer(), m_handle);
+        R_RETURN(htcfs::GetClient().GetEntryCount(out.GetPointer(), m_handle));
     }
 
     Result DirectoryServiceObject::Read(ams::sf::Out<s64> out, const ams::sf::OutMapAliasArray<fs::DirectoryEntry> &out_entries) {
         if (out_entries.GetSize() * sizeof(fs::DirectoryEntry) >= ClientImpl::MaxPacketBodySize) {
-            return htcfs::GetClient().ReadDirectoryLarge(out.GetPointer(), out_entries.GetPointer(), out_entries.GetSize(), m_handle);
+            R_RETURN(htcfs::GetClient().ReadDirectoryLarge(out.GetPointer(), out_entries.GetPointer(), out_entries.GetSize(), m_handle));
         } else {
-            return htcfs::GetClient().ReadDirectory(out.GetPointer(), out_entries.GetPointer(), out_entries.GetSize(), m_handle);
+            R_RETURN(htcfs::GetClient().ReadDirectory(out.GetPointer(), out_entries.GetPointer(), out_entries.GetSize(), m_handle));
         }
     }
 
     Result DirectoryServiceObject::SetPriorityForDirectory(s32 priority) {
-        return htcfs::GetClient().SetPriorityForDirectory(priority, m_handle);
+        R_RETURN(htcfs::GetClient().SetPriorityForDirectory(priority, m_handle));
     }
 
     Result DirectoryServiceObject::GetPriorityForDirectory(ams::sf::Out<s32> out) {
-        return htcfs::GetClient().GetPriorityForDirectory(out.GetPointer(), m_handle);
+        R_RETURN(htcfs::GetClient().GetPriorityForDirectory(out.GetPointer(), m_handle));
     }
 
 

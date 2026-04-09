@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -39,7 +39,7 @@ namespace ams::htcs::impl {
 
     void HtcsManager::Socket(s32 *out_err, s32 *out_desc, bool enable_disconnection_emulation) {
         /* Invoke our implementation. */
-        s32 err, desc;
+        s32 err = -1, desc = -1;
         const Result result = m_impl->CreateSocket(std::addressof(err), std::addressof(desc), enable_disconnection_emulation);
 
         /* Set output. */
@@ -71,7 +71,7 @@ namespace ams::htcs::impl {
 
     void HtcsManager::Connect(s32 *out_err, s32 *out_res, const SockAddrHtcs &address, s32 desc) {
         /* Invoke our implementation. */
-        s32 err;
+        s32 err = -1;
         const Result result = m_impl->Connect(std::addressof(err), desc, address);
 
         /* Set output. */
@@ -90,7 +90,7 @@ namespace ams::htcs::impl {
 
     void HtcsManager::Bind(s32 *out_err, s32 *out_res, const SockAddrHtcs &address, s32 desc) {
         /* Invoke our implementation. */
-        s32 err;
+        s32 err = -1;
         const Result result = m_impl->Bind(std::addressof(err), desc, address);
 
         /* Set output. */
@@ -109,7 +109,7 @@ namespace ams::htcs::impl {
 
     void HtcsManager::Listen(s32 *out_err, s32 *out_res, s32 backlog_count, s32 desc) {
         /* Invoke our implementation. */
-        s32 err;
+        s32 err = -1;
         const Result result = m_impl->Listen(std::addressof(err), desc, backlog_count);
 
         /* Set output. */
@@ -128,8 +128,8 @@ namespace ams::htcs::impl {
 
     void HtcsManager::Recv(s32 *out_err, s64 *out_size, char *buffer, size_t size, s32 flags, s32 desc) {
         /* Invoke our implementation. */
-        s32 err;
-        s64 recv_size;
+        s32 err = -1;
+        s64 recv_size = -1;
         const Result result = m_impl->Receive(std::addressof(err), std::addressof(recv_size), buffer, size, desc, flags);
 
         /* Set output. */
@@ -148,8 +148,8 @@ namespace ams::htcs::impl {
 
     void HtcsManager::Send(s32 *out_err, s64 *out_size, const char *buffer, size_t size, s32 flags, s32 desc) {
         /* Invoke our implementation. */
-        s32 err;
-        s64 send_size;
+        s32 err = -1;
+        s64 send_size = -1;
         const Result result = m_impl->Send(std::addressof(err), std::addressof(send_size), buffer, size, desc, flags);
 
         /* Set output. */
@@ -168,7 +168,7 @@ namespace ams::htcs::impl {
 
     void HtcsManager::Shutdown(s32 *out_err, s32 *out_res, s32 how, s32 desc) {
         /* Invoke our implementation. */
-        s32 err;
+        s32 err = -1;
         const Result result = m_impl->Shutdown(std::addressof(err), desc, how);
 
         /* Set output. */
@@ -191,7 +191,7 @@ namespace ams::htcs::impl {
 
     void HtcsManager::Fcntl(s32 *out_err, s32 *out_res, s32 command, s32 value, s32 desc) {
         /* Invoke our implementation. */
-        s32 err, res;
+        s32 err = -1, res = -1;
         const Result result = m_impl->Fcntl(std::addressof(err), std::addressof(res), desc, command, value);
 
         /* Set output. */
@@ -204,13 +204,13 @@ namespace ams::htcs::impl {
         }
     }
 
-    Result HtcsManager::AcceptStart(u32 *out_task_id, Handle *out_handle, s32 desc) {
-        return m_impl->AcceptStart(out_task_id, out_handle, desc);
+    Result HtcsManager::AcceptStart(u32 *out_task_id, os::NativeHandle *out_handle, s32 desc) {
+        R_RETURN(m_impl->AcceptStart(out_task_id, out_handle, desc));
     }
 
     void HtcsManager::AcceptResults(s32 *out_err, s32 *out_desc, SockAddrHtcs *out_address, u32 task_id, s32 desc) {
         /* Invoke our implementation. */
-        s32 err;
+        s32 err = -1;
         const Result result = m_impl->AcceptResults(std::addressof(err), out_desc, out_address, task_id, desc);
 
         /* Set output. */
@@ -227,14 +227,14 @@ namespace ams::htcs::impl {
         }
     }
 
-    Result HtcsManager::RecvStart(u32 *out_task_id, Handle *out_handle, s64 size, s32 desc, s32 flags) {
-        return m_impl->RecvStart(out_task_id, out_handle, size, desc, flags);
+    Result HtcsManager::RecvStart(u32 *out_task_id, os::NativeHandle *out_handle, s64 size, s32 desc, s32 flags) {
+        R_RETURN(m_impl->RecvStart(out_task_id, out_handle, size, desc, flags));
     }
 
     void HtcsManager::RecvResults(s32 *out_err, s64 *out_size, char *buffer, s64 buffer_size, u32 task_id, s32 desc) {
         /* Invoke our implementation. */
-        s32 err;
-        s64 size;
+        s32 err = -1;
+        s64 size = -1;
         const Result result = m_impl->RecvResults(std::addressof(err), std::addressof(size), buffer, buffer_size, task_id, desc);
 
         /* Set output. */
@@ -255,18 +255,18 @@ namespace ams::htcs::impl {
         }
     }
 
-    Result HtcsManager::SendStart(u32 *out_task_id, Handle *out_handle, const char *buffer, s64 size, s32 desc, s32 flags) {
-        return m_impl->SendStart(out_task_id, out_handle, buffer, size, desc, flags);
+    Result HtcsManager::SendStart(u32 *out_task_id, os::NativeHandle *out_handle, const char *buffer, s64 size, s32 desc, s32 flags) {
+        R_RETURN(m_impl->SendStart(out_task_id, out_handle, buffer, size, desc, flags));
     }
 
-    Result HtcsManager::SendLargeStart(u32 *out_task_id, Handle *out_handle, const char **buffers, const s64 *sizes, s32 count, s32 desc, s32 flags) {
-        return m_impl->SendLargeStart(out_task_id, out_handle, buffers, sizes, count, desc, flags);
+    Result HtcsManager::SendLargeStart(u32 *out_task_id, os::NativeHandle *out_handle, const char **buffers, const s64 *sizes, s32 count, s32 desc, s32 flags) {
+        R_RETURN(m_impl->SendLargeStart(out_task_id, out_handle, buffers, sizes, count, desc, flags));
     }
 
     void HtcsManager::SendResults(s32 *out_err, s64 *out_size, u32 task_id, s32 desc) {
         /* Invoke our implementation. */
-        s32 err;
-        s64 size;
+        s32 err = -1;
+        s64 size = -1;
         const Result result = m_impl->SendResults(std::addressof(err), std::addressof(size), task_id, desc);
 
         /* Set output. */
@@ -287,13 +287,13 @@ namespace ams::htcs::impl {
         }
     }
 
-    Result HtcsManager::StartSend(u32 *out_task_id, Handle *out_handle, s32 desc, s64 size, s32 flags) {
-        return m_impl->StartSend(out_task_id, out_handle, desc, size, flags);
+    Result HtcsManager::StartSend(u32 *out_task_id, os::NativeHandle *out_handle, s32 desc, s64 size, s32 flags) {
+        R_RETURN(m_impl->StartSend(out_task_id, out_handle, desc, size, flags));
     }
 
     Result HtcsManager::ContinueSend(s64 *out_size, const char *buffer, s64 buffer_size, u32 task_id, s32 desc) {
         /* Invoke our implementation. */
-        s64 size;
+        s64 size = -1;
         R_TRY_CATCH(m_impl->ContinueSend(std::addressof(size), buffer, buffer_size, task_id, desc)) {
             R_CONVERT(htclow::ResultInvalidChannelState, tma::ResultUnknown())
             R_CONVERT(htc::ResultTaskCancelled,          tma::ResultUnknown())
@@ -301,13 +301,13 @@ namespace ams::htcs::impl {
 
         /* Set output. */
         *out_size = size;
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     void HtcsManager::EndSend(s32 *out_err, s64 *out_size, u32 task_id, s32 desc) {
         /* Invoke our implementation. */
-        s32 err;
-        s64 size;
+        s32 err = -1;
+        s64 size = -1;
         const Result result = m_impl->EndSend(std::addressof(err), std::addressof(size), task_id, desc);
 
         /* Set output. */
@@ -328,14 +328,14 @@ namespace ams::htcs::impl {
         }
     }
 
-    Result HtcsManager::StartRecv(u32 *out_task_id, Handle *out_handle, s64 size, s32 desc, s32 flags) {
-        return m_impl->StartRecv(out_task_id, out_handle, size, desc, flags);
+    Result HtcsManager::StartRecv(u32 *out_task_id, os::NativeHandle *out_handle, s64 size, s32 desc, s32 flags) {
+        R_RETURN(m_impl->StartRecv(out_task_id, out_handle, size, desc, flags));
     }
 
     void HtcsManager::EndRecv(s32 *out_err, s64 *out_size, char *buffer, s64 buffer_size, u32 task_id, s32 desc) {
         /* Invoke our implementation. */
-        s32 err;
-        s64 size;
+        s32 err = -1;
+        s64 size = -1;
         const Result result = m_impl->EndRecv(std::addressof(err), std::addressof(size), buffer, buffer_size, task_id, desc);
 
         /* Set output. */
@@ -356,19 +356,19 @@ namespace ams::htcs::impl {
         }
     }
 
-    Result HtcsManager::StartSelect(u32 *out_task_id, Handle *out_handle, Span<const int> read_handles, Span<const int> write_handles, Span<const int> exception_handles, s64 tv_sec, s64 tv_usec) {
+    Result HtcsManager::StartSelect(u32 *out_task_id, os::NativeHandle *out_handle, Span<const int> read_handles, Span<const int> write_handles, Span<const int> exception_handles, s64 tv_sec, s64 tv_usec) {
         /* Invoke our implementation. */
         R_TRY_CATCH(m_impl->StartSelect(out_task_id, out_handle, read_handles, write_handles, exception_handles, tv_sec, tv_usec)) {
             R_CONVERT(htc::ResultTaskCancelled, tma::ResultUnknown())
         } R_END_TRY_CATCH;
 
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     Result HtcsManager::EndSelect(s32 *out_err, s32 *out_count, Span<int> read_handles, Span<int> write_handles, Span<int> exception_handles, u32 task_id) {
         /* Invoke our implementation. */
-        s32 err;
-        bool empty;
+        s32 err = -1;
+        bool empty = false;
         const Result result = m_impl->EndSelect(std::addressof(err), std::addressof(empty), read_handles, write_handles, exception_handles, task_id);
 
         /* Set output. */
@@ -392,7 +392,7 @@ namespace ams::htcs::impl {
             }
         }
 
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
 }

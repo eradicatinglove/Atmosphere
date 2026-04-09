@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -111,6 +111,8 @@ namespace ams {
         }
 
         void SetClockRate(const ClkRstDefinition &def, u32 hz) {
+            AMS_UNUSED(hz);
+
             /* Enable clock. */
             reg::ReadWrite(g_clkrst_registers + def.clk_en_ofs, 1u << def.clk_en_index, 1u << def.clk_en_index);
 
@@ -142,7 +144,7 @@ namespace ams {
         Result OpenSession(ClkRstSession *out, DeviceCode device_code) {
             /* Get the relevant definition. */
             out->_session = const_cast<ClkRstDefinition *>(GetDefinition(device_code));
-            return ResultSuccess();
+            R_SUCCEED();
         }
 
         void CloseSession(ClkRstSession *session) {
@@ -166,6 +168,7 @@ namespace ams {
         }
 
         void SetClockDisabled(ClkRstSession *session) {
+            AMS_UNUSED(session);
             AMS_ABORT("SetClockDisabled not implemented for boot system module");
         }
 
@@ -185,21 +188,21 @@ namespace ams {
             /* Set clock. */
             SetClockEnabled(GetDefinition(module), en);
 
-            return ResultSuccess();
+            R_SUCCEED();
         }
 
         Result SetClockRate(Module module, ClockHz hz) {
             /* Set the clock rate. */
             SetClockRate(GetDefinition(module), hz);
 
-            return ResultSuccess();
+            R_SUCCEED();
         }
 
         Result SetReset(Module module, bool en) {
             /* Set reset. */
             SetResetEnabled(GetDefinition(module), en);
 
-            return ResultSuccess();
+            R_SUCCEED();
         }
 
     }

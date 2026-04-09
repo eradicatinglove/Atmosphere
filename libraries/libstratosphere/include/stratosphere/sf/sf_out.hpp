@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -40,31 +40,34 @@ namespace ams::sf {
         public:
             static constexpr size_t TypeSize = sizeof(T);
         private:
-            T *ptr;
+            T *m_ptr;
         public:
-            constexpr Out(uintptr_t p) : ptr(reinterpret_cast<T *>(p)) { /* ... */ }
-            constexpr Out(T *p) : ptr(p) { /* ... */ }
-            constexpr Out(const cmif::PointerAndSize &pas) : ptr(reinterpret_cast<T *>(pas.GetAddress())) { /* TODO: Is AMS_ABORT_UNLESS(pas.GetSize() >= sizeof(T)); necessary? */ }
+            constexpr Out(uintptr_t p) : m_ptr(reinterpret_cast<T *>(p)) { /* ... */ }
+            constexpr Out(T *p) : m_ptr(p) { /* ... */ }
+            constexpr Out(const cmif::PointerAndSize &pas) : m_ptr(reinterpret_cast<T *>(pas.GetAddress())) { /* TODO: Is AMS_ABORT_UNLESS(pas.GetSize() >= sizeof(T)); necessary? */ }
+
+            template<typename U> requires (std::integral<T> && std::is_enum<U>::value && std::same_as<typename std::underlying_type<U>::type, T>)
+            constexpr Out(U *p) : m_ptr(reinterpret_cast<T *>(p)) { static_assert(sizeof(U) == sizeof(T)); static_assert(alignof(U) == alignof(T)); }
 
             void SetValue(const T& value) const {
-                *this->ptr = value;
+                *m_ptr = value;
             }
 
             const T &GetValue() const {
-                return *this->ptr;
+                return *m_ptr;
             }
 
             T *GetPointer() const {
-                return this->ptr;
+                return m_ptr;
             }
 
             /* Convenience operators. */
             T &operator*() const {
-                return *this->ptr;
+                return *m_ptr;
             }
 
             T *operator->() const {
-                return this->ptr;
+                return m_ptr;
             }
     };
 

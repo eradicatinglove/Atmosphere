@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -45,13 +45,13 @@ namespace ams::kern {
                 return m_owner_thread == GetCurrentThreadPointer();
             }
 
-            void Lock() {
+            MESOSPHERE_ALWAYS_INLINE_IF_RELEASE void Lock() {
                 MESOSPHERE_ASSERT_THIS();
 
                 if (this->IsLockedByCurrentThread()) {
-                    /* If we already own the lock, we can just increment the count. */
+                    /* If we already own the lock, the lock count should be > 0. */
+                    /* For debug, ensure this is true. */
                     MESOSPHERE_ASSERT(m_lock_count > 0);
-                    m_lock_count++;
                 } else {
                     /* Otherwise, we want to disable scheduling and acquire the spinlock. */
                     SchedulerType::DisableScheduling();
@@ -61,19 +61,24 @@ namespace ams::kern {
                     MESOSPHERE_ASSERT(m_lock_count == 0);
                     MESOSPHERE_ASSERT(m_owner_thread == nullptr);
 
-                    /* Increment count, take ownership. */
-                    m_lock_count = 1;
+                    /* Take ownership of the lock. */
                     m_owner_thread = GetCurrentThreadPointer();
                 }
+
+                /* Increment the lock count. */
+                m_lock_count++;
             }
 
-            void Unlock() {
+            MESOSPHERE_ALWAYS_INLINE_IF_RELEASE void Unlock() {
                 MESOSPHERE_ASSERT_THIS();
                 MESOSPHERE_ASSERT(this->IsLockedByCurrentThread());
                 MESOSPHERE_ASSERT(m_lock_count > 0);
 
                 /* Release an instance of the lock. */
                 if ((--m_lock_count) == 0) {
+                    /* Perform a memory barrier here. */
+                    cpu::DataMemoryBarrierInnerShareable();
+
                     /* We're no longer going to hold the lock. Take note of what cores need scheduling. */
                     const u64 cores_needing_scheduling = SchedulerType::UpdateHighestPriorityThreads();
 

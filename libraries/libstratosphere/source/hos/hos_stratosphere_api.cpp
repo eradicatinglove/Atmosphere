@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -14,15 +14,15 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include <stratosphere.hpp>
-#include "hos_version_api_private.hpp"
 #include "../os/impl/os_rng_manager.hpp"
 
 namespace ams::os {
 
-    void InitializeForStratosphereInternal();
+    void Initialize();
 
 }
 
+#if defined(ATMOSPHERE_OS_HORIZON)
 extern "C" {
 
     /* Provide libnx address space allocation shim. */
@@ -31,23 +31,39 @@ extern "C" {
     }
 
 }
+#endif
 
 namespace ams::hos {
 
-    void InitializeForStratosphere() {
-        /* Initialize the global os resource managers. This *must* be done before anything else in stratosphere. */
-        os::InitializeForStratosphereInternal();
+    namespace {
 
-        /* Initialize hos::Version API. */
-        hos::SetVersionForLibnxInternal();
+        bool CanAllowTemporaryApproximateVersion() {
+            /* Check if we're a program that can use a temporary approximate version. */
+            const auto program_id = os::GetCurrentProgramId();
+
+            return program_id == ncm::SystemProgramId::Pm   || /* Needed so that boot has permissions to use fsp-srv. */
+                   program_id == ncm::SystemProgramId::Sm   || /* Needed so that boot can acquire fsp-srv. */
+                   program_id == ncm::SystemProgramId::Boot || /* Needed so that boot can set the true target firmware. */
+                   program_id == ncm::SystemProgramId::Spl  || /* Needed so that FS can complete initialization. */
+                   program_id == ncm::SystemProgramId::Ncm;    /* Needed so that FS can determine where SystemVersion is located. */
+        }
+
     }
 
-    void InitializeForStratosphereDebug(hos::Version debug_version) {
+    bool IsUnitTestProgramForSetVersion();
+    void InitializeVersionInternal(bool allow_approximate);
+
+    void InitializeForStratosphere() {
         /* Initialize the global os resource managers. This *must* be done before anything else in stratosphere. */
-        os::InitializeForStratosphereInternal();
+        os::Initialize();
 
         /* Initialize hos::Version API. */
-        hos::SetVersionForLibnxInternalDebug(debug_version);
+        hos::InitializeVersionInternal(CanAllowTemporaryApproximateVersion());
+
+        #if defined(ATMOSPHERE_OS_HORIZON)
+        /* Check that we're running under mesosphere. */
+        AMS_ABORT_UNLESS(IsUnitTestProgramForSetVersion() || svc::IsKernelMesosphere());
+        #endif
     }
 
 }

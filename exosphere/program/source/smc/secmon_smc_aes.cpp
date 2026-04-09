@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -161,6 +161,7 @@ namespace ams::secmon::smc {
         constexpr const u8 EsCommonKeySources[EsCommonKeyType_Count][AesKeySize] = {
             [EsCommonKeyType_TitleKey]   = { 0x1E, 0xDC, 0x7B, 0x3B, 0x60, 0xE6, 0xB4, 0xD8, 0x78, 0xB8, 0x17, 0x15, 0x98, 0x5E, 0x62, 0x9B },
             [EsCommonKeyType_ArchiveKey] = { 0x3B, 0x78, 0xF2, 0x61, 0x0F, 0x9D, 0x5A, 0xE2, 0x7B, 0x4E, 0x45, 0xAF, 0xCB, 0x0B, 0x67, 0x4D },
+            [EsCommonKeyType_Unknown2]   = { 0x42, 0x64, 0x0B, 0xE3, 0x5F, 0xC6, 0xBE, 0x47, 0xC7, 0xB4, 0x84, 0xC5, 0xEB, 0x63, 0xAA, 0x02 },
         };
 
         constexpr const u8 EsSealKeySource[AesKeySize] = {
@@ -417,7 +418,7 @@ namespace ams::secmon::smc {
                 case CipherMode_CbcDecryption: se::DecryptAes128CbcAsync(output_address, slot, input_address, size, iv, sizeof(iv), SecurityEngineDoneHandler); break;
                 case CipherMode_Ctr:           se::ComputeAes128CtrAsync(output_address, slot, input_address, size, iv, sizeof(iv), SecurityEngineDoneHandler); break;
                 case CipherMode_Cmac:
-                    return SmcResult::NotImplemented;
+                    return SmcResult::NotSupported;
                 default:
                     return SmcResult::InvalidArgument;
             }
@@ -765,8 +766,8 @@ namespace ams::secmon::smc {
             const auto which = static_cast<SecureData>(args.r[1]);
 
             /* Validate arguments/conditions. */
-            SMC_R_UNLESS(fuse::GetPatchVersion() < fuse::PatchVersion_Odnx02A2, NotImplemented);
-            SMC_R_UNLESS(which < SecureData_Count,                              NotImplemented);
+            SMC_R_UNLESS(fuse::GetPatchVersion() < fuse::PatchVersion_Odnx02A2, NotSupported);
+            SMC_R_UNLESS(which < SecureData_Count,                              NotSupported);
 
             /* Use a temporary buffer. */
             u8 secure_data[AesKeySize];

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -38,4 +38,4 @@
     AMS_SF_METHOD_INFO(C, H, 16, Result, SetBridgeSubnetMask,                (const sf::InBuffer &arg),                                                   (arg))                 \
     AMS_SF_METHOD_INFO(C, H, 17, Result, SetBridgePort,                      (const sf::InBuffer &arg),                                                   (arg))
 
-AMS_SF_DEFINE_INTERFACE(ams::tma, IHtcManager, AMS_TMA_I_HTC_MANAGER_INTERFACE_INFO)
+AMS_SF_DEFINE_INTERFACE(ams::tma, IHtcManager, AMS_TMA_I_HTC_MANAGER_INTERFACE_INFO, 0x8591F069)

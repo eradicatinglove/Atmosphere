@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -19,7 +19,6 @@ namespace ams::kern {
 
     namespace {
 
-        constexpr uintptr_t DramPhysicalAddress = 0x80000000;
         constexpr size_t ReservedEarlyDramSize  = 0x60000;
 
         constexpr size_t CarveoutAlignment      = 0x20000;
@@ -100,18 +99,11 @@ namespace ams::kern {
 
         void SetupDramPhysicalMemoryRegions() {
             const size_t intended_memory_size                   = KSystemControl::Init::GetIntendedMemorySize();
-            const KPhysicalAddress physical_memory_base_address = KSystemControl::Init::GetKernelPhysicalBaseAddress(DramPhysicalAddress);
+            const KPhysicalAddress physical_memory_base_address = KSystemControl::Init::GetKernelPhysicalBaseAddress(ams::kern::MainMemoryAddress);
 
             /* Insert blocks into the tree. */
             MESOSPHERE_INIT_ABORT_UNLESS(KMemoryLayout::GetPhysicalMemoryRegionTree().Insert(GetInteger(physical_memory_base_address), intended_memory_size,  KMemoryRegionType_Dram));
             MESOSPHERE_INIT_ABORT_UNLESS(KMemoryLayout::GetPhysicalMemoryRegionTree().Insert(GetInteger(physical_memory_base_address), ReservedEarlyDramSize, KMemoryRegionType_DramReservedEarly));
-
-            /* Insert the KTrace block at the end of Dram, if KTrace is enabled. */
-            static_assert(!IsKTraceEnabled || KTraceBufferSize > 0);
-            if constexpr (IsKTraceEnabled) {
-                const KPhysicalAddress ktrace_buffer_phys_addr = physical_memory_base_address + intended_memory_size - KTraceBufferSize;
-                MESOSPHERE_INIT_ABORT_UNLESS(KMemoryLayout::GetPhysicalMemoryRegionTree().Insert(GetInteger(ktrace_buffer_phys_addr), KTraceBufferSize, KMemoryRegionType_KernelTraceBuffer));
-            }
         }
 
         void SetupPoolPartitionMemoryRegions() {
@@ -119,8 +111,15 @@ namespace ams::kern {
             const auto dram_extents = KMemoryLayout::GetMainMemoryPhysicalExtents();
             MESOSPHERE_INIT_ABORT_UNLESS(dram_extents.GetEndAddress() != 0);
 
+            /* Find the pool partitions region. */
+            const KMemoryRegion *pool_partitions_region = KMemoryLayout::GetPhysicalMemoryRegionTree().FindByTypeAndAttribute(KMemoryRegionType_DramPoolPartition, 0);
+            MESOSPHERE_INIT_ABORT_UNLESS(pool_partitions_region != nullptr);
+
+            const uintptr_t pool_partitions_start = pool_partitions_region->GetAddress();
+
             /* Determine the end of the pool region. */
-            const uintptr_t pool_end = dram_extents.GetEndAddress() - KTraceBufferSize;
+            const uintptr_t pool_end = pool_partitions_region->GetEndAddress();
+            MESOSPHERE_INIT_ABORT_UNLESS(pool_end == dram_extents.GetEndAddress());
 
             /* Find the start of the kernel DRAM region. */
             const KMemoryRegion *kernel_dram_region = KMemoryLayout::GetPhysicalMemoryRegionTree().FindFirstDerived(KMemoryRegionType_DramKernelBase);
@@ -128,11 +127,6 @@ namespace ams::kern {
 
             const uintptr_t kernel_dram_start = kernel_dram_region->GetAddress();
             MESOSPHERE_INIT_ABORT_UNLESS(util::IsAligned(kernel_dram_start, CarveoutAlignment));
-
-            /* Find the start of the pool partitions region. */
-            const KMemoryRegion *pool_partitions_region = KMemoryLayout::GetPhysicalMemoryRegionTree().FindByTypeAndAttribute(KMemoryRegionType_DramPoolPartition, 0);
-            MESOSPHERE_INIT_ABORT_UNLESS(pool_partitions_region != nullptr);
-            const uintptr_t pool_partitions_start = pool_partitions_region->GetAddress();
 
             /* Setup the pool partition layouts. */
             if (GetTargetFirmware() >= TargetFirmware_5_0_0) {
@@ -173,16 +167,21 @@ namespace ams::kern {
                 InsertPoolPartitionRegionIntoBothTrees(unsafe_system_pool_start, unsafe_system_pool_size, KMemoryRegionType_DramSystemNonSecurePool, KMemoryRegionType_VirtualDramSystemNonSecurePool, cur_pool_attr);
                 total_overhead_size += KMemoryManager::CalculateManagementOverheadSize(unsafe_system_pool_size);
 
-                /* Insert the pool management region. */
+                /* Determine final total overhead size. */
                 total_overhead_size += KMemoryManager::CalculateManagementOverheadSize((unsafe_system_pool_start - pool_partitions_start) - total_overhead_size);
-                const uintptr_t pool_management_start = unsafe_system_pool_start - total_overhead_size;
+
+                /* NOTE: Nintendo's kernel has layout [System, Management] but we have [Management, System]. This ensures the four UserPool regions are contiguous. */
+
+                /* Insert the system pool. */
+                const uintptr_t system_pool_start = pool_partitions_start + total_overhead_size;
+                const size_t    system_pool_size  = unsafe_system_pool_start - system_pool_start;
+                InsertPoolPartitionRegionIntoBothTrees(system_pool_start, system_pool_size, KMemoryRegionType_DramSystemPool, KMemoryRegionType_VirtualDramSystemPool, cur_pool_attr);
+
+                /* Insert the pool management region. */
+                const uintptr_t pool_management_start = pool_partitions_start;
                 const size_t    pool_management_size  = total_overhead_size;
                 u32 pool_management_attr = 0;
                 InsertPoolPartitionRegionIntoBothTrees(pool_management_start, pool_management_size, KMemoryRegionType_DramPoolManagement, KMemoryRegionType_VirtualDramPoolManagement, pool_management_attr);
-
-                /* Insert the system pool. */
-                const uintptr_t system_pool_size = pool_management_start - pool_partitions_start;
-                InsertPoolPartitionRegionIntoBothTrees(pool_partitions_start, system_pool_size, KMemoryRegionType_DramSystemPool, KMemoryRegionType_VirtualDramSystemPool, cur_pool_attr);
             } else {
                 /* On < 5.0.0, setup a legacy 2-pool layout for backwards compatibility. */
 
@@ -190,14 +189,8 @@ namespace ams::kern {
                 static_assert(KMemoryManager::Pool_Unsafe == KMemoryManager::Pool_Application);
                 static_assert(KMemoryManager::Pool_Secure == KMemoryManager::Pool_System);
 
-                /* NOTE: Beginning with 12.0.0 (and always, in mesosphere), the initial process binary is at the end of the pool region. */
-                /*       However, this is problematic for < 5.0.0, because we require the initial process binary to be parsed in order   */
-                /*       to determine the pool sizes. Hence, we will force an initial binary load with the known pool end directly, so   */
-                /*       that we retain compatibility with lower firmware versions. */
-                LoadInitialProcessBinaryHeaderDeprecated(pool_end);
-
                 /* Get Secure pool size. */
-                const size_t secure_pool_size = [] ALWAYS_INLINE_LAMBDA (auto target_firmware) -> size_t {
+                const size_t secure_pool_size = [](auto target_firmware) ALWAYS_INLINE_LAMBDA -> size_t {
                     constexpr size_t LegacySecureKernelSize = 8_MB;          /* KPageBuffer pages, other small kernel allocations. */
                     constexpr size_t LegacySecureMiscSize   = 1_MB;          /* Miscellaneous pages for secure process mapping. */
                     constexpr size_t LegacySecureHeapSize   = 24_MB;         /* Heap pages for secure process mapping (fs). */
@@ -255,14 +248,18 @@ namespace ams::kern {
                     total_overhead_size += KMemoryManager::CalculateManagementOverheadSize(second_application_pool_size);
                 }
 
-                /* Insert the secure pool. */
-                InsertPoolPartitionRegionIntoBothTrees(pool_partitions_start, secure_pool_size, KMemoryRegionType_DramSystemPool, KMemoryRegionType_VirtualDramSystemPool, cur_pool_attr);
-
-                /* Insert the pool management region. */
+                /* Validate the true overhead size. */
                 MESOSPHERE_INIT_ABORT_UNLESS(total_overhead_size <= approximate_total_overhead_size);
 
-                const uintptr_t pool_management_start = pool_partitions_start + secure_pool_size;
-                const size_t    pool_management_size  = unsafe_memory_start - pool_management_start;
+                /* NOTE: Nintendo's kernel has layout [System, Management] but we have [Management, System]. This ensures the UserPool regions are contiguous. */
+
+                /* Insert the secure pool. */
+                const uintptr_t secure_pool_start = unsafe_memory_start - secure_pool_size;
+                InsertPoolPartitionRegionIntoBothTrees(secure_pool_start, secure_pool_size, KMemoryRegionType_DramSystemPool, KMemoryRegionType_VirtualDramSystemPool, cur_pool_attr);
+
+                /* Insert the pool management region. */
+                const uintptr_t pool_management_start = pool_partitions_start;
+                const size_t    pool_management_size  = secure_pool_start - pool_management_start;
                 MESOSPHERE_INIT_ABORT_UNLESS(total_overhead_size <= pool_management_size);
 
                 u32 pool_management_attr = 0;

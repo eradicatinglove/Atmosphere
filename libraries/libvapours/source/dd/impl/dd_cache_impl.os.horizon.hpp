@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -31,6 +31,15 @@ namespace ams::dd::impl {
             __asm__ __volatile__("mrs %[ctr_el0], ctr_el0" : [ctr_el0]"=r"(ctr_el0));
             const uintptr_t cache_line_size = 4 << ((ctr_el0 >> 16) & 0xF);
 
+            #if defined(ATMOSPHERE_IS_STRATOSPHERE)
+            /* Get the thread local region. */
+            auto * const tlr = svc::GetThreadLocalRegion();
+
+            /* Note to the kernel that we're performing cache maintenance, in case we get interrupted while touching cache lines. */
+            tlr->cache_maintenance_flag = 1;
+            ON_SCOPE_EXIT { tlr->cache_maintenance_flag = 0; };
+            #endif
+
             /* Invalidate the cache. */
             const uintptr_t start_addr = reinterpret_cast<uintptr_t>(addr) & ~(cache_line_size - 1);
             const uintptr_t end_addr   = reinterpret_cast<uintptr_t>(addr) + size;
@@ -46,8 +55,7 @@ namespace ams::dd::impl {
                 const auto result = svc::StoreProcessDataCache(svc::PseudoHandle::CurrentProcess, reinterpret_cast<uintptr_t>(addr), size);
                 R_ASSERT(result);
             #elif defined(ATMOSPHERE_IS_EXOSPHERE) && defined(__BPMP__)
-                /* Do nothing. */
-                AMS_UNUSED(addr, size);
+                return hw::StoreDataCache(addr, size);
             #else
                 #error "Unknown execution context for ams::dd::impl::StoreDataCacheImpl"
             #endif
@@ -62,6 +70,15 @@ namespace ams::dd::impl {
             uintptr_t ctr_el0 = 0;
             __asm__ __volatile__("mrs %[ctr_el0], ctr_el0" : [ctr_el0]"=r"(ctr_el0));
             const uintptr_t cache_line_size = 4 << ((ctr_el0 >> 16) & 0xF);
+
+            #if defined(ATMOSPHERE_IS_STRATOSPHERE)
+            /* Get the thread local region. */
+            auto * const tlr = svc::GetThreadLocalRegion();
+
+            /* Note to the kernel that we're performing cache maintenance, in case we get interrupted while touching cache lines. */
+            tlr->cache_maintenance_flag = 1;
+            ON_SCOPE_EXIT { tlr->cache_maintenance_flag = 0; };
+            #endif
 
             /* Invalidate the cache. */
             const uintptr_t start_addr = reinterpret_cast<uintptr_t>(addr) & ~(cache_line_size - 1);
@@ -78,8 +95,7 @@ namespace ams::dd::impl {
                 const auto result = svc::FlushProcessDataCache(svc::PseudoHandle::CurrentProcess, reinterpret_cast<uintptr_t>(addr), size);
                 R_ASSERT(result);
             #elif defined(ATMOSPHERE_IS_EXOSPHERE) && defined(__BPMP__)
-                /* Do nothing. */
-                AMS_UNUSED(addr, size);
+                return hw::FlushDataCache(addr, size);
             #else
                 #error "Unknown execution context for ams::dd::impl::FlushDataCacheImpl"
             #endif
@@ -87,8 +103,12 @@ namespace ams::dd::impl {
     }
 
     void InvalidateDataCacheImpl(void *addr, size_t size) {
+        #if defined(ATMOSPHERE_IS_EXOSPHERE) && defined(__BPMP__)
+        return hw::InvalidateDataCache(addr, size);
+        #else
         /* Just perform a flush, which is clean + invalidate. */
         return FlushDataCacheImpl(addr, size);
+        #endif
     }
 
 }

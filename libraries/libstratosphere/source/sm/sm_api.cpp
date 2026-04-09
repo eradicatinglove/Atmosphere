@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -18,6 +18,7 @@
 
 namespace ams::sm {
 
+    #if defined(ATMOSPHERE_OS_HORIZON)
     namespace {
 
         constinit int g_ref_count = 0;
@@ -36,34 +37,70 @@ namespace ams::sm {
             g_ref_count = 1;
         }
 
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     Result Finalize() {
         /* NOTE: Nintendo does nothing here. */
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     /* Ordinary SM API. */
-    Result GetService(Service *out, ServiceName name) {
-        return smGetServiceWrapper(out, impl::ConvertName(name));
+    Result GetServiceHandle(os::NativeHandle *out, ServiceName name) {
+        R_RETURN(smGetServiceOriginal(out, impl::ConvertName(name)));
     }
 
-    Result RegisterService(Handle *out, ServiceName name, size_t max_sessions, bool is_light) {
-        return smRegisterService(out, impl::ConvertName(name), is_light, static_cast<int>(max_sessions));
+    Result RegisterService(os::NativeHandle *out, ServiceName name, size_t max_sessions, bool is_light) {
+        R_RETURN(smRegisterService(out, impl::ConvertName(name), is_light, static_cast<int>(max_sessions)));
     }
 
     Result UnregisterService(ServiceName name) {
-        return smUnregisterService(impl::ConvertName(name));
+        R_RETURN(smUnregisterService(impl::ConvertName(name)));
     }
 
     /* Atmosphere extensions. */
     Result HasService(bool *out, ServiceName name) {
-        return smAtmosphereHasService(out, impl::ConvertName(name));
+        R_RETURN(smAtmosphereHasService(out, impl::ConvertName(name)));
     }
 
     Result WaitService(ServiceName name) {
-        return smAtmosphereWaitService(impl::ConvertName(name));
+        R_RETURN(smAtmosphereWaitService(impl::ConvertName(name)));
     }
+    #else
+    Result Initialize() {
+        R_SUCCEED();
+    }
+
+    Result Finalize() {
+        R_SUCCEED();
+    }
+
+    /* Ordinary SM API. */
+    Result GetServiceHandle(os::NativeHandle *out, ServiceName name) {
+        AMS_UNUSED(out, name);
+        AMS_ABORT("TODO?");
+    }
+
+    Result RegisterService(os::NativeHandle *out, ServiceName name, size_t max_sessions, bool is_light) {
+        AMS_UNUSED(out, name, max_sessions, is_light);
+        AMS_ABORT("TODO?");
+    }
+
+    Result UnregisterService(ServiceName name) {
+        AMS_UNUSED(name);
+        AMS_ABORT("TODO?");
+    }
+
+    /* Atmosphere extensions. */
+    Result HasService(bool *out, ServiceName name) {
+        AMS_UNUSED(out, name);
+        AMS_ABORT("TODO?");
+    }
+
+    Result WaitService(ServiceName name) {
+        AMS_UNUSED(name);
+        AMS_ABORT("TODO?");
+    }
+    #endif
 
 }

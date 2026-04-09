@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -33,6 +33,8 @@ namespace ams::pm {
             Result BoostSystemMemoryResourceLimit(u64 boost_size);
             Result BoostApplicationThreadResourceLimit();
             void   GetBootFinishedEventHandle(sf::OutCopyHandle out);
+            Result BoostSystemThreadResourceLimit();
+            Result GetProcessId(sf::Out<os::ProcessId> out, ncm::ProgramId program_id);
     };
     static_assert(pm::impl::IsIShellInterface<ShellService>);
 

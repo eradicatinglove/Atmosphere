@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020 Adubbz, Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -18,13 +18,15 @@
 
 namespace ams::ncm::impl {
 
+    using FilePathString = kvdb::BoundedString<64>;
+
     Result CopyFile(const char *dst_path, const char *src_path);
 
     class PathView {
         private:
-            util::string_view path;
+            util::string_view m_path;
         public:
-            PathView(util::string_view p) : path(p) { /* ...*/ }
+            PathView(util::string_view p) : m_path(p) { /* ...*/ }
             bool HasPrefix(util::string_view prefix) const;
             bool HasSuffix(util::string_view suffix) const;
             util::string_view GetFileName() const;
@@ -34,11 +36,15 @@ namespace ams::ncm::impl {
         char str[fs::MountNameLengthMax + 1];
     };
 
+    using MountNameString = kvdb::BoundedString<sizeof(MountName{}.str)>;
+
     struct RootDirectoryPath {
         char str[fs::MountNameLengthMax + 3]; /* mount name + :/ */
     };
 
     MountName CreateUniqueMountName();
     RootDirectoryPath GetRootDirectoryPath(const MountName &mount_name);
+
+    Result MountContentMetaImpl(const char *mount_name, const char *path, fs::ContentAttributes attr);
 
 }

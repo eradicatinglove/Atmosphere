@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -592,7 +592,7 @@ namespace ams::tio {
                             }
 
                             /* Get the file timestamp. */
-                            response_header.result = fs::GetFileTimeStampRawForDebug(std::addressof(out.file_timestamp), param->path);
+                            response_header.result = fs::impl::GetFileTimeStampRawForDebug(std::addressof(out.file_timestamp), param->path);
                             if (R_FAILED(response_header.result)) {
                                 break;
                             }

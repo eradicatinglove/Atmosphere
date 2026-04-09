@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -18,3 +18,4 @@
 #include <stratosphere/ams.hpp>
 #include <stratosphere/os.hpp>
 #include <stratosphere/sm/sm_types.hpp>
+#include <stratosphere/tipc/tipc_message_types.hpp>

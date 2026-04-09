@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -40,20 +40,10 @@ namespace ams::kern {
         request->Initialize(nullptr, address, size);
 
         /* Send the request. */
-        {
-            KScopedSchedulerLock sl;
-
-            GetCurrentThread().SetSyncedObject(nullptr, ResultSuccess());
-
-            R_TRY(m_parent->OnRequest(request));
-        }
-
-        /* Get the result. */
-        KSynchronizationObject *dummy;
-        return GetCurrentThread().GetWaitResult(std::addressof(dummy));
+        R_RETURN(m_parent->OnRequest(request));
     }
 
-    Result KClientSession::SendAsyncRequest(KWritableEvent *event, uintptr_t address, size_t size) {
+    Result KClientSession::SendAsyncRequest(KEvent *event, uintptr_t address, size_t size) {
         MESOSPHERE_ASSERT_THIS();
 
         /* Create a session request. */
@@ -65,13 +55,7 @@ namespace ams::kern {
         request->Initialize(event, address, size);
 
         /* Send the request. */
-        {
-            KScopedSchedulerLock sl;
-
-            R_TRY(m_parent->OnRequest(request));
-        }
-
-        return ResultSuccess();
+        R_RETURN(m_parent->OnRequest(request));
     }
 
 }

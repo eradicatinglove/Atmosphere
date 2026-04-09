@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -23,6 +23,7 @@ namespace ams::secmon::fatal {
     constexpr inline size_t FrameBufferSize   = FrameBufferHeight * FrameBufferWidth * sizeof(u32);
 
     void InitializeDisplay();
+    void ShowDisplay();
     void ShowDisplay(const ams::impl::FatalErrorContext *f_ctx, const Result save_result);
 
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -19,13 +19,13 @@
 namespace ams::settings::factory {
 
     Result GetSerialNumber(SerialNumber *out) {
-        const Result result = settings::impl::GetSerialNumber(out);
+        R_TRY_CATCH(settings::impl::GetSerialNumber(out)) {
+            /* It's not a fatal error if the calib filesystem is corrupted. */
+            R_CATCH_RETHROW(settings::ResultCalibrationDataFileSystemCorrupted)
+            R_CATCH_RETHROW(settings::ResultCalibrationDataCrcError)
+        } R_END_TRY_CATCH_WITH_ABORT_UNLESS;
 
-        if (!settings::ResultCalibrationDataFileSystemCorrupted::Includes(result) && !settings::ResultCalibrationDataCrcError::Includes(result)) {
-            R_ABORT_UNLESS(result);
-        }
-
-        return result;
+        R_SUCCEED();
     }
 
 }

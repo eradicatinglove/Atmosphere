@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -19,8 +19,8 @@
 namespace ams::i2c {
 
     Result CommandListFormatter::IsEnqueueAble(size_t sz) const {
-        R_UNLESS(this->command_list_length - this->current_index >= sz, ResultCommandListFull());
-        return ResultSuccess();
+        R_UNLESS(m_command_list_length - m_current_index >= sz, i2c::ResultCommandListFull());
+        R_SUCCEED();
     }
 
     Result CommandListFormatter::EnqueueReceiveCommand(i2c::TransactionOption option, size_t size) {
@@ -29,20 +29,22 @@ namespace ams::i2c {
         R_TRY(this->IsEnqueueAble(CommandLength));
 
         /* Get the command list. */
-        util::BitPack8 *cmd_list = static_cast<util::BitPack8 *>(this->command_list);
+        util::BitPack8 *cmd_list = static_cast<util::BitPack8 *>(m_command_list);
 
         /* Get references to the header. */
-        auto &header0 = cmd_list[this->current_index++];
-        auto &header1 = cmd_list[this->current_index++];
+        auto &header0 = cmd_list[m_current_index++];
+        auto &header1 = cmd_list[m_current_index++];
 
         /* Set the header. */
+        header0 = {};
         header0.Set<impl::CommonCommandFormat::CommandId>(impl::CommandId_Receive);
         header0.Set<impl::ReceiveCommandFormat::StopCondition>((option & TransactionOption_StopCondition) != 0);
         header0.Set<impl::ReceiveCommandFormat::StartCondition>((option & TransactionOption_StartCondition) != 0);
 
+        header1 = {};
         header1.Set<impl::ReceiveCommandFormat::Size>(size);
 
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     Result CommandListFormatter::EnqueueSendCommand(i2c::TransactionOption option, const void *src, size_t size) {
@@ -51,24 +53,26 @@ namespace ams::i2c {
         R_TRY(this->IsEnqueueAble(CommandLength + size));
 
         /* Get the command list. */
-        util::BitPack8 *cmd_list = static_cast<util::BitPack8 *>(this->command_list);
+        util::BitPack8 *cmd_list = static_cast<util::BitPack8 *>(m_command_list);
 
         /* Get references to the header. */
-        auto &header0 = cmd_list[this->current_index++];
-        auto &header1 = cmd_list[this->current_index++];
+        auto &header0 = cmd_list[m_current_index++];
+        auto &header1 = cmd_list[m_current_index++];
 
         /* Set the header. */
+        header0 = {};
         header0.Set<impl::CommonCommandFormat::CommandId>(impl::CommandId_Send);
         header0.Set<impl::SendCommandFormat::StopCondition>((option & TransactionOption_StopCondition) != 0);
         header0.Set<impl::SendCommandFormat::StartCondition>((option & TransactionOption_StartCondition) != 0);
 
+        header1 = {};
         header1.Set<impl::SendCommandFormat::Size>(size);
 
         /* Copy the data we're sending. */
-        std::memcpy(cmd_list + this->current_index, src, size);
-        this->current_index += size;
+        std::memcpy(cmd_list + m_current_index, src, size);
+        m_current_index += size;
 
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     Result CommandListFormatter::EnqueueSleepCommand(int us) {
@@ -77,19 +81,21 @@ namespace ams::i2c {
         R_TRY(this->IsEnqueueAble(CommandLength));
 
         /* Get the command list. */
-        util::BitPack8 *cmd_list = static_cast<util::BitPack8 *>(this->command_list);
+        util::BitPack8 *cmd_list = static_cast<util::BitPack8 *>(m_command_list);
 
         /* Get references to the header. */
-        auto &header0 = cmd_list[this->current_index++];
-        auto &header1 = cmd_list[this->current_index++];
+        auto &header0 = cmd_list[m_current_index++];
+        auto &header1 = cmd_list[m_current_index++];
 
         /* Set the header. */
+        header0 = {};
         header0.Set<impl::CommonCommandFormat::CommandId>(impl::CommandId_Extension);
         header0.Set<impl::CommonCommandFormat::SubCommandId>(impl::SubCommandId_Sleep);
 
+        header1 = {};
         header1.Set<impl::SleepCommandFormat::MicroSeconds>(us);
 
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
 }

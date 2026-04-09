@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -37,11 +37,13 @@ namespace ams::sf {
 
             template<typename T>
             static void *AllocateAligned(size_t size, size_t align) {
+                AMS_UNUSED(align);
                 return StdAllocator<T>().allocate(size / sizeof(T));
             }
 
             template<typename T>
             static void DeallocateAligned(void *ptr, size_t size, size_t align) {
+                AMS_UNUSED(align);
                 StdAllocator<T>().deallocate(static_cast<T *>(ptr), size / sizeof(T));
             }
     };

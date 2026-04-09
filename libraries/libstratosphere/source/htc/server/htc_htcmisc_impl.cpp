@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -82,7 +82,7 @@ namespace ams::htc::server {
 
     Result HtcmiscImpl::GetEnvironmentVariable(size_t *out_size, char *dst, size_t dst_size, const char *name, size_t name_size) {
         /* Begin the task. */
-        u32 task_id;
+        u32 task_id{};
         R_TRY(m_rpc_client.Begin<rpc::GetEnvironmentVariableTask>(std::addressof(task_id), name, name_size));
 
         /* Wait for the task to complete. */
@@ -91,12 +91,12 @@ namespace ams::htc::server {
         /* Finish the task. */
         R_TRY(m_rpc_client.End<rpc::GetEnvironmentVariableTask>(task_id, out_size, dst, dst_size));
 
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     Result HtcmiscImpl::GetEnvironmentVariableLength(size_t *out_size, const char *name, size_t name_size) {
         /* Begin the task. */
-        u32 task_id;
+        u32 task_id{};
         R_TRY(m_rpc_client.Begin<rpc::GetEnvironmentVariableLengthTask>(std::addressof(task_id), name, name_size));
 
         /* Wait for the task to complete. */
@@ -105,19 +105,19 @@ namespace ams::htc::server {
         /* Finish the task. */
         R_TRY(m_rpc_client.End<rpc::GetEnvironmentVariableLengthTask>(task_id, out_size));
 
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
-    Result HtcmiscImpl::RunOnHostBegin(u32 *out_task_id, Handle *out_event, const char *args, size_t args_size) {
+    Result HtcmiscImpl::RunOnHostBegin(u32 *out_task_id, os::NativeHandle *out_event, const char *args, size_t args_size) {
         /* Begin the task. */
-        u32 task_id;
+        u32 task_id{};
         R_TRY(m_rpc_client.Begin<rpc::RunOnHostTask>(std::addressof(task_id), args, args_size));
 
         /* Detach the task. */
         *out_task_id = task_id;
         *out_event   = m_rpc_client.DetachReadableHandle(task_id);
 
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     Result HtcmiscImpl::RunOnHostEnd(s32 *out_result, u32 task_id) {
@@ -128,7 +128,7 @@ namespace ams::htc::server {
         /* Set output. */
         *out_result = res;
 
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     void HtcmiscImpl::ClientThread() {

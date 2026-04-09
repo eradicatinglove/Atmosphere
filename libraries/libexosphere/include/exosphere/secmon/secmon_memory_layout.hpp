@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -22,52 +22,53 @@ namespace ams::secmon {
     using Address = u64;
 
     struct MemoryRegion {
-        Address start_address;
-        Address end_address;
-
-        constexpr MemoryRegion(Address address, size_t size) : start_address(address), end_address(address + size) {
-            if (end_address < start_address) {
-                __builtin_unreachable();
+        private:
+            Address m_start_address;
+            Address m_end_address;
+        public:
+            consteval MemoryRegion(Address address, size_t size) : m_start_address(address), m_end_address(address + size) {
+                if (m_end_address < m_start_address) {
+                    __builtin_unreachable();
+                }
             }
-        }
 
-        constexpr Address GetStartAddress() const {
-            return this->start_address;
-        }
+            constexpr Address GetStartAddress() const {
+                return m_start_address;
+            }
 
-        constexpr Address GetAddress() const {
-            return this->GetStartAddress();
-        }
+            constexpr Address GetAddress() const {
+                return this->GetStartAddress();
+            }
 
-        constexpr Address GetEndAddress() const {
-            return this->end_address;
-        }
+            constexpr Address GetEndAddress() const {
+                return m_end_address;
+            }
 
-        constexpr Address GetLastAddress() const {
-            return this->end_address - 1;
-        }
+            constexpr Address GetLastAddress() const {
+                return m_end_address - 1;
+            }
 
-        constexpr size_t GetSize() const {
-            return this->end_address - this->start_address;
-        }
+            constexpr size_t GetSize() const {
+                return m_end_address - m_start_address;
+            }
 
-        constexpr bool Contains(Address address, size_t size) const {
-            return this->start_address <= address && (address + size - 1) <= this->GetLastAddress();
-        }
+            constexpr bool Contains(Address address, size_t size) const {
+                return m_start_address <= address && (address + size - 1) <= this->GetLastAddress();
+            }
 
-        constexpr bool Contains(const MemoryRegion &rhs) const {
-            return this->Contains(rhs.GetStartAddress(), rhs.GetSize());
-        }
+            constexpr bool Contains(const MemoryRegion &rhs) const {
+                return this->Contains(rhs.GetStartAddress(), rhs.GetSize());
+            }
 
-        template<typename T = void> requires (std::is_same<T, void>::value || util::is_pod<T>::value)
-        ALWAYS_INLINE T *GetPointer() const {
-            return reinterpret_cast<T *>(this->GetAddress());
-        }
+            template<typename T = void> requires (std::is_same<T, void>::value || util::is_pod<T>::value)
+            ALWAYS_INLINE T *GetPointer() const {
+                return reinterpret_cast<T *>(this->GetAddress());
+            }
 
-        template<typename T = void> requires (std::is_same<T, void>::value || util::is_pod<T>::value)
-        ALWAYS_INLINE T *GetEndPointer() const {
-            return reinterpret_cast<T *>(this->GetEndAddress());
-        }
+            template<typename T = void> requires (std::is_same<T, void>::value || util::is_pod<T>::value)
+            ALWAYS_INLINE T *GetEndPointer() const {
+                return reinterpret_cast<T *>(this->GetEndAddress());
+            }
     };
 
     constexpr inline const MemoryRegion MemoryRegionVirtual  = MemoryRegion(UINT64_C(0x1F0000000), 2_MB);
@@ -333,7 +334,7 @@ namespace ams::secmon {
     static_assert(MemoryRegionPhysicalTzramNonVolatile.Contains(MemoryRegionPhysicalTzramL2L3PageTable));
 
     constexpr inline const MemoryRegion MemoryRegionPhysicalTzramFullProgramImage = MemoryRegion(UINT64_C(0x7C010800), 0xD800);
-    constexpr inline const MemoryRegion MemoryRegionPhysicalIramBootCodeImage     = MemoryRegion(UINT64_C(0x40032000), 0x6000);
+    constexpr inline const MemoryRegion MemoryRegionPhysicalIramBootCodeImage     = MemoryRegion(UINT64_C(0x40032000), 0xC000);
 
     constexpr inline const MemoryRegion MemoryRegionPhysicalIramBootCodeCode      = MemoryRegion(UINT64_C(0x40032000), 0x1000);
     constexpr inline const MemoryRegion MemoryRegionPhysicalIramBootCodeKeys      = MemoryRegion(UINT64_C(0x40033000), 0x1000);

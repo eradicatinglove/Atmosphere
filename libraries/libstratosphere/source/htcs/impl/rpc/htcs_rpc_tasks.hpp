@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -66,7 +66,7 @@ namespace ams::htcs::impl::rpc {
         HtcsPacketCategory category;
         HtcsPacketType type;
         s64 body_size;
-        u32 task_id;
+        u32 task_id{};
         s64 params[5];
         char data[];
     };

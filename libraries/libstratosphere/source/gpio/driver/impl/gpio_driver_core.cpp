@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -26,17 +26,19 @@ namespace ams::gpio::driver::impl {
         alignas(os::MemoryPageSize) u8 g_interrupt_thread_stack[InterruptThreadStackSize];
 
         gpio::driver::IGpioDriver::List &GetGpioDriverList() {
-            static gpio::driver::IGpioDriver::List s_gpio_driver_list;
+            AMS_FUNCTION_LOCAL_STATIC_CONSTINIT(gpio::driver::IGpioDriver::List, s_gpio_driver_list);
             return s_gpio_driver_list;
         }
 
         ddsf::EventHandlerManager &GetInterruptHandlerManager() {
-            static ddsf::EventHandlerManager s_interrupt_handler_manager;
+            AMS_FUNCTION_LOCAL_STATIC(ddsf::EventHandlerManager, s_interrupt_handler_manager);
+
             return s_interrupt_handler_manager;
         }
 
         ddsf::DeviceCodeEntryManager &GetDeviceCodeEntryManager() {
-            static ddsf::DeviceCodeEntryManager s_device_code_entry_manager(ddsf::GetDeviceCodeEntryHolderMemoryResource());
+            AMS_FUNCTION_LOCAL_STATIC(ddsf::DeviceCodeEntryManager, s_device_code_entry_manager, ddsf::GetDeviceCodeEntryHolderMemoryResource());
+
             return s_device_code_entry_manager;
         }
 
@@ -91,7 +93,7 @@ namespace ams::gpio::driver::impl {
     Result RegisterDeviceCode(DeviceCode device_code, Pad *pad) {
         AMS_ASSERT(pad != nullptr);
         R_TRY(GetDeviceCodeEntryManager().Add(device_code, pad));
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     bool UnregisterDeviceCode(DeviceCode device_code) {
@@ -118,7 +120,7 @@ namespace ams::gpio::driver::impl {
 
         /* Set output. */
         *out = device->SafeCastToPointer<Pad>();
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     Result FindPadByNumber(Pad **out, int pad_number) {
@@ -143,7 +145,7 @@ namespace ams::gpio::driver::impl {
         /* Check that we found the pad. */
         R_UNLESS(found, ddsf::ResultDeviceCodeNotFound());
 
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -20,38 +20,44 @@ namespace ams::powctl::impl {
 
     namespace {
 
-        os::ThreadType g_interrupt_thread;
+        constinit os::ThreadType g_interrupt_thread = {};
 
         constexpr inline size_t InterruptThreadStackSize = os::MemoryPageSize;
         alignas(os::MemoryPageSize) u8 g_interrupt_thread_stack[InterruptThreadStackSize];
 
-        constinit u8 g_unit_heap_memory[2_KB];
-        constinit lmem::HeapHandle g_unit_heap_handle;
-        constinit sf::UnitHeapMemoryResource g_unit_heap_memory_resource;
-
         IPowerControlDriver::List &GetDriverList() {
-            static IPowerControlDriver::List s_driver_list;
+            AMS_FUNCTION_LOCAL_STATIC_CONSTINIT(IPowerControlDriver::List, s_driver_list);
             return s_driver_list;
         }
 
         ddsf::EventHandlerManager &GetInterruptHandlerManager() {
-            static ddsf::EventHandlerManager s_interrupt_handler_manager;
+            AMS_FUNCTION_LOCAL_STATIC(ddsf::EventHandlerManager, s_interrupt_handler_manager);
+
             return s_interrupt_handler_manager;
         }
 
         ddsf::DeviceCodeEntryManager &GetDeviceCodeEntryManager() {
-            static ddsf::DeviceCodeEntryManager s_device_code_entry_manager = [] {
-                /* Initialize the entry code heap. */
-                g_unit_heap_handle = lmem::CreateUnitHeap(g_unit_heap_memory, sizeof(g_unit_heap_memory), sizeof(ddsf::DeviceCodeEntryHolder), lmem::CreateOption_ThreadSafe);
+            class DeviceCodeEntryManagerWithUnitHeap {
+                private:
+                    u8 m_heap_memory[2_KB];
+                    sf::UnitHeapMemoryResource m_memory_resource;
+                    util::TypedStorage<ddsf::DeviceCodeEntryManager> m_manager;
+                public:
+                    DeviceCodeEntryManagerWithUnitHeap() {
+                        /* Initialize the memory resource. */
+                        m_memory_resource.Attach(lmem::CreateUnitHeap(m_heap_memory, sizeof(m_heap_memory), sizeof(ddsf::DeviceCodeEntryHolder), lmem::CreateOption_ThreadSafe));
 
-                /* Initialize the entry code memory resource. */
-                g_unit_heap_memory_resource.Attach(g_unit_heap_handle);
+                        /* Construct the entry manager. */
+                        util::ConstructAt(m_manager,  std::addressof(m_memory_resource));
+                    }
 
-                /* Make the entry manager using the newly initialized memory resource. */
-                return ddsf::DeviceCodeEntryManager(std::addressof(g_unit_heap_memory_resource));
-            }();
+                    ALWAYS_INLINE operator ddsf::DeviceCodeEntryManager &() {
+                        return util::GetReference(m_manager);
+                    }
+            };
+            AMS_FUNCTION_LOCAL_STATIC(DeviceCodeEntryManagerWithUnitHeap, s_device_code_entry_manager_holder);
 
-            return s_device_code_entry_manager;
+            return s_device_code_entry_manager_holder;
         }
 
         void InterruptThreadFunction(void *arg) {
@@ -113,7 +119,7 @@ namespace ams::powctl::impl {
     Result RegisterDeviceCode(DeviceCode device_code, IDevice *device) {
         AMS_ASSERT(device != nullptr);
         R_TRY(GetDeviceCodeEntryManager().Add(device_code, device));
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     bool UnregisterDeviceCode(DeviceCode device_code) {
@@ -140,7 +146,7 @@ namespace ams::powctl::impl {
 
         /* Set output. */
         *out = device->SafeCastToPointer<powctl::impl::IDevice>();
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
 }

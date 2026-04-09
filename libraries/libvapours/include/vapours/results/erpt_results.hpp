@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -17,9 +17,9 @@
 #pragma once
 #include <vapours/results/results_common.hpp>
 
-namespace ams::erpt {
+R_DEFINE_NAMESPACE_RESULT_MODULE(ams::erpt, 147);
 
-    R_DEFINE_NAMESPACE_RESULT_MODULE(147);
+namespace ams::erpt {
 
     R_DEFINE_ERROR_RESULT(NotInitialized,            1);
     R_DEFINE_ERROR_RESULT(AlreadyInitialized,        2);
@@ -40,5 +40,6 @@ namespace ams::erpt {
     R_DEFINE_ERROR_RESULT(InvalidPowerState,        17);
     R_DEFINE_ERROR_RESULT(ArrayFieldTooLarge,       18);
     R_DEFINE_ERROR_RESULT(AlreadyOwned,             19);
+    R_DEFINE_ERROR_RESULT(TooManyOutAttachments,    51);
 
 }

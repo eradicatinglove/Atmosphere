@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -22,94 +22,99 @@ namespace ams::gpio::server {
 
     class PadSessionImpl {
         private:
-            ManagerImpl *parent; /* NOTE: this is an sf::SharedPointer<> in Nintendo's code. */
-            gpio::driver::GpioPadSession internal_pad_session;
-            bool has_session;
-            os::SystemEvent system_event;
+            ManagerImpl *m_parent; /* NOTE: this is an sf::SharedPointer<> in Nintendo's code. */
+            gpio::driver::GpioPadSession m_internal_pad_session;
+            bool m_has_session;
+            os::SystemEvent m_system_event;
         public:
-            explicit PadSessionImpl(ManagerImpl *p) : parent(p), has_session(false) { /* ... */ }
+            explicit PadSessionImpl(ManagerImpl *p) : m_parent(p), m_has_session(false) { /* ... */ }
 
             ~PadSessionImpl() {
-                if (this->has_session) {
-                    gpio::driver::CloseSession(std::addressof(this->internal_pad_session));
+                if (m_has_session) {
+                    gpio::driver::CloseSession(std::addressof(m_internal_pad_session));
                 }
             }
 
             Result OpenSession(DeviceCode device_code, ddsf::AccessMode access_mode) {
-                AMS_ABORT_UNLESS(!this->has_session);
+                AMS_ABORT_UNLESS(!m_has_session);
 
-                R_TRY(gpio::driver::OpenSession(std::addressof(this->internal_pad_session), device_code, access_mode));
-                this->has_session = true;
-                return ResultSuccess();
+                R_TRY(gpio::driver::OpenSession(std::addressof(m_internal_pad_session), device_code, access_mode));
+                m_has_session = true;
+                R_SUCCEED();
             }
         public:
             /* Actual commands. */
             Result SetDirection(gpio::Direction direction) {
                 /* Validate our state. */
-                AMS_ASSERT(this->has_session);
+                AMS_ASSERT(m_has_session);
 
                 /* Validate the direction. */
                 R_UNLESS((direction == Direction_Input || direction == Direction_Output), gpio::ResultInvalidArgument());
 
                 /* Invoke the driver library. */
-                R_TRY(gpio::driver::SetDirection(std::addressof(this->internal_pad_session), direction));
+                R_TRY(gpio::driver::SetDirection(std::addressof(m_internal_pad_session), direction));
 
-                return ResultSuccess();
+                R_SUCCEED();
             }
 
             Result GetDirection(ams::sf::Out<gpio::Direction> out) {
                 /* Validate our state. */
-                AMS_ASSERT(this->has_session);
+                AMS_ASSERT(m_has_session);
 
                 /* Invoke the driver library. */
-                R_TRY(gpio::driver::GetDirection(out.GetPointer(), std::addressof(this->internal_pad_session)));
+                R_TRY(gpio::driver::GetDirection(out.GetPointer(), std::addressof(m_internal_pad_session)));
 
-                return ResultSuccess();
+                R_SUCCEED();
             }
 
             Result SetInterruptMode(gpio::InterruptMode mode) {
                 /* Validate our state. */
-                AMS_ASSERT(this->has_session);
+                AMS_ASSERT(m_has_session);
 
                 /* TODO */
+                AMS_UNUSED(mode);
                 AMS_ABORT();
             }
 
             Result GetInterruptMode(ams::sf::Out<gpio::InterruptMode> out) {
                 /* Validate our state. */
-                AMS_ASSERT(this->has_session);
+                AMS_ASSERT(m_has_session);
 
                 /* TODO */
+                AMS_UNUSED(out);
                 AMS_ABORT();
             }
 
             Result SetInterruptEnable(bool enable) {
                 /* Validate our state. */
-                AMS_ASSERT(this->has_session);
+                AMS_ASSERT(m_has_session);
 
                 /* TODO */
+                AMS_UNUSED(enable);
                 AMS_ABORT();
             }
 
             Result GetInterruptEnable(ams::sf::Out<bool> out) {
                 /* Validate our state. */
-                AMS_ASSERT(this->has_session);
+                AMS_ASSERT(m_has_session);
 
                 /* TODO */
+                AMS_UNUSED(out);
                 AMS_ABORT();
             }
 
             Result GetInterruptStatus(ams::sf::Out<gpio::InterruptStatus> out) {
                 /* Validate our state. */
-                AMS_ASSERT(this->has_session);
+                AMS_ASSERT(m_has_session);
 
                 /* TODO */
+                AMS_UNUSED(out);
                 AMS_ABORT();
             }
 
             Result ClearInterruptStatus() {
                 /* Validate our state. */
-                AMS_ASSERT(this->has_session);
+                AMS_ASSERT(m_has_session);
 
                 /* TODO */
                 AMS_ABORT();
@@ -117,38 +122,39 @@ namespace ams::gpio::server {
 
             Result SetValue(gpio::GpioValue value) {
                 /* Validate our state. */
-                AMS_ASSERT(this->has_session);
+                AMS_ASSERT(m_has_session);
 
                 /* Validate the value. */
                 R_UNLESS((value == GpioValue_Low || value == GpioValue_High), gpio::ResultInvalidArgument());
 
                 /* Invoke the driver library. */
-                R_TRY(gpio::driver::SetValue(std::addressof(this->internal_pad_session), value));
+                R_TRY(gpio::driver::SetValue(std::addressof(m_internal_pad_session), value));
 
-                return ResultSuccess();
+                R_SUCCEED();
             }
 
             Result GetValue(ams::sf::Out<gpio::GpioValue> out) {
                 /* Validate our state. */
-                AMS_ASSERT(this->has_session);
+                AMS_ASSERT(m_has_session);
 
                 /* Invoke the driver library. */
-                R_TRY(gpio::driver::GetValue(out.GetPointer(), std::addressof(this->internal_pad_session)));
+                R_TRY(gpio::driver::GetValue(out.GetPointer(), std::addressof(m_internal_pad_session)));
 
-                return ResultSuccess();
+                R_SUCCEED();
             }
 
             Result BindInterrupt(ams::sf::OutCopyHandle out) {
                 /* Validate our state. */
-                AMS_ASSERT(this->has_session);
+                AMS_ASSERT(m_has_session);
 
                 /* TODO */
+                AMS_UNUSED(out);
                 AMS_ABORT();
             }
 
             Result UnbindInterrupt() {
                 /* Validate our state. */
-                AMS_ASSERT(this->has_session);
+                AMS_ASSERT(m_has_session);
 
                 /* TODO */
                 AMS_ABORT();
@@ -156,49 +162,55 @@ namespace ams::gpio::server {
 
             Result SetDebounceEnabled(bool enable) {
                 /* Validate our state. */
-                AMS_ASSERT(this->has_session);
+                AMS_ASSERT(m_has_session);
 
                 /* TODO */
+                AMS_UNUSED(enable);
                 AMS_ABORT();
             }
 
             Result GetDebounceEnabled(ams::sf::Out<bool> out) {
                 /* Validate our state. */
-                AMS_ASSERT(this->has_session);
+                AMS_ASSERT(m_has_session);
 
                 /* TODO */
+                AMS_UNUSED(out);
                 AMS_ABORT();
             }
 
             Result SetDebounceTime(s32 ms) {
                 /* Validate our state. */
-                AMS_ASSERT(this->has_session);
+                AMS_ASSERT(m_has_session);
 
                 /* TODO */
+                AMS_UNUSED(ms);
                 AMS_ABORT();
             }
 
             Result GetDebounceTime(ams::sf::Out<s32> out) {
                 /* Validate our state. */
-                AMS_ASSERT(this->has_session);
+                AMS_ASSERT(m_has_session);
 
                 /* TODO */
+                AMS_UNUSED(out);
                 AMS_ABORT();
             }
 
             Result SetValueForSleepState(gpio::GpioValue value) {
                 /* Validate our state. */
-                AMS_ASSERT(this->has_session);
+                AMS_ASSERT(m_has_session);
 
                 /* TODO */
+                AMS_UNUSED(value);
                 AMS_ABORT();
             }
 
             Result GetValueForSleepState(ams::sf::Out<gpio::GpioValue> out) {
                 /* Validate our state. */
-                AMS_ASSERT(this->has_session);
+                AMS_ASSERT(m_has_session);
 
                 /* TODO */
+                AMS_UNUSED(out);
                 AMS_ABORT();
             }
     };

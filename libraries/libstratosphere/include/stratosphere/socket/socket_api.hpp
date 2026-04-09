@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -43,10 +43,13 @@ namespace ams::socket {
 
     s32 Shutdown(s32 desc, ShutdownMethod how);
 
+    s32 Socket(Family domain, Type type, Protocol protocol);
     s32 SocketExempt(Family domain, Type type, Protocol protocol);
 
     s32 Accept(s32 desc, SockAddr *out_address, SockLenT *out_addr_len);
     s32 Bind(s32 desc, const SockAddr *address, SockLenT len);
+
+    s32 Connect(s32 desc, const SockAddr *address, SockLenT len);
 
     s32 GetSockName(s32 desc, SockAddr *out_address, SockLenT *out_addr_len);
     s32 SetSockOpt(s32 desc, Level level, Option option_name, const void *option_value, SockLenT option_size);

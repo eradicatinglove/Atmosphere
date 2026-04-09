@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -18,15 +18,18 @@
 #include <stratosphere/ncm/ncm_ids.hpp>
 #include <stratosphere/fs/impl/fs_newable.hpp>
 #include <stratosphere/fs/fs_program_index_map_info.hpp>
+#include <stratosphere/fssystem/fssystem_pimpl.hpp>
 
 namespace ams::fssrv::impl {
 
+    /* ACCURATE_TO_VERSION: 13.4.0.0 */
     struct ProgramIndexMapInfoEntry : public ::ams::util::IntrusiveListBaseNode<ProgramIndexMapInfoEntry>, public ::ams::fs::impl::Newable {
         ncm::ProgramId program_id;
         ncm::ProgramId base_program_id;
         u8 program_index;
     };
 
+    /* ACCURATE_TO_VERSION: 13.4.0.0 */
     class ProgramIndexMapInfoManager {
         NON_COPYABLE(ProgramIndexMapInfoManager);
         NON_MOVEABLE(ProgramIndexMapInfoManager);
@@ -97,13 +100,13 @@ namespace ams::fssrv::impl {
 
                 /* Clear the map, and ensure we remain clear if we fail after this point. */
                 this->ClearImpl();
-                auto clear_guard = SCOPE_GUARD { this->ClearImpl(); };
+                ON_RESULT_FAILURE { this->ClearImpl(); };
 
                 /* Add each info to the list. */
                 for (int i = 0; i < count; ++i) {
                     /* Allocate new entry. */
                     auto *entry = new ProgramIndexMapInfoEntry;
-                    R_UNLESS(entry != nullptr, fs::ResultAllocationFailureInNew());
+                    R_UNLESS(entry != nullptr, fs::ResultAllocationMemoryFailedNew());
 
                     /* Copy over the info. */
                     entry->program_id      = infos[i].program_id;
@@ -115,8 +118,7 @@ namespace ams::fssrv::impl {
                 }
 
                 /* We successfully imported the map. */
-                clear_guard.Cancel();
-                return ResultSuccess();
+                R_SUCCEED();
             }
         private:
             void ClearImpl() {
@@ -157,3 +159,5 @@ namespace ams::fssrv::impl {
 
 
 }
+
+AMS_FSSYSTEM_ENABLE_PIMPL(::ams::fssrv::impl::ProgramIndexMapInfoManager)

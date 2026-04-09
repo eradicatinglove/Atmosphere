@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -22,19 +22,20 @@
 #include <mesosphere/kern_k_thread.hpp>
 #include <mesosphere/kern_k_thread_local_page.hpp>
 #include <mesosphere/kern_k_shared_memory_info.hpp>
-#include <mesosphere/kern_k_beta.hpp>
+#include <mesosphere/kern_k_io_region.hpp>
 #include <mesosphere/kern_k_worker_task.hpp>
 #include <mesosphere/kern_select_page_table.hpp>
 #include <mesosphere/kern_k_condition_variable.hpp>
 #include <mesosphere/kern_k_address_arbiter.hpp>
 #include <mesosphere/kern_k_capabilities.hpp>
 #include <mesosphere/kern_k_wait_object.hpp>
-#include <mesosphere/kern_k_dynamic_slab_heap.hpp>
+#include <mesosphere/kern_k_dynamic_resource_manager.hpp>
 #include <mesosphere/kern_k_page_table_manager.hpp>
+#include <mesosphere/kern_k_system_resource.hpp>
 
 namespace ams::kern {
 
-    class KProcess final : public KAutoObjectWithSlabHeapAndContainer<KProcess, KSynchronizationObject>, public KWorkerTask {
+    class KProcess final : public KAutoObjectWithSlabHeapAndContainer<KProcess, KWorkerTask> {
         MESOSPHERE_AUTOOBJECT_TRAITS(KProcess, KSynchronizationObject);
         public:
             enum State {
@@ -53,74 +54,73 @@ namespace ams::kern {
             static constexpr size_t AslrAlignment = KernelAslrAlignment;
         private:
             using SharedMemoryInfoList = util::IntrusiveListBaseTraits<KSharedMemoryInfo>::ListType;
-            using BetaList = util::IntrusiveListMemberTraits<&KBeta::m_process_list_node>::ListType;
+            using IoRegionList = util::IntrusiveListMemberTraits<&KIoRegion::m_process_list_node>::ListType;
             using TLPTree = util::IntrusiveRedBlackTreeBaseTraits<KThreadLocalPage>::TreeType<KThreadLocalPage>;
             using TLPIterator = TLPTree::iterator;
         private:
-            KProcessPageTable           m_page_table{};
-            std::atomic<size_t>         m_used_kernel_memory_size{};
-            TLPTree                     m_fully_used_tlp_tree{};
-            TLPTree                     m_partially_used_tlp_tree{};
-            s32                         m_ideal_core_id{};
-            void                       *m_attached_object{};
-            KResourceLimit             *m_resource_limit{};
-            KVirtualAddress             m_system_resource_address{};
-            size_t                      m_system_resource_num_pages{};
-            size_t                      m_memory_release_hint{};
-            State                       m_state{};
-            KLightLock                  m_state_lock{};
-            KLightLock                  m_list_lock{};
-            KConditionVariable          m_cond_var{};
-            KAddressArbiter             m_address_arbiter{};
-            u64                         m_entropy[4]{};
-            bool                        m_is_signaled{};
-            bool                        m_is_initialized{};
-            bool                        m_is_application{};
-            char                        m_name[13]{};
-            std::atomic<u16>            m_num_running_threads{};
-            u32                         m_flags{};
-            KMemoryManager::Pool        m_memory_pool{};
-            s64                         m_schedule_count{};
-            KCapabilities               m_capabilities{};
-            ams::svc::ProgramId         m_program_id{};
-            u64                         m_process_id{};
-            s64                         m_creation_time{};
-            KProcessAddress             m_code_address{};
-            size_t                      m_code_size{};
-            size_t                      m_main_thread_stack_size{};
-            size_t                      m_max_process_memory{};
-            u32                         m_version{};
-            KHandleTable                m_handle_table{};
-            KProcessAddress             m_plr_address{};
-            void                       *m_plr_heap_address{};
-            KThread                    *m_exception_thread{};
-            ThreadList                  m_thread_list{};
-            SharedMemoryInfoList        m_shared_memory_list{};
-            BetaList                    m_beta_list{};
-            bool                        m_is_suspended{};
-            bool                        m_is_immortal{};
-            bool                        m_is_jit_debug{};
-            bool                        m_is_handle_table_initialized{};
-            ams::svc::DebugEvent        m_jit_debug_event_type{};
-            ams::svc::DebugException    m_jit_debug_exception_type{};
-            uintptr_t                   m_jit_debug_params[4]{};
-            u64                         m_jit_debug_thread_id{};
-            KWaitObject                 m_wait_object{};
-            KThread                    *m_running_threads[cpu::NumCores]{};
-            u64                         m_running_thread_idle_counts[cpu::NumCores]{};
-            KThread                    *m_pinned_threads[cpu::NumCores]{};
-            std::atomic<s64>            m_cpu_time{};
-            std::atomic<s64>            m_num_process_switches{};
-            std::atomic<s64>            m_num_thread_switches{};
-            std::atomic<s64>            m_num_fpu_switches{};
-            std::atomic<s64>            m_num_supervisor_calls{};
-            std::atomic<s64>            m_num_ipc_messages{};
-            std::atomic<s64>            m_num_ipc_replies{};
-            std::atomic<s64>            m_num_ipc_receives{};
-            KDynamicPageManager         m_dynamic_page_manager{};
-            KMemoryBlockSlabManager     m_memory_block_slab_manager{};
-            KBlockInfoManager           m_block_info_manager{};
-            KPageTableManager           m_page_table_manager{};
+            KProcessPageTable           m_page_table;
+            util::Atomic<size_t>        m_used_kernel_memory_size;
+            TLPTree                     m_fully_used_tlp_tree;
+            TLPTree                     m_partially_used_tlp_tree;
+            s32                         m_ideal_core_id;
+            void                       *m_attached_object;
+            KResourceLimit             *m_resource_limit;
+            KSystemResource            *m_system_resource;
+            size_t                      m_memory_release_hint;
+            State                       m_state;
+            KLightLock                  m_state_lock;
+            KLightLock                  m_list_lock;
+            KConditionVariable          m_cond_var;
+            KAddressArbiter             m_address_arbiter;
+            u64                         m_entropy[4];
+            bool                        m_is_signaled;
+            bool                        m_is_initialized;
+            bool                        m_is_application;
+            bool                        m_is_default_application_system_resource;
+            char                        m_name[13];
+            util::Atomic<u16>           m_num_running_threads;
+            u32                         m_flags;
+            KMemoryManager::Pool        m_memory_pool;
+            s64                         m_schedule_count;
+            KCapabilities               m_capabilities;
+            ams::svc::ProgramId         m_program_id;
+            u64                         m_process_id;
+            #if defined(MESOSPHERE_ENABLE_PROCESS_CREATION_TIME)
+            s64                         m_creation_time;
+            #endif
+            KProcessAddress             m_code_address;
+            size_t                      m_code_size;
+            size_t                      m_main_thread_stack_size;
+            size_t                      m_max_process_memory;
+            u32                         m_version;
+            KHandleTable                m_handle_table;
+            KProcessAddress             m_plr_address;
+            void                       *m_plr_heap_address;
+            KThread                    *m_exception_thread;
+            ThreadList                  m_thread_list;
+            SharedMemoryInfoList        m_shared_memory_list;
+            IoRegionList                m_io_region_list;
+            bool                        m_is_suspended;
+            bool                        m_is_immortal;
+            bool                        m_is_handle_table_initialized;
+            bool                        m_is_jit_debug;
+            ams::svc::DebugEvent        m_jit_debug_event_type;
+            ams::svc::DebugException    m_jit_debug_exception_type;
+            uintptr_t                   m_jit_debug_params[4];
+            u64                         m_jit_debug_thread_id;
+            KWaitObject                 m_wait_object;
+            KThread                    *m_running_threads[cpu::NumCores];
+            u64                         m_running_thread_idle_counts[cpu::NumCores];
+            u64                         m_running_thread_switch_counts[cpu::NumCores];
+            KThread                    *m_pinned_threads[cpu::NumCores];
+            util::Atomic<s64>           m_cpu_time;
+            util::Atomic<s64>           m_num_process_switches;
+            util::Atomic<s64>           m_num_thread_switches;
+            util::Atomic<s64>           m_num_fpu_switches;
+            util::Atomic<s64>           m_num_supervisor_calls;
+            util::Atomic<s64>           m_num_ipc_messages;
+            util::Atomic<s64>           m_num_ipc_replies;
+            util::Atomic<s64>           m_num_ipc_receives;
         private:
             Result Initialize(const ams::svc::CreateProcessParameter &params);
 
@@ -142,8 +142,7 @@ namespace ams::kern {
                 m_pinned_threads[core_id] = nullptr;
             }
         public:
-            KProcess() { /* ... */ }
-            virtual ~KProcess() { /* ... */ }
+            explicit KProcess() : m_is_initialized(false) { /* ... */ }
 
             Result Initialize(const ams::svc::CreateProcessParameter &params, const KPageGroup &pg, const u32 *caps, s32 num_caps, KResourceLimit *res_limit, KMemoryManager::Pool pool, bool immortal);
             Result Initialize(const ams::svc::CreateProcessParameter &params, svc::KUserPointer<const u32 *> caps, s32 num_caps, KResourceLimit *res_limit, KMemoryManager::Pool pool);
@@ -158,6 +157,7 @@ namespace ams::kern {
             constexpr State GetState() const { return m_state; }
 
             constexpr u64 GetCoreMask() const { return m_capabilities.GetCoreMask(); }
+            constexpr u64 GetPhysicalCoreMask() const { return m_capabilities.GetPhysicalCoreMask(); }
             constexpr u64 GetPriorityMask() const { return m_capabilities.GetPriorityMask(); }
 
             constexpr s32 GetIdealCoreId() const { return m_ideal_core_id; }
@@ -179,6 +179,8 @@ namespace ams::kern {
 
             constexpr bool IsApplication() const { return m_is_application; }
 
+            constexpr bool IsDefaultApplicationSystemResource() const { return m_is_default_application_system_resource; }
+
             constexpr bool IsSuspended() const { return m_is_suspended; }
             constexpr void SetSuspended(bool suspended) { m_is_suspended = suspended; }
 
@@ -192,12 +194,20 @@ namespace ams::kern {
                 return m_attached_object != nullptr;
             }
 
+            constexpr bool IsPermittedSvc(svc::SvcId svc_id) const {
+                return m_capabilities.IsPermittedSvc(svc_id);
+            }
+
             constexpr bool IsPermittedInterrupt(int32_t interrupt_id) const {
                 return m_capabilities.IsPermittedInterrupt(interrupt_id);
             }
 
             constexpr bool IsPermittedDebug() const {
                 return m_capabilities.IsPermittedDebug();
+            }
+
+            constexpr bool CanForceDebugProd() const {
+                return m_capabilities.CanForceDebugProd();
             }
 
             constexpr bool CanForceDebug() const {
@@ -227,25 +237,7 @@ namespace ams::kern {
                 return m_pinned_threads[core_id];
             }
 
-            void CopySvcPermissionsTo(KThread::StackParameters &sp) {
-                m_capabilities.CopySvcPermissionsTo(sp);
-            }
-
-            void CopyPinnedSvcPermissionsTo(KThread::StackParameters &sp) {
-                m_capabilities.CopyPinnedSvcPermissionsTo(sp);
-            }
-
-            void CopyUnpinnedSvcPermissionsTo(KThread::StackParameters &sp) {
-                m_capabilities.CopyUnpinnedSvcPermissionsTo(sp);
-            }
-
-            void CopyEnterExceptionSvcPermissionsTo(KThread::StackParameters &sp) {
-                m_capabilities.CopyEnterExceptionSvcPermissionsTo(sp);
-            }
-
-            void CopyLeaveExceptionSvcPermissionsTo(KThread::StackParameters &sp) {
-                m_capabilities.CopyLeaveExceptionSvcPermissionsTo(sp);
-            }
+            const svc::SvcAccessFlagSet &GetSvcPermissions() const { return m_capabilities.GetSvcPermissions(); }
 
             constexpr KResourceLimit *GetResourceLimit() const { return m_resource_limit; }
 
@@ -273,14 +265,21 @@ namespace ams::kern {
             Result AddSharedMemory(KSharedMemory *shmem, KProcessAddress address, size_t size);
             void RemoveSharedMemory(KSharedMemory *shmem, KProcessAddress address, size_t size);
 
+            void AddIoRegion(KIoRegion *io_region);
+            void RemoveIoRegion(KIoRegion *io_region);
+
             Result CreateThreadLocalRegion(KProcessAddress *out);
-            Result DeleteThreadLocalRegion(KProcessAddress addr);
+            void DeleteThreadLocalRegion(KProcessAddress addr);
             void *GetThreadLocalRegionPointer(KProcessAddress addr);
 
             constexpr KProcessAddress GetProcessLocalRegionAddress() const { return m_plr_address; }
 
+            constexpr void *GetProcessLocalRegionHeapAddress() const { return m_plr_heap_address; }
+
+            KThread *GetExceptionThread() const { return m_exception_thread; }
+
             void AddCpuTime(s64 diff) { m_cpu_time += diff; }
-            s64 GetCpuTime() { return m_cpu_time; }
+            s64 GetCpuTime() { return m_cpu_time.Load(); }
 
             constexpr s64 GetScheduledCount() const { return m_schedule_count; }
             void IncrementScheduledCount() { ++m_schedule_count; }
@@ -288,17 +287,26 @@ namespace ams::kern {
             void IncrementRunningThreadCount();
             void DecrementRunningThreadCount();
 
-            size_t GetTotalSystemResourceSize() const { return m_system_resource_num_pages * PageSize; }
-            size_t GetUsedSystemResourceSize() const {
-                if (m_system_resource_num_pages == 0) {
-                    return 0;
-                }
-                return m_dynamic_page_manager.GetUsed() * PageSize;
+            size_t GetRequiredSecureMemorySizeNonDefault() const {
+                return (!this->IsDefaultApplicationSystemResource() && m_system_resource->IsSecureResource()) ? static_cast<KSecureSystemResource *>(m_system_resource)->CalculateRequiredSecureMemorySize() : 0;
             }
 
-            void SetRunningThread(s32 core, KThread *thread, u64 idle_count) {
-                m_running_threads[core]            = thread;
-                m_running_thread_idle_counts[core] = idle_count;
+            size_t GetRequiredSecureMemorySize() const {
+                return m_system_resource->IsSecureResource() ? static_cast<KSecureSystemResource *>(m_system_resource)->CalculateRequiredSecureMemorySize() : 0;
+            }
+
+            size_t GetTotalSystemResourceSize() const {
+                return (!this->IsDefaultApplicationSystemResource() && m_system_resource->IsSecureResource()) ? static_cast<KSecureSystemResource *>(m_system_resource)->GetSize() : 0;
+            }
+
+            size_t GetUsedSystemResourceSize() const {
+                return (!this->IsDefaultApplicationSystemResource() && m_system_resource->IsSecureResource()) ? static_cast<KSecureSystemResource *>(m_system_resource)->GetUsedSize() : 0;
+            }
+
+            void SetRunningThread(s32 core, KThread *thread, u64 idle_count, u64 switch_count) {
+                m_running_threads[core]              = thread;
+                m_running_thread_idle_counts[core]   = idle_count;
+                m_running_thread_switch_counts[core] = switch_count;
             }
 
             void ClearRunningThread(KThread *thread) {
@@ -309,13 +317,15 @@ namespace ams::kern {
                 }
             }
 
-            const KDynamicPageManager &GetDynamicPageManager() const { return m_dynamic_page_manager; }
-            const KMemoryBlockSlabManager &GetMemoryBlockSlabManager() const { return m_memory_block_slab_manager; }
-            const KBlockInfoManager &GetBlockInfoManager() const { return m_block_info_manager; }
-            const KPageTableManager &GetPageTableManager() const { return m_page_table_manager; }
+            const KSystemResource &GetSystemResource() const { return *m_system_resource; }
+
+            const KMemoryBlockSlabManager &GetMemoryBlockSlabManager() const { return m_system_resource->GetMemoryBlockSlabManager(); }
+            const KBlockInfoManager &GetBlockInfoManager() const { return m_system_resource->GetBlockInfoManager(); }
+            const KPageTableManager &GetPageTableManager() const { return m_system_resource->GetPageTableManager(); }
 
             constexpr KThread *GetRunningThread(s32 core) const { return m_running_threads[core]; }
             constexpr u64 GetRunningThreadIdleCount(s32 core) const { return m_running_thread_idle_counts[core]; }
+            constexpr u64 GetRunningThreadSwitchCount(s32 core) const { return m_running_thread_switch_counts[core]; }
 
             void RegisterThread(KThread *thread);
             void UnregisterThread(KThread *thread);
@@ -342,28 +352,20 @@ namespace ams::kern {
             void UnpinCurrentThread();
             void UnpinThread(KThread *thread);
 
-            Result SignalToAddress(KProcessAddress address) {
-                return m_cond_var.SignalToAddress(address);
-            }
-
-            Result WaitForAddress(ams::svc::Handle handle, KProcessAddress address, u32 tag) {
-                return m_cond_var.WaitForAddress(handle, address, tag);
-            }
-
             void SignalConditionVariable(uintptr_t cv_key, int32_t count) {
                 return m_cond_var.Signal(cv_key, count);
             }
 
             Result WaitConditionVariable(KProcessAddress address, uintptr_t cv_key, u32 tag, s64 ns) {
-                return m_cond_var.Wait(address, cv_key, tag, ns);
+                R_RETURN(m_cond_var.Wait(address, cv_key, tag, ns));
             }
 
             Result SignalAddressArbiter(uintptr_t address, ams::svc::SignalType signal_type, s32 value, s32 count) {
-                return m_address_arbiter.SignalToAddress(address, signal_type, value, count);
+                R_RETURN(m_address_arbiter.SignalToAddress(address, signal_type, value, count));
             }
 
-            Result WaitAddressArbiter(uintptr_t address, ams::svc::ArbitrationType arb_type, s32 value, s64 timeout) {
-                return m_address_arbiter.WaitForAddress(address, arb_type, value, timeout);
+            Result WaitAddressArbiter(uintptr_t address, ams::svc::ArbitrationType arb_type, s64 value, s64 timeout) {
+                R_RETURN(m_address_arbiter.WaitForAddress(address, arb_type, value, timeout));
             }
 
             Result GetThreadList(s32 *out_num_threads, ams::kern::svc::KUserPointer<u64 *> out_thread_ids, s32 max_out_count);
@@ -376,20 +378,21 @@ namespace ams::kern {
 
                 /* Update the current page table. */
                 if (next_process) {
-                    next_process->GetPageTable().Activate(next_process->GetProcessId());
+                    next_process->GetPageTable().Activate(next_process->GetSlabIndex(), next_process->GetProcessId());
                 } else {
                     Kernel::GetKernelPageTable().Activate();
                 }
             }
         public:
             /* Overridden parent functions. */
-            virtual bool IsInitialized() const override { return m_is_initialized; }
+            bool IsInitialized() const { return m_is_initialized; }
 
             static void PostDestroy(uintptr_t arg) { MESOSPHERE_UNUSED(arg); /* ... */ }
 
-            virtual void Finalize() override;
+            void Finalize();
 
-            virtual u64 GetId() const override final { return this->GetProcessId(); }
+            ALWAYS_INLINE u64 GetIdImpl() const { return this->GetProcessId(); }
+            ALWAYS_INLINE u64 GetId() const { return this->GetIdImpl(); }
 
             virtual bool IsSignaled() const override {
                 MESOSPHERE_ASSERT_THIS();
@@ -397,7 +400,7 @@ namespace ams::kern {
                 return m_is_signaled;
             }
 
-            virtual void DoWorkerTask() override;
+            void DoWorkerTaskImpl();
         private:
             void ChangeState(State new_state) {
                 if (m_state != new_state) {
@@ -413,7 +416,7 @@ namespace ams::kern {
 
                 /* We succeeded, so note that we did. */
                 m_is_handle_table_initialized = true;
-                return ResultSuccess();
+                R_SUCCEED();
             }
 
             ALWAYS_INLINE void FinalizeHandleTable() {

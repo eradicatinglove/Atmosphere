@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -15,13 +15,14 @@
  */
 #pragma once
 #include <vapours.hpp>
+#include <stratosphere/tipc/tipc_message_types.hpp>
 #include <stratosphere/tipc/tipc_service_object_base.hpp>
 #include <stratosphere/tipc/impl/tipc_impl_command_serialization.hpp>
 
 namespace ams::tipc::impl {
 
     template<typename T>
-    concept HasDefaultServiceCommandProcessor = requires (T &t, const svc::ipc::MessageBuffer &message_buffer) {
+    concept HasDefaultServiceCommandProcessor = requires (T &t, const MessageBuffer &message_buffer) {
         { t.ProcessDefaultServiceCommand(message_buffer) } -> std::same_as<Result>;
     };
 
@@ -40,12 +41,28 @@ namespace ams::tipc::impl {
     #define AMS_TIPC_IMPL_EXTRACT_SYNC_METHOD_ARGUMENTS(CLASSNAME, CMD_ID, RETURN, NAME, ARGS, ARGNAMES, VERSION_MIN, VERSION_MAX) \
         using NAME##ArgumentsType = ::ams::tipc::impl::SyncFunctionArgsType<&NAME##ArgumentsFunctionHolder::f>;
 
+    #define AMS_TIPC_IMPL_GET_MAXIMUM_REQUEST_SIZE(CLASSNAME, CMD_ID, RETURN, NAME, ARGS, ARGNAMES, VERSION_MIN, VERSION_MAX) \
+        , ::ams::tipc::impl::CommandMetaInfo<CMD_ID + 0x10, NAME##ArgumentsType>::InMessageTotalSize
+
+    #define AMS_TIPC_IMPL_GET_MAXIMUM_RESPONSE_SIZE(CLASSNAME, CMD_ID, RETURN, NAME, ARGS, ARGNAMES, VERSION_MIN, VERSION_MAX) \
+        , ::ams::tipc::impl::CommandMetaInfo<CMD_ID + 0x10, NAME##ArgumentsType>::OutMessageTotalSize
+
     #define AMS_TIPC_IMPL_DEFINE_INTERFACE(BASECLASS, CLASSNAME, CMD_MACRO)       \
         class CLASSNAME : public BASECLASS {                                      \
             private:                                                              \
                 CMD_MACRO(CLASSNAME, AMS_TIPC_IMPL_DEFINE_SYNC_METHOD_HOLDER)     \
             public:                                                               \
                 CMD_MACRO(CLASSNAME, AMS_TIPC_IMPL_EXTRACT_SYNC_METHOD_ARGUMENTS) \
+            public:                                                               \
+                static constexpr size_t MaximumRequestSize = std::max<size_t>({   \
+                    0                                                             \
+                    CMD_MACRO(CLASSNAME, AMS_TIPC_IMPL_GET_MAXIMUM_REQUEST_SIZE)  \
+                });                                                               \
+                                                                                  \
+                static constexpr size_t MaximumResponseSize = std::max<size_t>({  \
+                    0                                                             \
+                    CMD_MACRO(CLASSNAME, AMS_TIPC_IMPL_GET_MAXIMUM_RESPONSE_SIZE) \
+                });                                                               \
         };
 
     #define AMS_TIPC_IMPL_DEFINE_CONCEPT_HELPERS(CLASSNAME, CMD_ID, RETURN, NAME, ARGS, ARGNAMES, VERSION_MIN, VERSION_MAX)               \
@@ -74,17 +91,27 @@ namespace ams::tipc::impl {
 
     #define AMS_TIPC_IMPL_PROCESS_METHOD_REQUEST(CLASSNAME, CMD_ID, RETURN, NAME, ARGS, ARGNAMES, VERSION_MIN, VERSION_MAX) \
         else if (constexpr u16 TipcCommandId = CMD_ID + 0x10; tag == TipcCommandId) {                                       \
-            return this->ProcessMethodById<TipcCommandId, ImplType>(impl, message_buffer, fw_ver);                          \
+            R_RETURN((this->ProcessMethodById<TipcCommandId, ImplType>(impl, message_buffer, fw_ver)));                     \
         }
 
-    #define AMS_TIPC_IMPL_PROCESS_METHOD_REQUEST_BY_ID(CLASSNAME, CMD_ID, RETURN, NAME, ARGS, ARGNAMES, VERSION_MIN, VERSION_MAX)   \
-        if constexpr (constexpr u16 TipcCommandId = CMD_ID + 0x10; CommandId == TipcCommandId) {                                    \
-            constexpr bool MinValid = VERSION_MIN == hos::Version_Min;                                                              \
-            constexpr bool MaxValid = VERSION_MAX == hos::Version_Max;                                                              \
-            if ((MinValid || VERSION_MIN <= fw_ver) && (MaxValid || fw_ver <= VERSION_MAX)) {                                       \
-                return ::ams::tipc::impl::InvokeServiceCommandImpl<TipcCommandId, &ImplType::NAME, ImplType>(impl, message_buffer); \
-            }                                                                                                                       \
+    #define AMS_TIPC_IMPL_PROCESS_METHOD_REQUEST_BY_ID(CLASSNAME, CMD_ID, RETURN, NAME, ARGS, ARGNAMES, VERSION_MIN, VERSION_MAX)        \
+        if constexpr (constexpr u16 TipcCommandId = CMD_ID + 0x10; CommandId == TipcCommandId) {                                         \
+            constexpr bool MinValid = VERSION_MIN == hos::Version_Min;                                                                   \
+            constexpr bool MaxValid = VERSION_MAX == hos::Version_Max;                                                                   \
+            if ((MinValid || VERSION_MIN <= fw_ver) && (MaxValid || fw_ver <= VERSION_MAX)) {                                            \
+                R_RETURN((::ams::tipc::impl::InvokeServiceCommandImpl<TipcCommandId, &ImplType::NAME, ImplType>(impl, message_buffer))); \
+            }                                                                                                                            \
         }
+
+    #define AMS_TIPC_IMPL_IS_FIRMWARE_VERSION_ALWAYS_VALID(CLASSNAME, CMD_ID, RETURN, NAME, ARGS, ARGNAMES, VERSION_MIN, VERSION_MAX) \
+            {                                                                                                                         \
+                constexpr bool MinValid = VERSION_MIN == hos::Version_Min;                                                            \
+                constexpr bool MaxValid = VERSION_MAX == hos::Version_Max;                                                            \
+                if (!MinValid || !MaxValid) {                                                                                         \
+                    return false;                                                                                                     \
+                }                                                                                                                     \
+            }
+
 
     #define AMS_TIPC_DEFINE_INTERFACE_WITH_DEFAULT_BASE(NAMESPACE, INTERFACE, BASE, CMD_MACRO)                                                         \
         namespace NAMESPACE {                                                                                                                          \
@@ -103,20 +130,25 @@ namespace ams::tipc::impl {
                     constexpr explicit ImplTemplateBaseT(Args &&...args) : ImplHolder(std::forward<Args>(args)...) { /* ... */ }                       \
                 private:                                                                                                                               \
                     template<typename ImplType>                                                                                                        \
-                    ALWAYS_INLINE Result ProcessDefaultMethod(ImplType *impl, const svc::ipc::MessageBuffer &message_buffer) const {                   \
+                    ALWAYS_INLINE Result ProcessDefaultMethod(ImplType *impl, const MessageBuffer &message_buffer) const {                             \
                         /* Handle a default command. */                                                                                                \
                         if constexpr (HasDefaultServiceCommandProcessor<ImplType>) {                                                                   \
-                            return impl->ProcessDefaultServiceCommand(message_buffer);                                                                 \
+                            R_RETURN(impl->ProcessDefaultServiceCommand(message_buffer));                                                              \
                         } else {                                                                                                                       \
-                            return tipc::ResultInvalidMethod();                                                                                        \
+                            R_THROW(tipc::ResultInvalidMethod());                                                                                      \
                         }                                                                                                                              \
                     }                                                                                                                                  \
                                                                                                                                                        \
                     template<u16 CommandId, typename ImplType>                                                                                         \
-                    ALWAYS_INLINE Result ProcessMethodById(ImplType *impl, const svc::ipc::MessageBuffer &message_buffer, hos::Version fw_ver) const { \
+                    ALWAYS_INLINE Result ProcessMethodById(ImplType *impl, const MessageBuffer &message_buffer, hos::Version fw_ver) const {           \
                         CMD_MACRO(ImplType, AMS_TIPC_IMPL_PROCESS_METHOD_REQUEST_BY_ID)                                                                \
                                                                                                                                                        \
-                        return this->ProcessDefaultMethod<ImplType>(impl, message_buffer);                                                             \
+                        R_RETURN(this->ProcessDefaultMethod<ImplType>(impl, message_buffer));                                                          \
+                    }                                                                                                                                  \
+                                                                                                                                                       \
+                    static consteval bool IsFirmwareVersionAlwaysValid() {                                                                             \
+                        CMD_MACRO(ImplType, AMS_TIPC_IMPL_IS_FIRMWARE_VERSION_ALWAYS_VALID);                                                           \
+                        return true;                                                                                                                   \
                     }                                                                                                                                  \
                 public:                                                                                                                                \
                     virtual Result ProcessRequest() override {                                                                                         \
@@ -128,17 +160,17 @@ namespace ams::tipc::impl {
                         static_assert(::NAMESPACE::Is##INTERFACE<ImplType>);                                                                           \
                                                                                                                                                        \
                         /* Get accessor to the message buffer. */                                                                                      \
-                        const svc::ipc::MessageBuffer message_buffer(svc::ipc::GetMessageBuffer());                                                    \
+                        const MessageBuffer message_buffer(tipc::GetMessageBuffer());                                                                  \
                                                                                                                                                        \
                         /* Get decision variables. */                                                                                                  \
-                        const auto tag    = svc::ipc::MessageBuffer::MessageHeader(message_buffer).GetTag();                                           \
-                        const auto fw_ver = hos::GetVersion();                                                                                         \
+                        const auto tag    = MessageBuffer::MessageHeader(message_buffer).GetTag();                                                     \
+                        const auto fw_ver = IsFirmwareVersionAlwaysValid() ? hos::Version_Current : hos::GetVersion();                                 \
                                                                                                                                                        \
                         /* Process against the command ids. */                                                                                         \
                         if (false) { }                                                                                                                 \
                         CMD_MACRO(ImplType, AMS_TIPC_IMPL_PROCESS_METHOD_REQUEST)                                                                      \
                         else {                                                                                                                         \
-                            return this->ProcessDefaultMethod<ImplType>(impl, message_buffer);                                                         \
+                            R_RETURN(this->ProcessDefaultMethod<ImplType>(impl, message_buffer));                                                      \
                         }                                                                                                                              \
                     }                                                                                                                                  \
             };                                                                                                                                         \

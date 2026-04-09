@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -19,11 +19,11 @@
 namespace ams::htcfs {
 
     Result GetWorkingDirectory(char *dst, size_t dst_size) {
-        return htcfs::GetClient().GetWorkingDirectory(dst, dst_size);
+        R_RETURN(htcfs::GetClient().GetWorkingDirectory(dst, dst_size));
     }
 
     Result GetWorkingDirectorySize(s32 *out) {
-        return htcfs::GetClient().GetWorkingDirectorySize(out);
+        R_RETURN(htcfs::GetClient().GetWorkingDirectorySize(out));
     }
 
 }

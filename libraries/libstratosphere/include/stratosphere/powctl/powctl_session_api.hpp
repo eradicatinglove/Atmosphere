@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -36,6 +36,10 @@ namespace ams::powctl {
     struct Session {
         bool has_session;
         util::TypedStorage<impl::SessionImpl> impl_storage;
+
+        struct ConstantInitializeTag{};
+
+        constexpr Session(ConstantInitializeTag) : has_session(false), impl_storage() { /* ... */ }
 
         Session() : has_session(false) { /* ... */ }
     };

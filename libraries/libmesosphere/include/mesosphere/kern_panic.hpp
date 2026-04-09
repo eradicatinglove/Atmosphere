@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -21,6 +21,19 @@ namespace ams::kern {
 
     NORETURN NOINLINE void Panic(const char *file, int line, const char *format, ...) __attribute__((format(printf, 3, 4)));
     NORETURN NOINLINE void Panic();
+
+}
+
+namespace ams::diag {
+
+    NORETURN ALWAYS_INLINE void OnAssertionFailure(AssertionType type, const char *expr, const char *func, const char *file, int line) {
+        #if defined(MESOSPHERE_ENABLE_DEBUG_PRINT)
+        ::ams::kern::Panic(file, line, "ams::diag::OnAssertionFailure: %d %s:%s", (type == AssertionType_Audit), func, expr);
+        #else
+        ::ams::kern::Panic();
+        AMS_UNUSED(type, expr, func, file, line);
+        #endif
+    }
 
 }
 

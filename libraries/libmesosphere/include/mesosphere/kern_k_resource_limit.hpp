@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -33,13 +33,20 @@ namespace ams::kern {
             s32 m_waiter_count;
             KLightConditionVariable m_cond_var;
         public:
-            constexpr ALWAYS_INLINE KResourceLimit() : m_limit_values(), m_current_values(), m_current_hints(), m_peak_values(), m_lock(), m_waiter_count(), m_cond_var() { /* ... */ }
-            virtual ~KResourceLimit() { /* ... */ }
+            constexpr explicit ALWAYS_INLINE KResourceLimit(util::ConstantInitializeTag)
+                : KAutoObjectWithSlabHeapAndContainer<KResourceLimit, KAutoObjectWithList>(util::ConstantInitialize),
+                  m_limit_values(), m_current_values(), m_current_hints(), m_peak_values(), m_lock(), m_waiter_count(),
+                  m_cond_var(util::ConstantInitialize)
+            {
+                /* ... */
+            }
+
+            explicit ALWAYS_INLINE KResourceLimit() { /* ... */ }
 
             static void PostDestroy(uintptr_t arg) { MESOSPHERE_UNUSED(arg); /* ... */ }
 
             void Initialize();
-            virtual void Finalize() override;
+            void Finalize();
 
             s64 GetLimitValue(ams::svc::LimitableResource which) const;
             s64 GetCurrentValue(ams::svc::LimitableResource which) const;
@@ -47,6 +54,8 @@ namespace ams::kern {
             s64 GetFreeValue(ams::svc::LimitableResource which) const;
 
             Result SetLimitValue(ams::svc::LimitableResource which, s64 value);
+
+            void Add(ams::svc::LimitableResource which, s64 value);
 
             bool Reserve(ams::svc::LimitableResource which, s64 value);
             bool Reserve(ams::svc::LimitableResource which, s64 value, s64 timeout);

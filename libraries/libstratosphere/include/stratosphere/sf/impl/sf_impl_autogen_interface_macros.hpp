@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -65,8 +65,10 @@ namespace ams::sf::impl {
     template<typename...>
     struct Print;
 
-    #define AMS_SF_IMPL_DEFINE_INTERFACE(BASECLASS, CLASSNAME, CMD_MACRO)                                                                                                        \
+    #define AMS_SF_IMPL_DEFINE_INTERFACE(BASECLASS, CLASSNAME, CMD_MACRO, INTF_ID)                                                                                               \
         class CLASSNAME : public BASECLASS {                                                                                                                                     \
+            public:                                                                                                                                                              \
+                static constexpr u32 InterfaceIdForDebug = INTF_ID;                                                                                                              \
             private:                                                                                                                                                             \
                 CMD_MACRO(CLASSNAME, AMS_SF_IMPL_DEFINE_INTERFACE_SYNC_METHOD)                                                                                                   \
             public:                                                                                                                                                              \
@@ -85,16 +87,41 @@ namespace ams::sf::impl {
                         constexpr const auto &BaseEntries = ::ams::sf::cmif::ServiceDispatchTraits<BASECLASS>::DispatchTable.GetEntries();                                       \
                         constexpr size_t BaseSize         = BaseEntries.size();                                                                                                  \
                                                                                                                                                                                  \
-                        std::array<::ams::sf::cmif::ServiceCommandMeta, BaseSize + CurSize> combined_entries{};                                                                  \
-                        for (size_t i = 0; i < BaseSize; ++i) {                                                                                                                  \
-                            combined_entries[i] = BaseEntries[i];                                                                                                                \
-                        }                                                                                                                                                        \
-                        for (size_t i = 0; i < CurSize; ++i) {                                                                                                                   \
-                            combined_entries[BaseSize + i] = cur_entries[i];                                                                                                     \
+                        constexpr size_t CombinedSize = BaseSize + CurSize;                                                                                                      \
+                                                                                                                                                                                 \
+                        std::array<size_t, CombinedSize> map{};                                                                                                                  \
+                        for (size_t i = 0; i < CombinedSize; ++i) { map[i] = i; }                                                                                                \
+                                                                                                                                                                                 \
+                        for (size_t i = 1; i < CombinedSize; ++i) {                                                                                                              \
+                            size_t j = i;                                                                                                                                        \
+                            while (j > 0) {                                                                                                                                      \
+                                const auto li = map[j];                                                                                                                          \
+                                const auto ri = map[j - 1];                                                                                                                      \
+                                                                                                                                                                                 \
+                                const auto &lhs = (li < BaseSize) ? BaseEntries[li] : cur_entries[li - BaseSize];                                                                \
+                                const auto &rhs = (ri < BaseSize) ? BaseEntries[ri] : cur_entries[ri - BaseSize];                                                                \
+                                                                                                                                                                                 \
+                                if (!(rhs > lhs)) {                                                                                                                              \
+                                    break;                                                                                                                                       \
+                                }                                                                                                                                                \
+                                                                                                                                                                                 \
+                                std::swap(map[j], map[j - 1]);                                                                                                                   \
+                                                                                                                                                                                 \
+                                --j;                                                                                                                                             \
+                            }                                                                                                                                                    \
                         }                                                                                                                                                        \
                                                                                                                                                                                  \
-                        return ::ams::sf::cmif::ServiceDispatchTable { combined_entries };                                                                                       \
-                    } ()                                                                                                                                                         \
+                        std::array<::ams::sf::cmif::ServiceCommandMeta, CombinedSize> combined_entries{};                                                                        \
+                        for (size_t i = 0; i < CombinedSize; ++i) {                                                                                                              \
+                            if (map[i] < BaseSize) {                                                                                                                             \
+                                combined_entries[i] = BaseEntries[map[i]];                                                                                                       \
+                            } else {                                                                                                                                             \
+                                combined_entries[i] = cur_entries[map[i] - BaseSize];                                                                                            \
+                            }                                                                                                                                                    \
+                        }                                                                                                                                                        \
+                                                                                                                                                                                 \
+                        return ::ams::sf::cmif::ServiceDispatchTable<Interface::InterfaceIdForDebug, CombinedSize> { combined_entries };                                         \
+                    }()                                                                                                                                                          \
                 };                                                                                                                                                               \
         };
 
@@ -122,9 +149,9 @@ namespace ams::sf::impl {
         template<typename T>                                                                 \
         concept Is##CLASSNAME = CMD_MACRO(CLASSNAME, AMS_SF_IMPL_CHECK_CONCEPT_HELPER) true;
 
-    #define AMS_SF_DEFINE_INTERFACE_IMPL(BASECLASS, CLASSNAME, CMD_MACRO) \
-        AMS_SF_IMPL_DEFINE_INTERFACE(BASECLASS, CLASSNAME, CMD_MACRO)     \
-        AMS_SF_IMPL_DEFINE_CONCEPT(CLASSNAME, CMD_MACRO)                  \
+    #define AMS_SF_DEFINE_INTERFACE_IMPL(BASECLASS, CLASSNAME, CMD_MACRO, INTF_ID) \
+        AMS_SF_IMPL_DEFINE_INTERFACE(BASECLASS, CLASSNAME, CMD_MACRO, INTF_ID)     \
+        AMS_SF_IMPL_DEFINE_CONCEPT(CLASSNAME, CMD_MACRO)                           \
         static_assert(Is##CLASSNAME<CLASSNAME>);
 
     #define AMS_SF_METHOD_INFO_7(CLASSNAME, HANDLER, CMD_ID, RETURN, NAME, ARGS, ARGNAMES) \

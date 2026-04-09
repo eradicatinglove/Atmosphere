@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -62,7 +62,7 @@ namespace ams::kern::KDumpObject {
 
             const auto end = accessor.end();
             const auto &handle_table = process->GetHandleTable();
-            const size_t max_handles = handle_table.GetMaxCount();
+            const size_t max_handles = handle_table.GetTableSize();
             for (size_t i = 0; i < max_handles; ++i) {
                 /* Get the object + handle. */
                 ams::svc::Handle handle = ams::svc::InvalidHandle;
@@ -99,15 +99,11 @@ namespace ams::kern::KDumpObject {
                         MESOSPHERE_RELEASE_LOG("Handle %08x Obj=%p Ref=%d Type=%s OwnerPID=%d (%s) OwnerAddress=%lx Size=%zu KB\n", handle, obj.GetPointerUnsafe(), obj->GetReferenceCount() - 1, obj->GetTypeName(), static_cast<s32>(target_owner->GetId()), target_owner->GetName(), GetInteger(target->GetSourceAddress()), target->GetSize() / 1_KB);
                     } else if (auto *target = obj->DynamicCast<KInterruptEvent *>(); target != nullptr) {
                         MESOSPHERE_RELEASE_LOG("Handle %08x Obj=%p Ref=%d Type=%s irq=%d\n", handle, obj.GetPointerUnsafe(), obj->GetReferenceCount() - 1, obj->GetTypeName(), target->GetInterruptId());
-                    } else if (auto *target = obj->DynamicCast<KWritableEvent *>(); target != nullptr) {
-                        if (KEvent *event = target->GetParent(); event != nullptr) {
-                            MESOSPHERE_RELEASE_LOG("Handle %08x Obj=%p Ref=%d Type=%s Pair=%p\n", handle, obj.GetPointerUnsafe(), obj->GetReferenceCount() - 1, obj->GetTypeName(), std::addressof(event->GetReadableEvent()));
-                        } else {
-                            MESOSPHERE_RELEASE_LOG("Handle %08x Obj=%p Ref=%d Type=%s\n", handle, obj.GetPointerUnsafe(), obj->GetReferenceCount() - 1, obj->GetTypeName());
-                        }
+                    } else if (auto *target = obj->DynamicCast<KEvent *>(); target != nullptr) {
+                        MESOSPHERE_RELEASE_LOG("Handle %08x Obj=%p Ref=%d Type=%s\n", handle, obj.GetPointerUnsafe(), obj->GetReferenceCount() - 1, obj->GetTypeName());
                     } else if (auto *target = obj->DynamicCast<KReadableEvent *>(); target != nullptr) {
                         if (KEvent *event = target->GetParent(); event != nullptr) {
-                            MESOSPHERE_RELEASE_LOG("Handle %08x Obj=%p Ref=%d Type=%s Pair=%p\n", handle, obj.GetPointerUnsafe(), obj->GetReferenceCount() - 1, obj->GetTypeName(), std::addressof(event->GetWritableEvent()));
+                            MESOSPHERE_RELEASE_LOG("Handle %08x Obj=%p Ref=%d Type=%s Parent=%p\n", handle, obj.GetPointerUnsafe(), obj->GetReferenceCount() - 1, obj->GetTypeName(), event);
                         } else {
                             MESOSPHERE_RELEASE_LOG("Handle %08x Obj=%p Ref=%d Type=%s\n", handle, obj.GetPointerUnsafe(), obj->GetReferenceCount() - 1, obj->GetTypeName());
                         }
@@ -181,7 +177,7 @@ namespace ams::kern::KDumpObject {
 
             const auto end = accessor.end();
             const auto &handle_table = process->GetHandleTable();
-            const size_t max_handles = handle_table.GetMaxCount();
+            const size_t max_handles = handle_table.GetTableSize();
             for (size_t i = 0; i < max_handles; ++i) {
                 /* Get the object + handle. */
                 ams::svc::Handle handle = ams::svc::InvalidHandle;
@@ -199,16 +195,19 @@ namespace ams::kern::KDumpObject {
                     char name[9] = {};
                     {
                         /* Find the client port process. */
-                        KScopedAutoObject<KProcess> client_port_process;
+                        KProcess *client_port_process = nullptr;
+                        ON_SCOPE_EXIT { if (client_port_process != nullptr) { client_port_process->Close(); } };
+
                         {
-                            for (auto it = accessor.begin(); it != end && client_port_process.IsNull(); ++it) {
+                            for (auto it = accessor.begin(); it != end && client_port_process == nullptr; ++it) {
                                 KProcess *cur = static_cast<KProcess *>(std::addressof(*it));
-                                for (size_t j = 0; j < cur->GetHandleTable().GetMaxCount(); ++j) {
+                                for (size_t j = 0; j < cur->GetHandleTable().GetTableSize(); ++j) {
                                     ams::svc::Handle cur_h  = ams::svc::InvalidHandle;
                                     KScopedAutoObject cur_o = cur->GetHandleTable().GetObjectByIndex(std::addressof(cur_h), j);
                                     if (cur_o.IsNotNull()) {
                                         if (cur_o.GetPointerUnsafe() == client) {
                                             client_port_process = cur;
+                                            client_port_process->Open();
                                             break;
                                         }
                                     }
@@ -217,7 +216,7 @@ namespace ams::kern::KDumpObject {
                         }
 
                         /* Read the port name. */
-                        if (client_port_process.IsNotNull()) {
+                        if (client_port_process != nullptr) {
                             if (R_FAILED(client_port_process->GetPageTable().CopyMemoryFromLinearToKernel(KProcessAddress(name), 8, port_name, KMemoryState_None, KMemoryState_None, KMemoryPermission_UserRead, KMemoryAttribute_None, KMemoryAttribute_None))) {
                                 std::memset(name, 0, sizeof(name));
                             }
@@ -236,7 +235,7 @@ namespace ams::kern::KDumpObject {
                     {
                         for (auto it = accessor.begin(); it != end; ++it) {
                             KProcess *cur = static_cast<KProcess *>(std::addressof(*it));
-                            for (size_t j = 0; j < cur->GetHandleTable().GetMaxCount(); ++j) {
+                            for (size_t j = 0; j < cur->GetHandleTable().GetTableSize(); ++j) {
                                 ams::svc::Handle cur_h  = ams::svc::InvalidHandle;
                                 KScopedAutoObject cur_o = cur->GetHandleTable().GetObjectByIndex(std::addressof(cur_h), j);
                                 if (cur_o.IsNull()) {
@@ -333,7 +332,6 @@ namespace ams::kern::KDumpObject {
                     MESOSPHERE_RELEASE_LOG(#__OBJECT__ "\n");                                                                                                                                             \
                     MESOSPHERE_RELEASE_LOG("    Cur=%3zu Peak=%3zu Max=%3zu\n", __OBJECT__::GetSlabHeapSize() - __OBJECT__::GetNumRemaining(), __OBJECT__::GetPeakIndex(), __OBJECT__::GetSlabHeapSize())
 
-                DUMP_KSLABOBJ(KPageBuffer);
                 DUMP_KSLABOBJ(KEvent);
                 DUMP_KSLABOBJ(KInterruptEvent);
                 DUMP_KSLABOBJ(KProcess);
@@ -350,8 +348,8 @@ namespace ams::kern::KDumpObject {
                 DUMP_KSLABOBJ(KEventInfo);
                 DUMP_KSLABOBJ(KSessionRequest);
                 DUMP_KSLABOBJ(KResourceLimit);
-                DUMP_KSLABOBJ(KAlpha);
-                DUMP_KSLABOBJ(KBeta);
+                DUMP_KSLABOBJ(KIoPool);
+                DUMP_KSLABOBJ(KIoRegion);
 
                 #undef DUMP_KSLABOBJ
 
@@ -363,24 +361,24 @@ namespace ams::kern::KDumpObject {
                 /* Memory block slabs. */
                 {
                     MESOSPHERE_RELEASE_LOG("App Memory Block\n");
-                    auto &app = Kernel::GetApplicationMemoryBlockManager();
+                    auto &app = Kernel::GetApplicationSystemResource().GetMemoryBlockSlabManager();
                     MESOSPHERE_RELEASE_LOG("    Cur=%6zu Peak=%6zu Max=%6zu\n", app.GetUsed(), app.GetPeak(), app.GetCount());
                     MESOSPHERE_RELEASE_LOG("Sys Memory Block\n");
-                    auto &sys = Kernel::GetSystemMemoryBlockManager();
+                    auto &sys = Kernel::GetSystemSystemResource().GetMemoryBlockSlabManager();
                     MESOSPHERE_RELEASE_LOG("    Cur=%6zu Peak=%6zu Max=%6zu\n", sys.GetUsed(), sys.GetPeak(), sys.GetCount());
                 }
 
                 /* KBlockInfo slab. */
                 {
                     MESOSPHERE_RELEASE_LOG("KBlockInfo\n");
-                    auto &manager = Kernel::GetBlockInfoManager();
+                    auto &manager = Kernel::GetSystemSystemResource().GetBlockInfoManager();
                     MESOSPHERE_RELEASE_LOG("    Cur=%6zu Peak=%6zu Max=%6zu\n", manager.GetUsed(), manager.GetPeak(), manager.GetCount());
                 }
 
                 /* Page Table slab. */
                 {
                     MESOSPHERE_RELEASE_LOG("Page Table\n");
-                    auto &manager = Kernel::GetPageTableManager();
+                    auto &manager = Kernel::GetSystemSystemResource().GetPageTableManager();
                     MESOSPHERE_RELEASE_LOG("    Cur=%6zu Peak=%6zu Max=%6zu\n", manager.GetUsed(), manager.GetPeak(), manager.GetCount());
                 }
             }
@@ -426,15 +424,17 @@ namespace ams::kern::KDumpObject {
                     process_pts += pts;
 
                     MESOSPHERE_RELEASE_LOG("%-12s: PID=%3lu Thread %4d / Event %4d / PageTable %5zu\n", process->GetName(), process->GetId(), threads, events, pts);
-                    if (process->GetTotalSystemResourceSize() != 0) {
+                    if (const auto &system_resource = process->GetSystemResource(); system_resource.IsSecureResource()) {
+                        const auto &secure_resource = static_cast<const KSecureSystemResource &>(system_resource);
+
                         MESOSPHERE_RELEASE_LOG("    System Resource\n");
-                        MESOSPHERE_RELEASE_LOG("        Cur=%6zu Peak=%6zu Max=%6zu\n", process->GetDynamicPageManager().GetUsed(), process->GetDynamicPageManager().GetPeak(), process->GetDynamicPageManager().GetCount());
+                        MESOSPHERE_RELEASE_LOG("        Cur=%6zu Peak=%6zu Max=%6zu\n", secure_resource.GetDynamicPageManager().GetUsed(), secure_resource.GetDynamicPageManager().GetPeak(), secure_resource.GetDynamicPageManager().GetCount());
                         MESOSPHERE_RELEASE_LOG("    Memory Block\n");
-                        MESOSPHERE_RELEASE_LOG("        Cur=%6zu Peak=%6zu Max=%6zu\n", process->GetMemoryBlockSlabManager().GetUsed(), process->GetMemoryBlockSlabManager().GetPeak(), process->GetMemoryBlockSlabManager().GetCount());
+                        MESOSPHERE_RELEASE_LOG("        Cur=%6zu Peak=%6zu Max=%6zu\n", secure_resource.GetMemoryBlockSlabManager().GetUsed(), secure_resource.GetMemoryBlockSlabManager().GetPeak(), secure_resource.GetMemoryBlockSlabManager().GetCount());
                         MESOSPHERE_RELEASE_LOG("    Page Table\n");
-                        MESOSPHERE_RELEASE_LOG("        Cur=%6zu Peak=%6zu Max=%6zu\n", process->GetPageTableManager().GetUsed(), process->GetPageTableManager().GetPeak(), process->GetPageTableManager().GetCount());
+                        MESOSPHERE_RELEASE_LOG("        Cur=%6zu Peak=%6zu Max=%6zu\n", secure_resource.GetPageTableManager().GetUsed(), secure_resource.GetPageTableManager().GetPeak(), secure_resource.GetPageTableManager().GetCount());
                         MESOSPHERE_RELEASE_LOG("    Block Info\n");
-                        MESOSPHERE_RELEASE_LOG("        Cur=%6zu Peak=%6zu Max=%6zu\n", process->GetBlockInfoManager().GetUsed(), process->GetBlockInfoManager().GetPeak(), process->GetBlockInfoManager().GetCount());
+                        MESOSPHERE_RELEASE_LOG("        Cur=%6zu Peak=%6zu Max=%6zu\n", secure_resource.GetBlockInfoManager().GetUsed(), secure_resource.GetBlockInfoManager().GetPeak(), secure_resource.GetBlockInfoManager().GetCount());
                     }
                 }
 

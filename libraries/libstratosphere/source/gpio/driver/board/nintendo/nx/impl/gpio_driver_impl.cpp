@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -21,30 +21,30 @@ namespace ams::gpio::driver::board::nintendo::nx::impl {
 
     void InterruptEventHandler::Initialize(DriverImpl *drv, os::InterruptName intr, int ctlr) {
         /* Set fields. */
-        this->driver            = drv;
-        this->interrupt_name    = intr;
-        this->controller_number = ctlr;
+        m_driver            = drv;
+        m_interrupt_name    = intr;
+        m_controller_number = ctlr;
 
         /* Initialize interrupt event. */
-        os::InitializeInterruptEvent(std::addressof(this->interrupt_event), intr, os::EventClearMode_ManualClear);
+        os::InitializeInterruptEvent(std::addressof(m_interrupt_event), intr, os::EventClearMode_ManualClear);
 
         /* Initialize base. */
-        IEventHandler::Initialize(std::addressof(this->interrupt_event));
+        IEventHandler::Initialize(std::addressof(m_interrupt_event));
     }
 
     void InterruptEventHandler::HandleEvent() {
         /* Lock the driver's interrupt mutex. */
-        std::scoped_lock lk(this->driver->interrupt_control_mutex);
+        std::scoped_lock lk(m_driver->m_interrupt_control_mutex);
 
         /* Check each pad. */
         bool found = false;
-        for (auto it = this->driver->interrupt_pad_list.begin(); !found && it != this->driver->interrupt_pad_list.end(); ++it) {
+        for (auto it = m_driver->m_interrupt_pad_list.begin(); !found && it != m_driver->m_interrupt_pad_list.end(); ++it) {
             found = this->CheckAndHandleInterrupt(*it);
         }
 
         /* If we didn't find a pad, clear the interrupt event. */
         if (!found) {
-            os::ClearInterruptEvent(std::addressof(this->interrupt_event));
+            os::ClearInterruptEvent(std::addressof(m_interrupt_event));
         }
     }
 
@@ -53,13 +53,13 @@ namespace ams::gpio::driver::board::nintendo::nx::impl {
         const InternalGpioPadNumber pad_number = static_cast<InternalGpioPadNumber>(pad.GetPadNumber());
 
         /* Check if the pad matches our controller number. */
-        if (this->controller_number != ConvertInternalGpioPadNumberToController(pad_number)) {
+        if (m_controller_number != ConvertInternalGpioPadNumberToController(pad_number)) {
             return false;
         }
 
         /* Get the addresses of INT_STA, INT_ENB. */
-        const uintptr_t sta_address = GetGpioRegisterAddress(this->driver->gpio_virtual_address, GpioRegisterType_GPIO_INT_STA, pad_number);
-        const uintptr_t enb_address = GetGpioRegisterAddress(this->driver->gpio_virtual_address, GpioRegisterType_GPIO_INT_STA, pad_number);
+        const uintptr_t sta_address = GetGpioRegisterAddress(m_driver->m_gpio_virtual_address, GpioRegisterType_GPIO_INT_STA, pad_number);
+        const uintptr_t enb_address = GetGpioRegisterAddress(m_driver->m_gpio_virtual_address, GpioRegisterType_GPIO_INT_STA, pad_number);
         const uintptr_t pad_index   = ConvertInternalGpioPadNumberToBitIndex(pad_number);
 
         /* Check if both STA and ENB are set. */
@@ -73,10 +73,10 @@ namespace ams::gpio::driver::board::nintendo::nx::impl {
 
         /* Disable the interrupt on the pad. */
         pad.SetInterruptEnabled(false);
-        this->driver->RemoveInterruptPad(std::addressof(pad));
+        m_driver->RemoveInterruptPad(std::addressof(pad));
 
         /* Clear the interrupt event. */
-        os::ClearInterruptEvent(std::addressof(this->interrupt_event));
+        os::ClearInterruptEvent(std::addressof(m_interrupt_event));
 
         /* Signal the pad's bound event. */
         pad.SignalInterruptBoundEvent();
@@ -84,15 +84,15 @@ namespace ams::gpio::driver::board::nintendo::nx::impl {
         return true;
     }
 
-    DriverImpl::DriverImpl(dd::PhysicalAddress reg_paddr, size_t size) : gpio_physical_address(reg_paddr), gpio_virtual_address(), suspend_handler(this), interrupt_pad_list(), interrupt_control_mutex() {
+    DriverImpl::DriverImpl(dd::PhysicalAddress reg_paddr, size_t size) : m_gpio_physical_address(reg_paddr), m_gpio_virtual_address(), m_suspend_handler(this), m_interrupt_pad_list(), m_interrupt_control_mutex() {
         /* Get the corresponding virtual address for our physical address. */
-        this->gpio_virtual_address = dd::QueryIoMapping(reg_paddr, size);
-        AMS_ABORT_UNLESS(this->gpio_virtual_address != 0);
+        m_gpio_virtual_address = dd::QueryIoMapping(reg_paddr, size);
+        AMS_ABORT_UNLESS(m_gpio_virtual_address != 0);
     }
 
     void DriverImpl::InitializeDriver() {
         /* Initialize our suspend handler. */
-        this->suspend_handler.Initialize(this->gpio_virtual_address);
+        m_suspend_handler.Initialize(m_gpio_virtual_address);
     }
 
     void DriverImpl::FinalizeDriver() {
@@ -107,14 +107,14 @@ namespace ams::gpio::driver::board::nintendo::nx::impl {
         const InternalGpioPadNumber pad_number = pad->GetPadNumber();
 
         /* Configure the pad as GPIO by modifying the appropriate bit in CNF. */
-        const uintptr_t pad_address = GetGpioRegisterAddress(this->gpio_virtual_address, GpioRegisterType_GPIO_CNF, pad_number);
+        const uintptr_t pad_address = GetGpioRegisterAddress(m_gpio_virtual_address, GpioRegisterType_GPIO_CNF, pad_number);
         const uintptr_t pad_index   = ConvertInternalGpioPadNumberToBitIndex(pad_number);
         SetMaskedBit(pad_address, pad_index, 1);
 
         /* Read the pad address to make sure our configuration takes. */
         reg::Read(pad_address);
 
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     void DriverImpl::FinalizePad(Pad *pad) {
@@ -134,7 +134,7 @@ namespace ams::gpio::driver::board::nintendo::nx::impl {
         const InternalGpioPadNumber pad_number = pad->GetPadNumber();
 
         /* Get the pad direction by reading the appropriate bit in OE */
-        const uintptr_t pad_address = GetGpioRegisterAddress(this->gpio_virtual_address, GpioRegisterType_GPIO_OE, pad_number);
+        const uintptr_t pad_address = GetGpioRegisterAddress(m_gpio_virtual_address, GpioRegisterType_GPIO_OE, pad_number);
         const uintptr_t pad_index   = ConvertInternalGpioPadNumberToBitIndex(pad_number);
 
         if (reg::Read(pad_address, 1u << pad_index) != 0) {
@@ -143,7 +143,7 @@ namespace ams::gpio::driver::board::nintendo::nx::impl {
             *out = Direction_Input;
         }
 
-        return ResultSuccess();
+        R_SUCCEED();
 
     }
 
@@ -155,14 +155,14 @@ namespace ams::gpio::driver::board::nintendo::nx::impl {
         const InternalGpioPadNumber pad_number = pad->GetPadNumber();
 
         /* Configure the pad direction by modifying the appropriate bit in OE */
-        const uintptr_t pad_address = GetGpioRegisterAddress(this->gpio_virtual_address, GpioRegisterType_GPIO_OE, pad_number);
+        const uintptr_t pad_address = GetGpioRegisterAddress(m_gpio_virtual_address, GpioRegisterType_GPIO_OE, pad_number);
         const uintptr_t pad_index   = ConvertInternalGpioPadNumberToBitIndex(pad_number);
         SetMaskedBit(pad_address, pad_index, direction);
 
         /* Read the pad address to make sure our configuration takes. */
         reg::Read(pad_address);
 
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     Result DriverImpl::GetValue(GpioValue *out, Pad *pad) const {
@@ -174,7 +174,7 @@ namespace ams::gpio::driver::board::nintendo::nx::impl {
         const InternalGpioPadNumber pad_number = pad->GetPadNumber();
 
         /* Get the pad value by reading the appropriate bit in IN */
-        const uintptr_t pad_address = GetGpioRegisterAddress(this->gpio_virtual_address, GpioRegisterType_GPIO_IN, pad_number);
+        const uintptr_t pad_address = GetGpioRegisterAddress(m_gpio_virtual_address, GpioRegisterType_GPIO_IN, pad_number);
         const uintptr_t pad_index   = ConvertInternalGpioPadNumberToBitIndex(pad_number);
 
         if (reg::Read(pad_address, 1u << pad_index) != 0) {
@@ -183,7 +183,7 @@ namespace ams::gpio::driver::board::nintendo::nx::impl {
             *out = GpioValue_Low;
         }
 
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     Result DriverImpl::SetValue(Pad *pad, GpioValue value) {
@@ -194,14 +194,14 @@ namespace ams::gpio::driver::board::nintendo::nx::impl {
         const InternalGpioPadNumber pad_number = pad->GetPadNumber();
 
         /* Configure the pad value by modifying the appropriate bit in IN */
-        const uintptr_t pad_address = GetGpioRegisterAddress(this->gpio_virtual_address, GpioRegisterType_GPIO_IN, pad_number);
+        const uintptr_t pad_address = GetGpioRegisterAddress(m_gpio_virtual_address, GpioRegisterType_GPIO_OUT, pad_number);
         const uintptr_t pad_index   = ConvertInternalGpioPadNumberToBitIndex(pad_number);
         SetMaskedBit(pad_address, pad_index, value);
 
         /* Read the pad address to make sure our configuration takes. */
         reg::Read(pad_address);
 
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     Result DriverImpl::GetInterruptMode(InterruptMode *out, Pad *pad) const {
@@ -213,7 +213,7 @@ namespace ams::gpio::driver::board::nintendo::nx::impl {
         const InternalGpioPadNumber pad_number = pad->GetPadNumber();
 
         /* Get the pad mode by reading the appropriate bits in INT_LVL */
-        const uintptr_t pad_address = GetGpioRegisterAddress(this->gpio_virtual_address, GpioRegisterType_GPIO_INT_LVL, pad_number);
+        const uintptr_t pad_address = GetGpioRegisterAddress(m_gpio_virtual_address, GpioRegisterType_GPIO_INT_LVL, pad_number);
         const uintptr_t pad_index   = ConvertInternalGpioPadNumberToBitIndex(pad_number);
 
         switch ((reg::Read(pad_address) >> pad_index) & InternalInterruptMode_Mask) {
@@ -225,7 +225,7 @@ namespace ams::gpio::driver::board::nintendo::nx::impl {
             AMS_UNREACHABLE_DEFAULT_CASE();
         }
 
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     Result DriverImpl::SetInterruptMode(Pad *pad, InterruptMode mode) {
@@ -236,7 +236,7 @@ namespace ams::gpio::driver::board::nintendo::nx::impl {
         const InternalGpioPadNumber pad_number = pad->GetPadNumber();
 
         /* Configure the pad mode by modifying the appropriate bits in INT_LVL */
-        const uintptr_t pad_address = GetGpioRegisterAddress(this->gpio_virtual_address, GpioRegisterType_GPIO_INT_LVL, pad_number);
+        const uintptr_t pad_address = GetGpioRegisterAddress(m_gpio_virtual_address, GpioRegisterType_GPIO_INT_LVL, pad_number);
         const uintptr_t pad_index   = ConvertInternalGpioPadNumberToBitIndex(pad_number);
 
         switch (mode) {
@@ -251,46 +251,54 @@ namespace ams::gpio::driver::board::nintendo::nx::impl {
         /* Read the pad address to make sure our configuration takes. */
         reg::Read(pad_address);
 
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     Result DriverImpl::SetInterruptEnabled(Pad *pad, bool en) {
         /* TODO */
+        AMS_UNUSED(pad, en);
         AMS_ABORT();
     }
 
     Result DriverImpl::GetInterruptStatus(InterruptStatus *out, Pad *pad) {
         /* TODO */
+        AMS_UNUSED(out, pad);
         AMS_ABORT();
     }
 
     Result DriverImpl::ClearInterruptStatus(Pad *pad) {
         /* TODO */
+        AMS_UNUSED(pad);
         AMS_ABORT();
     }
 
     Result DriverImpl::GetDebounceEnabled(bool *out, Pad *pad) const {
         /* TODO */
+        AMS_UNUSED(out, pad);
         AMS_ABORT();
     }
 
     Result DriverImpl::SetDebounceEnabled(Pad *pad, bool en) {
+        AMS_UNUSED(pad, en);
         /* TODO */
         AMS_ABORT();
     }
 
     Result DriverImpl::GetDebounceTime(s32 *out_ms, Pad *pad) const {
         /* TODO */
+        AMS_UNUSED(out_ms, pad);
         AMS_ABORT();
     }
 
     Result DriverImpl::SetDebounceTime(Pad *pad, s32 ms) {
         /* TODO */
+        AMS_UNUSED(pad, ms);
         AMS_ABORT();
     }
 
     Result DriverImpl::GetUnknown22(u32 *out) {
         /* TODO */
+        AMS_UNUSED(out);
         AMS_ABORT();
     }
 
@@ -301,21 +309,25 @@ namespace ams::gpio::driver::board::nintendo::nx::impl {
 
     Result DriverImpl::SetValueForSleepState(Pad *pad, GpioValue value) {
         /* TODO */
+        AMS_UNUSED(pad, value);
         AMS_ABORT();
     }
 
     Result DriverImpl::IsWakeEventActive(bool *out, Pad *pad) const {
         /* TODO */
+        AMS_UNUSED(out, pad);
         AMS_ABORT();
     }
 
     Result DriverImpl::SetWakeEventActiveFlagSetForDebug(Pad *pad, bool en) {
         /* TODO */
+        AMS_UNUSED(pad, en);
         AMS_ABORT();
     }
 
     Result DriverImpl::SetWakePinDebugMode(WakePinDebugMode mode) {
         /* TODO */
+        AMS_UNUSED(mode);
         AMS_ABORT();
     }
 

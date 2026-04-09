@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -22,8 +22,8 @@ namespace ams::kern {
         this->Open();
 
         /* Create and initialize our server/client pair. */
-        KAutoObject::Create(std::addressof(m_server));
-        KAutoObject::Create(std::addressof(m_client));
+        KAutoObject::Create<KServerPort>(std::addressof(m_server));
+        KAutoObject::Create<KClientPort>(std::addressof(m_client));
         m_server.Initialize(this);
         m_client.Initialize(this, max_sessions);
 
@@ -59,7 +59,7 @@ namespace ams::kern {
         R_UNLESS(m_state == State::Normal, svc::ResultPortClosed());
 
         m_server.EnqueueSession(session);
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     Result KPort::EnqueueSession(KLightServerSession *session) {
@@ -68,7 +68,7 @@ namespace ams::kern {
         R_UNLESS(m_state == State::Normal, svc::ResultPortClosed());
 
         m_server.EnqueueSession(session);
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
 }

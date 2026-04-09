@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -16,10 +16,12 @@
 #include <stratosphere.hpp>
 #include "sf_hipc_mitm_query_api.hpp"
 
+#if AMS_SF_MITM_SUPPORTED
+
 #define AMS_SF_HIPC_IMPL_I_MITM_QUERY_SERVICE_INTERFACE_INFO(C, H) \
     AMS_SF_METHOD_INFO(C, H, 65000, void, ShouldMitm, (sf::Out<bool> out, const sm::MitmProcessInfo &client_info), (out, client_info))
 
-AMS_SF_DEFINE_INTERFACE(ams::sf::hipc::impl, IMitmQueryService, AMS_SF_HIPC_IMPL_I_MITM_QUERY_SERVICE_INTERFACE_INFO)
+AMS_SF_DEFINE_INTERFACE(ams::sf::hipc::impl, IMitmQueryService, AMS_SF_HIPC_IMPL_I_MITM_QUERY_SERVICE_INTERFACE_INFO, 0xEC6BE3FF)
 
 namespace ams::sf::hipc::impl {
 
@@ -27,12 +29,12 @@ namespace ams::sf::hipc::impl {
 
         class MitmQueryService {
             private:
-                ServerManagerBase::MitmQueryFunction query_function;
+                const ServerManagerBase::MitmQueryFunction m_query_function;
             public:
-                MitmQueryService(ServerManagerBase::MitmQueryFunction qf) : query_function(qf) { /* ... */ }
+                MitmQueryService(ServerManagerBase::MitmQueryFunction qf) : m_query_function(qf) { /* ... */ }
 
                 void ShouldMitm(sf::Out<bool> out, const sm::MitmProcessInfo &client_info) {
-                    *out = this->query_function(client_info);
+                    *out = m_query_function(client_info);
                 }
         };
         static_assert(IsIMitmQueryService<MitmQueryService>);
@@ -54,7 +56,7 @@ namespace ams::sf::hipc::impl {
 
     }
 
-    void RegisterMitmQueryHandle(Handle query_handle, ServerManagerBase::MitmQueryFunction query_func) {
+    void RegisterMitmQueryHandle(os::NativeHandle query_handle, ServerManagerBase::MitmQueryFunction query_func) {
         std::scoped_lock lk(g_query_server_lock);
 
         if (AMS_UNLIKELY(!g_constructed_server)) {
@@ -74,3 +76,5 @@ namespace ams::sf::hipc::impl {
     }
 
 }
+
+#endif

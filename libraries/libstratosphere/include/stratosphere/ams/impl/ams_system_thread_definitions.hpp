@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -24,10 +24,11 @@ namespace ams::impl {
     };
 
     #define AMS_DEFINE_SYSTEM_THREAD(__AMS_THREAD_PRIORITY__, __AMS_MODULE__, __AMS_THREAD_NAME__) \
-        constexpr inline const ::ams::impl::SystemThreadDefinition SystemThreadDefinition##__AMS_MODULE__##__AMS_THREAD_NAME__ = { __AMS_THREAD_PRIORITY__, "ams." # __AMS_MODULE__ "." #__AMS_THREAD_NAME__ }
+        constexpr inline const ::ams::impl::SystemThreadDefinition SystemThreadDefinition_##__AMS_MODULE__##_##__AMS_THREAD_NAME__ = { __AMS_THREAD_PRIORITY__, "ams." # __AMS_MODULE__ "." #__AMS_THREAD_NAME__ }
 
     /* sm. */
     AMS_DEFINE_SYSTEM_THREAD(-1, sm, Main);
+    AMS_DEFINE_SYSTEM_THREAD(-1, sm, DispatcherThread);
 
     /* spl. */
     AMS_DEFINE_SYSTEM_THREAD(-1, spl, Main);
@@ -62,12 +63,19 @@ namespace ams::impl {
     AMS_DEFINE_SYSTEM_THREAD(-7, mitm,            InitializeThread);
     AMS_DEFINE_SYSTEM_THREAD(-1, mitm_sf,         QueryServerProcessThread);
     AMS_DEFINE_SYSTEM_THREAD(16, mitm_fs,         RomFileSystemInitializeThread);
+    AMS_DEFINE_SYSTEM_THREAD(16, mitm_fs,         RomFileSystemFinalizeThread);
     AMS_DEFINE_SYSTEM_THREAD(21, mitm,            DebugThrowThread);
     AMS_DEFINE_SYSTEM_THREAD(21, mitm_sysupdater, IpcServer);
     AMS_DEFINE_SYSTEM_THREAD(21, mitm_sysupdater, AsyncPrepareSdCardUpdateTask);
 
     /* boot2. */
     AMS_DEFINE_SYSTEM_THREAD(20, boot2, Main);
+
+    /* LogManager. */
+    AMS_DEFINE_SYSTEM_THREAD(10, LogManager, MainThread);
+    AMS_DEFINE_SYSTEM_THREAD(10, lm, IpcServer);
+    AMS_DEFINE_SYSTEM_THREAD(10, lm, Flush);
+    AMS_DEFINE_SYSTEM_THREAD(10, lm, HtcsConnection);
 
     /* dmnt. */
     AMS_DEFINE_SYSTEM_THREAD(-3, dmnt, MultiCoreEventManager);
@@ -87,7 +95,7 @@ namespace ams::impl {
     AMS_DEFINE_SYSTEM_THREAD(16, creport, Main);
 
     /* ro. */
-    AMS_DEFINE_SYSTEM_THREAD(16, ro, Main);
+    AMS_DEFINE_SYSTEM_THREAD(21, ro, Main);
 
     /* gpio. */
     AMS_DEFINE_SYSTEM_THREAD(-12, gpio, InterruptHandler);
@@ -108,6 +116,7 @@ namespace ams::impl {
     /* settings. */
     AMS_DEFINE_SYSTEM_THREAD(21, settings, Main);
     AMS_DEFINE_SYSTEM_THREAD(21, settings, IpcServer);
+    AMS_DEFINE_SYSTEM_THREAD(21, settings, LazyWriter);
 
     /* erpt. */
     AMS_DEFINE_SYSTEM_THREAD(21, erpt, Main);
@@ -162,10 +171,15 @@ namespace ams::impl {
     AMS_DEFINE_SYSTEM_THREAD(21, TioServer, FileServerHtcsServer);
     AMS_DEFINE_SYSTEM_THREAD(21, TioServer, SdCardObserver);
 
+    AMS_DEFINE_SYSTEM_THREAD(16, memlet, Main);
+
+    /* ServiceProfile */
+    AMS_DEFINE_SYSTEM_THREAD(-1, sprofile, IpcServer);
+
 
     #undef AMS_DEFINE_SYSTEM_THREAD
 
 }
 
-#define AMS_GET_SYSTEM_THREAD_PRIORITY(__AMS_MODULE__, __AMS_THREAD_NAME__) ::ams::impl::SystemThreadDefinition##__AMS_MODULE__##__AMS_THREAD_NAME__.priority
-#define AMS_GET_SYSTEM_THREAD_NAME(__AMS_MODULE__, __AMS_THREAD_NAME__)     ::ams::impl::SystemThreadDefinition##__AMS_MODULE__##__AMS_THREAD_NAME__.name
+#define AMS_GET_SYSTEM_THREAD_PRIORITY(__AMS_MODULE__, __AMS_THREAD_NAME__) ( ::ams::impl::SystemThreadDefinition_##__AMS_MODULE__##_##__AMS_THREAD_NAME__ ).priority
+#define AMS_GET_SYSTEM_THREAD_NAME(__AMS_MODULE__, __AMS_THREAD_NAME__)     ( ::ams::impl::SystemThreadDefinition_##__AMS_MODULE__##_##__AMS_THREAD_NAME__ ).name

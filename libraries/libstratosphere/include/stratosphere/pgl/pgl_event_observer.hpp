@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -46,14 +46,17 @@ namespace ams::pgl {
                 explicit EventObserverByCmif(ams::sf::SharedPointer<pgl::sf::IEventObserver> intf) : m_cmif_interface(intf) { /* ... */ }
             public:
                 virtual Result GetSystemEvent(os::SystemEventType *out) override {
-                    ams::sf::CopyHandle handle;
+                    ams::sf::NativeHandle handle;
                     R_TRY(m_cmif_interface->GetProcessEventHandle(std::addressof(handle)));
-                    os::AttachSystemEvent(out, handle.GetValue(), true, svc::InvalidHandle, false, os::EventClearMode_AutoClear);
-                    return ResultSuccess();
+
+                    os::AttachReadableHandleToSystemEvent(out, handle.GetOsHandle(), handle.IsManaged(), os::EventClearMode_AutoClear);
+                    handle.Detach();
+
+                    R_SUCCEED();
                 }
 
                 virtual Result GetProcessEventInfo(pm::ProcessEventInfo *out) override {
-                    return m_cmif_interface->GetProcessEventInfo(out);
+                    R_RETURN(m_cmif_interface->GetProcessEventInfo(out));
                 }
         };
 
@@ -68,14 +71,14 @@ namespace ams::pgl {
                 explicit EventObserverByTipc(Args &&... args) : m_tipc_interface(std::forward<Args>(args)...) { /* ... */ }
             public:
                 virtual Result GetSystemEvent(os::SystemEventType *out) override {
-                    ams::tipc::CopyHandle handle;
+                    os::NativeHandle handle;
                     R_TRY(m_tipc_interface.GetProcessEventHandle(std::addressof(handle)));
-                    os::AttachSystemEvent(out, handle.GetValue(), true, svc::InvalidHandle, false, os::EventClearMode_AutoClear);
-                    return ResultSuccess();
+                    os::AttachReadableHandleToSystemEvent(out, handle, true, os::EventClearMode_AutoClear);
+                    R_SUCCEED();
                 }
 
                 virtual Result GetProcessEventInfo(pm::ProcessEventInfo *out) override {
-                    return m_tipc_interface.GetProcessEventInfo(ams::tipc::Out<pm::ProcessEventInfo>(out));
+                    R_RETURN(m_tipc_interface.GetProcessEventInfo(ams::tipc::Out<pm::ProcessEventInfo>(out)));
                 }
         };
 
@@ -84,11 +87,17 @@ namespace ams::pgl {
     class EventObserver {
         NON_COPYABLE(EventObserver);
         private:
-            std::unique_ptr<impl::EventObserverInterface> m_impl;
+            struct Deleter {
+                void operator()(impl::EventObserverInterface *);
+            };
+        public:
+            using UniquePtr = std::unique_ptr<impl::EventObserverInterface, Deleter>;
+        private:
+            UniquePtr m_impl;
         public:
             EventObserver() { /* ... */ }
 
-            explicit EventObserver(std::unique_ptr<impl::EventObserverInterface> impl) : m_impl(std::move(impl)) { /* ... */ }
+            explicit EventObserver(UniquePtr impl) : m_impl(std::move(impl)) { /* ... */ }
 
             EventObserver(EventObserver &&rhs) {
                 m_impl = std::move(rhs.m_impl);
@@ -104,11 +113,11 @@ namespace ams::pgl {
             }
         public:
             Result GetSystemEvent(os::SystemEventType *out) {
-                return m_impl->GetSystemEvent(out);
+                R_RETURN(m_impl->GetSystemEvent(out));
             }
 
             Result GetProcessEventInfo(pm::ProcessEventInfo *out) {
-                return m_impl->GetProcessEventInfo(out);
+                R_RETURN(m_impl->GetProcessEventInfo(out));
             }
     };
 

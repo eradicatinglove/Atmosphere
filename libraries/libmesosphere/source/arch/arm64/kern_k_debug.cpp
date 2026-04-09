@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -14,6 +14,28 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include <mesosphere.hpp>
+
+/* <stratosphere/rocrt/rocrt.hpp> */
+namespace ams::rocrt {
+
+    constexpr inline const u32 ModuleHeaderVersion = util::FourCC<'M','O','D','0'>::Code;
+
+    struct ModuleHeader {
+        u32 signature;
+        u32 dynamic_offset;
+        u32 bss_start_offset;
+        u32 bss_end_offset;
+        u32 exception_info_start_offset;
+        u32 exception_info_end_offset;
+        u32 module_offset;
+    };
+
+    struct ModuleHeaderLocation {
+        u32 pad;
+        u32 header_offset;
+    };
+
+}
 
 namespace ams::kern::arch::arm64 {
 
@@ -36,8 +58,6 @@ namespace ams::kern::arch::arm64 {
                                                             (((1ul <<  2) - 1) <<  1);  /* Privileged Access Control. */
 
         static_assert(ForbiddenWatchPointFlagsMask == 0xFFFFFFFF00F0E006ul);
-
-        constexpr inline u32 El0PsrMask = 0xFF0FFE20;
 
     }
 
@@ -104,7 +124,7 @@ namespace ams::kern::arch::arm64 {
                 out->lr     = e_ctx->x[30];
                 out->sp     = e_ctx->sp;
                 out->pc     = e_ctx->pc;
-                out->pstate = (e_ctx->psr & El0PsrMask);
+                out->pstate = (e_ctx->psr & cpu::El0Aarch64PsrMask);
 
                 /* Adjust PC if we should. */
                 if (e_ctx->write == 0 && thread->IsCallingSvc()) {
@@ -119,7 +139,7 @@ namespace ams::kern::arch::arm64 {
                 out->lr     = 0;
                 out->sp     = 0;
                 out->pc     = e_ctx->pc;
-                out->pstate = (e_ctx->psr & El0PsrMask);
+                out->pstate = (e_ctx->psr & cpu::El0Aarch32PsrMask);
 
                 /* Adjust PC if we should. */
                 if (e_ctx->write == 0 && thread->IsCallingSvc()) {
@@ -131,7 +151,7 @@ namespace ams::kern::arch::arm64 {
         }
 
         /* Get the FPU context. */
-        return this->GetFpuContext(out, thread, context_flags);
+        R_RETURN(this->GetFpuContext(out, thread, context_flags));
     }
 
     Result KDebug::SetThreadContextImpl(const ams::svc::ThreadContext &ctx, KThread *thread, u32 context_flags) {
@@ -166,7 +186,7 @@ namespace ams::kern::arch::arm64 {
                 e_ctx->x[30] = ctx.lr;
                 e_ctx->sp    = ctx.sp;
                 e_ctx->pc    = ctx.pc;
-                e_ctx->psr   = ((ctx.pstate & El0PsrMask) | (e_ctx->psr & ~El0PsrMask));
+                e_ctx->psr   = ((ctx.pstate & cpu::El0Aarch64PsrMask) | (e_ctx->psr & ~cpu::El0Aarch64PsrMask));
                 e_ctx->tpidr = ctx.tpidr;
             } else {
                 e_ctx->x[13] = static_cast<u32>(ctx.r[13]);
@@ -174,13 +194,13 @@ namespace ams::kern::arch::arm64 {
                 e_ctx->x[30] = 0;
                 e_ctx->sp    = 0;
                 e_ctx->pc    = static_cast<u32>(ctx.pc);
-                e_ctx->psr   = ((ctx.pstate & El0PsrMask) | (e_ctx->psr & ~El0PsrMask));
+                e_ctx->psr   = ((ctx.pstate & cpu::El0Aarch32PsrMask) | (e_ctx->psr & ~cpu::El0Aarch32PsrMask));
                 e_ctx->tpidr = ctx.tpidr;
             }
         }
 
         /* Set the FPU context. */
-        return this->SetFpuContext(ctx, thread, context_flags);
+        R_RETURN(this->SetFpuContext(ctx, thread, context_flags));
     }
 
     Result KDebug::GetFpuContext(ams::svc::ThreadContext *out, KThread *thread, u32 context_flags) {
@@ -202,23 +222,20 @@ namespace ams::kern::arch::arm64 {
         /* Get the FPU registers, if required. */
         if ((context_flags & ams::svc::ThreadContextFlag_Fpu) != 0) {
             static_assert(util::size(ams::svc::ThreadContext{}.v) == KThreadContext::NumFpuRegisters);
-            const u128 *f = t_ctx->GetFpuRegisters();
+            const auto &caller_save = thread->GetCallerSaveFpuRegisters();
+            const auto &callee_save = t_ctx->GetCalleeSaveFpuRegisters();
 
             if (this->Is64Bit()) {
-                for (size_t i = 0; i < KThreadContext::NumFpuRegisters; ++i) {
-                    out->v[i] = f[i];
-                }
+                KThreadContext::GetFpuRegisters(out->v, caller_save.fpu64, callee_save.fpu64);
             } else {
-                for (size_t i = 0; i < KThreadContext::NumFpuRegisters / 2; ++i) {
-                    out->v[i] = f[i];
-                }
+                KThreadContext::GetFpuRegisters(out->v, caller_save.fpu32, callee_save.fpu32);
                 for (size_t i = KThreadContext::NumFpuRegisters / 2; i < KThreadContext::NumFpuRegisters; ++i) {
                     out->v[i] = 0;
                 }
             }
         }
 
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     Result KDebug::SetFpuContext(const ams::svc::ThreadContext &ctx, KThread *thread, u32 context_flags) {
@@ -240,34 +257,42 @@ namespace ams::kern::arch::arm64 {
         /* Set the FPU registers, if required. */
         if ((context_flags & ams::svc::ThreadContextFlag_Fpu) != 0) {
             static_assert(util::size(ams::svc::ThreadContext{}.v) == KThreadContext::NumFpuRegisters);
-            t_ctx->SetFpuRegisters(ctx.v, this->Is64Bit());
+            auto &caller_save = thread->GetCallerSaveFpuRegisters();
+            auto &callee_save = t_ctx->GetCalleeSaveFpuRegisters();
+
+            if (this->Is64Bit()) {
+                KThreadContext::SetFpuRegisters(caller_save.fpu64, callee_save.fpu64, ctx.v);
+            } else {
+                KThreadContext::SetFpuRegisters(caller_save.fpu32, callee_save.fpu32, ctx.v);
+            }
         }
 
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     Result KDebug::BreakIfAttached(ams::svc::BreakReason break_reason, uintptr_t address, size_t size) {
-        return KDebugBase::OnDebugEvent(ams::svc::DebugEvent_Exception, ams::svc::DebugException_UserBreak, GetProgramCounter(GetCurrentThread()), break_reason, address, size);
+        const uintptr_t params[5] = { ams::svc::DebugException_UserBreak, GetProgramCounter(GetCurrentThread()), break_reason, address, size };
+        R_RETURN(KDebugBase::OnDebugEvent(ams::svc::DebugEvent_Exception, params, util::size(params)));
     }
 
     #define MESOSPHERE_SET_HW_BREAK_POINT(ID, FLAGS, VALUE) \
         ({                                                  \
             cpu::SetDbgBcr##ID##El1(0);                     \
-            cpu::EnsureInstructionConsistency();            \
+            cpu::EnsureInstructionConsistencyFullSystem();  \
             cpu::SetDbgBvr##ID##El1(VALUE);                 \
-            cpu::EnsureInstructionConsistency();            \
+            cpu::EnsureInstructionConsistencyFullSystem();  \
             cpu::SetDbgBcr##ID##El1(FLAGS);                 \
-            cpu::EnsureInstructionConsistency();            \
+            cpu::EnsureInstructionConsistencyFullSystem();  \
         })
 
     #define MESOSPHERE_SET_HW_WATCH_POINT(ID, FLAGS, VALUE) \
         ({                                                  \
             cpu::SetDbgWcr##ID##El1(0);                     \
-            cpu::EnsureInstructionConsistency();            \
+            cpu::EnsureInstructionConsistencyFullSystem();  \
             cpu::SetDbgWvr##ID##El1(VALUE);                 \
-            cpu::EnsureInstructionConsistency();            \
+            cpu::EnsureInstructionConsistencyFullSystem();  \
             cpu::SetDbgWcr##ID##El1(FLAGS);                 \
-            cpu::EnsureInstructionConsistency();            \
+            cpu::EnsureInstructionConsistencyFullSystem();  \
         })
 
     Result KDebug::SetHardwareBreakPoint(ams::svc::HardwareBreakPointRegisterName name, u64 flags, u64 value) {
@@ -282,9 +307,6 @@ namespace ams::kern::arch::arm64 {
         if (ams::svc::HardwareBreakPointRegisterName_I0 <= name && name <= ams::svc::HardwareBreakPointRegisterName_I15) {
             /* Check that the name is a valid instruction breakpoint. */
             R_UNLESS((name - ams::svc::HardwareBreakPointRegisterName_I0) <= num_bp, svc::ResultNotSupported());
-
-            /* We may be getting the process, so prepare a scoped reference holder. */
-            KScopedAutoObject<KProcess> process;
 
             /* Configure flags/value. */
             if ((flags & 1) != 0) {
@@ -307,8 +329,14 @@ namespace ams::kern::arch::arm64 {
                     R_UNLESS(debug.IsNotNull(), svc::ResultInvalidHandle());
 
                     /* Get the process from the debug object. */
-                    process = debug->GetProcess();
-                    R_UNLESS(process.IsNotNull(), svc::ResultProcessTerminated());
+                    R_UNLESS(debug->IsAttached(),  svc::ResultProcessTerminated());
+                    R_UNLESS(debug->OpenProcess(), svc::ResultProcessTerminated());
+
+                    /* Close the process when we're done. */
+                    ON_SCOPE_EXIT { debug->CloseProcess(); };
+
+                    /* Get the proces. */
+                    KProcess * const process = debug->GetProcessUnsafe();
 
                     /* Set the value to be the context id. */
                     value = process->GetId() & 0xFFFFFFFF;
@@ -359,7 +387,7 @@ namespace ams::kern::arch::arm64 {
                 value = 0;
             }
 
-            /* Set the watchkpoint. */
+            /* Set the watchpoint. */
             switch (name) {
                 case ams::svc::HardwareBreakPointRegisterName_D0:  MESOSPHERE_SET_HW_WATCH_POINT( 0, flags, value);  break;
                 case ams::svc::HardwareBreakPointRegisterName_D1:  MESOSPHERE_SET_HW_WATCH_POINT( 1, flags, value);  break;
@@ -381,10 +409,10 @@ namespace ams::kern::arch::arm64 {
             }
         } else {
             /* Invalid name. */
-            return svc::ResultInvalidEnumValue();
+            R_THROW(svc::ResultInvalidEnumValue());
         }
 
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     #undef MESOSPHERE_SET_HW_WATCH_POINT
@@ -617,11 +645,6 @@ namespace ams::kern::arch::arm64 {
                 }
             }
 
-            /* Read the first instruction. */
-            if (!ReadValue(std::addressof(temp_32), process, base_address)) {
-                return PrintAddress(address);
-            }
-
             /* Get the module name. */
             char module_name[0x20];
             const bool has_module_name = GetModuleName(module_name, sizeof(module_name), process, base_address);
@@ -631,36 +654,32 @@ namespace ams::kern::arch::arm64 {
                 return PrintAddressWithModuleName(address, has_module_name, module_name, base_address);
             }
 
-            if (temp_32 == 0) {
-                /* Module is dynamically loaded by rtld. */
+            /* Locate .dyn using rocrt::ModuleHeader. */
+            {
+                /* Determine the ModuleHeader offset. */
                 u32 mod_offset;
                 if (!ReadValue(std::addressof(mod_offset), process, base_address + sizeof(u32))) {
                     return PrintAddressWithModuleName(address, has_module_name, module_name, base_address);
                 }
-                if (!ReadValue(std::addressof(temp_32), process, base_address + mod_offset)) {
+
+                /* Read the signature. */
+                constexpr u32 SignatureFieldOffset = AMS_OFFSETOF(rocrt::ModuleHeader, signature);
+                if (!ReadValue(std::addressof(temp_32), process, base_address + mod_offset + SignatureFieldOffset)) {
                     return PrintAddressWithModuleName(address, has_module_name, module_name, base_address);
                 }
-                if (temp_32 != 0x30444F4D) { /* MOD0 */
+
+                /* Check that the module signature is expected. */
+                if (temp_32 != rocrt::ModuleHeaderVersion) { /* MOD0 */
                     return PrintAddressWithModuleName(address, has_module_name, module_name, base_address);
                 }
-                if (!ReadValue(std::addressof(temp_32), process, base_address + mod_offset + sizeof(u32))) {
+
+                /* Determine the dynamic offset. */
+                constexpr u32 DynamicFieldOffset = AMS_OFFSETOF(rocrt::ModuleHeader, dynamic_offset);
+                if (!ReadValue(std::addressof(temp_32), process, base_address + mod_offset + DynamicFieldOffset)) {
                     return PrintAddressWithModuleName(address, has_module_name, module_name, base_address);
                 }
+
                 dyn_address = base_address + mod_offset + temp_32;
-            } else if (temp_32 == 0x14000002) {
-                /* Module embeds rtld. */
-                if (!ReadValue(std::addressof(temp_32), process, base_address + 0x5C)) {
-                    return PrintAddressWithModuleName(address, has_module_name, module_name, base_address);
-                }
-                if (temp_32 != 0x94000002) {
-                    return PrintAddressWithModuleName(address, has_module_name, module_name, base_address);
-                }
-                if (!ReadValue(std::addressof(temp_32), process, base_address + 0x60)) {
-                    return PrintAddressWithModuleName(address, has_module_name, module_name, base_address);
-                }
-                dyn_address = base_address + 0x60 + temp_32;
-            } else {
-                return PrintAddressWithModuleName(address, has_module_name, module_name, base_address);
             }
 
             /* Locate tables inside .dyn. */

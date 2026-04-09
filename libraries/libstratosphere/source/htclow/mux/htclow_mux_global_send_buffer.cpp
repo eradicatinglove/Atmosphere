@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -39,7 +39,7 @@ namespace ams::htclow::mux {
         /* We don't, so push back a new one. */
         m_packet_list.push_back(*(ptr.release()));
 
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     void GlobalSendBuffer::RemovePacket() {

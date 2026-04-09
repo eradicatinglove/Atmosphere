@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -25,10 +25,10 @@ namespace ams::sf::impl {
             return ImplGetter::GetImplPointer(static_cast<ImplHolder *>(this))->NAME ARGNAMES;                             \
         }
 
-    #define AMS_SF_DEFINE_INTERFACE_WITH_DEFAULT_BASE(NAMESPACE, INTERFACE, BASE, CMD_MACRO)                                       \
+    #define AMS_SF_DEFINE_INTERFACE_WITH_DEFAULT_BASE(NAMESPACE, INTERFACE, BASE, CMD_MACRO, INTF_ID)                              \
         namespace NAMESPACE {                                                                                                      \
                                                                                                                                    \
-            AMS_SF_DEFINE_INTERFACE_IMPL(BASE, INTERFACE, CMD_MACRO)                                                               \
+            AMS_SF_DEFINE_INTERFACE_IMPL(BASE, INTERFACE, CMD_MACRO, INTF_ID)                                                      \
                                                                                                                                    \
         }                                                                                                                          \
                                                                                                                                    \
@@ -38,23 +38,23 @@ namespace ams::sf::impl {
             class ImplTemplateBaseT<::NAMESPACE::INTERFACE, Base, ImplHolder, ImplGetter, Root> : public Base, public ImplHolder { \
                 public:                                                                                                            \
                     template<typename... Args>                                                                                     \
-                    constexpr explicit ImplTemplateBaseT(Args &&...args) : ImplHolder(std::forward<Args>(args)...) { /* ... */ }   \
+                    constexpr explicit ImplTemplateBaseT(Args &&...args) : ImplHolder(std::forward<Args>(args)...) { }             \
                 private:                                                                                                           \
                     CMD_MACRO(CLASSNAME, AMS_SF_IMPL_DEFINE_IMPL_SYNC_METHOD)                                                      \
             };                                                                                                                     \
                                                                                                                                    \
         }
 
-    #define AMS_SF_DEFINE_INTERFACE(NAMESPACE, INTERFACE, CMD_MACRO) \
-        AMS_SF_DEFINE_INTERFACE_WITH_DEFAULT_BASE(NAMESPACE, INTERFACE, ::ams::sf::IServiceObject, CMD_MACRO)
+    #define AMS_SF_DEFINE_INTERFACE(NAMESPACE, INTERFACE, CMD_MACRO, INTF_ID) \
+        AMS_SF_DEFINE_INTERFACE_WITH_DEFAULT_BASE(NAMESPACE, INTERFACE, ::ams::sf::IServiceObject, CMD_MACRO, INTF_ID)
 
-    #define AMS_SF_DEFINE_MITM_INTERFACE(NAMESPACE, INTERFACE, CMD_MACRO) \
-        AMS_SF_DEFINE_INTERFACE_WITH_DEFAULT_BASE(NAMESPACE, INTERFACE, ::ams::sf::IMitmServiceObject, CMD_MACRO)
+    #define AMS_SF_DEFINE_MITM_INTERFACE(NAMESPACE, INTERFACE, CMD_MACRO, INTF_ID) \
+        AMS_SF_DEFINE_INTERFACE_WITH_DEFAULT_BASE(NAMESPACE, INTERFACE, ::ams::sf::IMitmServiceObject, CMD_MACRO, INTF_ID)
 
-    #define AMS_SF_DEFINE_INTERFACE_WITH_BASE(NAMESPACE, INTERFACE, BASE, CMD_MACRO)                                                                                   \
+    #define AMS_SF_DEFINE_INTERFACE_WITH_BASE(NAMESPACE, INTERFACE, BASE, CMD_MACRO, INTF_ID)                                                                          \
         namespace NAMESPACE {                                                                                                                                          \
                                                                                                                                                                        \
-            AMS_SF_DEFINE_INTERFACE_IMPL(BASE, INTERFACE, CMD_MACRO)                                                                                                   \
+            AMS_SF_DEFINE_INTERFACE_IMPL(BASE, INTERFACE, CMD_MACRO, INTF_ID)                                                                                          \
                                                                                                                                                                        \
         }                                                                                                                                                              \
                                                                                                                                                                        \
@@ -66,7 +66,7 @@ namespace ams::sf::impl {
                     using BaseImplTemplateBase = ImplTemplateBaseT<BASE, Base, ImplHolder, ImplGetter, Root>;                                                          \
                 public:                                                                                                                                                \
                     template<typename... Args>                                                                                                                         \
-                    constexpr explicit ImplTemplateBaseT(Args &&...args) : BaseImplTemplateBase(std::forward<Args>(args)...) { /* ... */ }                             \
+                    constexpr explicit ImplTemplateBaseT(Args &&...args) : BaseImplTemplateBase(std::forward<Args>(args)...) { }                                       \
                 private:                                                                                                                                               \
                     CMD_MACRO(CLASSNAME, AMS_SF_IMPL_DEFINE_IMPL_SYNC_METHOD)                                                                                          \
             };                                                                                                                                                         \

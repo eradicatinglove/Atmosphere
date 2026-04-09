@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -17,8 +17,7 @@
 
 namespace ams::util {
 
-    #pragma GCC push_options
-    #pragma GCC optimize ("-Os")
+    AMS_PRAGMA_BEGIN_OPTIMIZE("-Os")
 
     namespace {
 
@@ -136,6 +135,7 @@ namespace ams::util {
 
                 /* Parse length. */
                 constexpr bool SizeIsLong    = sizeof(size_t)    == sizeof(long);
+                constexpr bool PointerIsLong = sizeof(uintptr_t) == sizeof(long);
                 constexpr bool IntMaxIsLong  = sizeof(intmax_t)  == sizeof(long);
                 constexpr bool PtrDiffIsLong = sizeof(ptrdiff_t) == sizeof(long);
                 switch (*format) {
@@ -174,10 +174,10 @@ namespace ams::util {
                 const char specifier = *(format++);
                 switch (specifier) {
                     case 'p':
-                        if constexpr (sizeof(uintptr_t) == sizeof(long long)) {
-                            SetFlag(FormatSpecifierFlag_LongLong);
-                        } else {
+                        if constexpr (PointerIsLong) {
                             SetFlag(FormatSpecifierFlag_Long);
+                        } else {
+                            SetFlag(FormatSpecifierFlag_LongLong);
                         }
                         SetFlag(FormatSpecifierFlag_Hash);
                         [[fallthrough]];
@@ -394,7 +394,9 @@ namespace ams::util {
 
             /* Ensure null termination. */
             WriteCharacter('\0');
-            dst[dst_size - 1] = '\0';
+            if (dst_size > 0) {
+                dst[dst_size - 1] = '\0';
+            }
 
             /* Return number of characters that would have been printed sans the null terminator. */
             return static_cast<int>(dst_index) - 1;
@@ -402,7 +404,7 @@ namespace ams::util {
 
     }
 
-    #pragma GCC pop_options
+    AMS_PRAGMA_END_OPTIMIZE()
 
     int TVSNPrintf(char *dst, size_t dst_size, const char *fmt, std::va_list vl) {
         return TVSNPrintfImpl(dst, dst_size, fmt, vl);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -40,6 +40,8 @@ namespace ams::scs {
         static constexpr size_t PointerBufferSize = 0;
         static constexpr size_t MaxDomains = 6;
         static constexpr size_t MaxDomainObjects = 16;
+        static constexpr bool CanDeferInvokeRequest = false;
+        static constexpr bool CanManageMitmServers  = false;
     };
 
     class ServerManager final : public sf::hipc::ServerManager<Port_Count, ServerOptions, MaxSessions> {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -35,7 +35,7 @@ namespace ams::kern {
         m_space_size     = size;
         m_is_initialized = true;
 
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     void KDeviceAddressSpace::Finalize() {
@@ -43,9 +43,6 @@ namespace ams::kern {
 
         /* Finalize the table. */
         m_table.Finalize();
-
-        /* Finalize base. */
-        KAutoObjectWithSlabHeapAndContainer<KDeviceAddressSpace, KAutoObjectWithList>::Finalize();
     }
 
     Result KDeviceAddressSpace::Attach(ams::svc::DeviceName device_name) {
@@ -53,7 +50,7 @@ namespace ams::kern {
         KScopedLightLock lk(m_lock);
 
         /* Attach. */
-        return m_table.Attach(device_name, m_space_address, m_space_size);
+        R_RETURN(m_table.Attach(device_name, m_space_address, m_space_size));
     }
 
     Result KDeviceAddressSpace::Detach(ams::svc::DeviceName device_name) {
@@ -61,12 +58,23 @@ namespace ams::kern {
         KScopedLightLock lk(m_lock);
 
         /* Detach. */
-        return m_table.Detach(device_name);
+        R_RETURN(m_table.Detach(device_name));
     }
 
-    Result KDeviceAddressSpace::Map(size_t *out_mapped_size, KProcessPageTable *page_table, KProcessAddress process_address, size_t size, u64 device_address, ams::svc::MemoryPermission device_perm, bool is_aligned, bool refresh_mappings) {
+    Result KDeviceAddressSpace::Map(KProcessPageTable *page_table, KProcessAddress process_address, size_t size, u64 device_address, u32 option, bool is_aligned) {
         /* Check that the address falls within the space. */
         R_UNLESS((m_space_address <= device_address && device_address + size - 1 <= m_space_address + m_space_size - 1), svc::ResultInvalidCurrentMemory());
+
+        /* Decode the option. */
+        const util::BitPack32 option_pack = { option };
+        const auto device_perm = option_pack.Get<ams::svc::MapDeviceAddressSpaceOption::Permission>();
+        const auto flags       = option_pack.Get<ams::svc::MapDeviceAddressSpaceOption::Flags>();
+        const auto reserved    = option_pack.Get<ams::svc::MapDeviceAddressSpaceOption::Reserved>();
+
+        /* Validate the option. */
+        /* TODO: It is likely that this check for flags == none is only on NX board. */
+        R_UNLESS(flags == ams::svc::MapDeviceAddressSpaceFlag_None, svc::ResultInvalidEnumValue());
+        R_UNLESS(reserved == 0,                                     svc::ResultInvalidEnumValue());
 
         /* Lock the address space. */
         KScopedLightLock lk(m_lock);
@@ -75,34 +83,32 @@ namespace ams::kern {
         KScopedLightLock pt_lk = page_table->AcquireDeviceMapLock();
 
         /* Lock the pages. */
-        R_TRY(page_table->LockForMapDeviceAddressSpace(process_address, size, ConvertToKMemoryPermission(device_perm), is_aligned));
+        bool is_io{};
+        R_TRY(page_table->LockForMapDeviceAddressSpace(std::addressof(is_io), process_address, size, ConvertToKMemoryPermission(device_perm), is_aligned, true));
 
         /* Ensure that if we fail, we don't keep unmapped pages locked. */
-        auto unlock_guard = SCOPE_GUARD { MESOSPHERE_R_ABORT_UNLESS(page_table->UnlockForDeviceAddressSpace(process_address, size)); };
+        ON_RESULT_FAILURE { MESOSPHERE_R_ABORT_UNLESS(page_table->UnlockForDeviceAddressSpace(process_address, size)); };
+
+        /* Check that the io status is allowable. */
+        if (is_io) {
+            R_UNLESS((flags & ams::svc::MapDeviceAddressSpaceFlag_NotIoRegister) == 0, svc::ResultInvalidCombination());
+        }
 
         /* Map the pages. */
         {
-            /* Clear the output size to zero on failure. */
-            auto mapped_size_guard = SCOPE_GUARD { *out_mapped_size = 0; };
-
             /* Perform the mapping. */
-            R_TRY(m_table.Map(out_mapped_size, page_table, process_address, size, device_address, device_perm, is_aligned, refresh_mappings));
+            R_TRY(m_table.Map(page_table, process_address, size, device_address, device_perm, is_aligned, is_io));
 
             /* Ensure that we unmap the pages if we fail to update the protections. */
             /* NOTE: Nintendo does not check the result of this unmap call. */
-            auto map_guard = SCOPE_GUARD { m_table.Unmap(device_address, *out_mapped_size); };
+            ON_RESULT_FAILURE { m_table.Unmap(device_address, size); };
 
             /* Update the protections in accordance with how much we mapped. */
-            R_TRY(page_table->UnlockForDeviceAddressSpacePartialMap(process_address, size, *out_mapped_size));
-
-            /* We succeeded, so cancel our guards. */
-            map_guard.Cancel();
-            mapped_size_guard.Cancel();
+            R_TRY(page_table->UnlockForDeviceAddressSpacePartialMap(process_address, size));
         }
 
-        /* We succeeded, so we don't need to unlock our pages. */
-        unlock_guard.Cancel();
-        return ResultSuccess();
+        /* We succeeded. */
+        R_SUCCEED();
     }
 
     Result KDeviceAddressSpace::Unmap(KProcessPageTable *page_table, KProcessAddress process_address, size_t size, u64 device_address) {
@@ -116,22 +122,21 @@ namespace ams::kern {
         KScopedLightLock pt_lk = page_table->AcquireDeviceMapLock();
 
         /* Lock the pages. */
-        R_TRY(page_table->LockForUnmapDeviceAddressSpace(process_address, size));
+        R_TRY(page_table->LockForUnmapDeviceAddressSpace(process_address, size, true));
 
-        /* If we fail to unmap, we want to do a partial unlock. */
+        /* Unmap the pages. */
         {
-            auto unlock_guard = SCOPE_GUARD { MESOSPHERE_R_ABORT_UNLESS(page_table->UnlockForDeviceAddressSpacePartialMap(process_address, size, size)); };
+            /* If we fail to unmap, we want to do a partial unlock. */
+            ON_RESULT_FAILURE { MESOSPHERE_R_ABORT_UNLESS(page_table->UnlockForDeviceAddressSpacePartialMap(process_address, size)); };
 
-            /* Unmap. */
+            /* Perform the unmap. */
             R_TRY(m_table.Unmap(page_table, process_address, size, device_address));
-
-            unlock_guard.Cancel();
         }
 
         /* Unlock the pages. */
         MESOSPHERE_R_ABORT_UNLESS(page_table->UnlockForDeviceAddressSpace(process_address, size));
 
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
 }

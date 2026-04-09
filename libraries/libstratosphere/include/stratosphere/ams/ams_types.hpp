@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -16,8 +16,8 @@
 
 #pragma once
 #include <vapours.hpp>
-#include "../sf/sf_buffer_tags.hpp"
-#include "../hos.hpp"
+#include <stratosphere/sf/sf_buffer_tags.hpp>
+#include <stratosphere/hos.hpp>
 
 namespace ams::exosphere {
 

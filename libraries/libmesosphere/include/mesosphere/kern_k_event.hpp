@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -18,38 +18,42 @@
 #include <mesosphere/kern_k_auto_object.hpp>
 #include <mesosphere/kern_slab_helpers.hpp>
 #include <mesosphere/kern_k_readable_event.hpp>
-#include <mesosphere/kern_k_writable_event.hpp>
 
 namespace ams::kern {
 
-    class KEvent final : public KAutoObjectWithSlabHeapAndContainer<KEvent, KAutoObjectWithList> {
+    class KEvent final : public KAutoObjectWithSlabHeapAndContainer<KEvent, KAutoObjectWithList, true> {
         MESOSPHERE_AUTOOBJECT_TRAITS(KEvent, KAutoObject);
         private:
             KReadableEvent m_readable_event;
-            KWritableEvent m_writable_event;
             KProcess *m_owner;
             bool m_initialized;
+            bool m_readable_event_destroyed;
         public:
-            constexpr KEvent()
-                : m_readable_event(), m_writable_event(), m_owner(), m_initialized()
+            constexpr explicit KEvent(util::ConstantInitializeTag)
+                : KAutoObjectWithSlabHeapAndContainer<KEvent, KAutoObjectWithList, true>(util::ConstantInitialize),
+                  m_readable_event(util::ConstantInitialize), m_owner(), m_initialized(), m_readable_event_destroyed()
             {
                 /* ... */
             }
 
-            virtual ~KEvent() { /* ... */ }
+            explicit KEvent() : m_readable_event(), m_owner(), m_initialized(), m_readable_event_destroyed() { /* ... */ }
 
             void Initialize();
-            virtual void Finalize() override;
+            void Finalize();
 
-            virtual bool IsInitialized() const override { return m_initialized; }
-            virtual uintptr_t GetPostDestroyArgument() const override { return reinterpret_cast<uintptr_t>(m_owner); }
+            bool IsInitialized() const { return m_initialized; }
+            uintptr_t GetPostDestroyArgument() const { return reinterpret_cast<uintptr_t>(m_owner); }
 
             static void PostDestroy(uintptr_t arg);
 
-            virtual KProcess *GetOwner() const override { return m_owner; }
+            KProcess *GetOwner() const { return m_owner; }
 
             KReadableEvent &GetReadableEvent() { return m_readable_event; }
-            KWritableEvent &GetWritableEvent() { return m_writable_event; }
+
+            void Signal();
+            void Clear();
+
+            ALWAYS_INLINE void OnReadableEventDestroyed() { m_readable_event_destroyed = true; }
     };
 
 }

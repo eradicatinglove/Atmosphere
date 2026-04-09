@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -37,7 +37,7 @@ namespace ams::cal {
 
         /* Write the output. */
         *out = battery_version[0];
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     Result GetBatteryVendor(size_t *out_vendor_size, void *dst, size_t dst_size) {
@@ -47,7 +47,7 @@ namespace ams::cal {
 
         /* Copy output. */
         *out_vendor_size = static_cast<size_t>(util::Strlcpy(static_cast<char *>(dst), battery_lot, std::min(dst_size, BatteryVendorSizeMax)));
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
 }

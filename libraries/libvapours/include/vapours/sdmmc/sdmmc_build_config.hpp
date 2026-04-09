@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -32,9 +32,9 @@
     //#define AMS_SDMMC_USE_OS_EVENTS
     //#define AMS_SDMMC_USE_OS_TIMER
     #define AMS_SDMMC_USE_UTIL_TIMER
-    //#define AMS_SDMMC_ENABLE_MMC_HS400
-    //#define AMS_SDMMC_ENABLE_SD_UHS_I
-    //#define AMS_SDMMC_SET_PLLC4_BASE
+    #define AMS_SDMMC_ENABLE_MMC_HS400
+    #define AMS_SDMMC_ENABLE_SD_UHS_I
+    #define AMS_SDMMC_SET_PLLC4_BASE
     //#define AMS_SDMMC_USE_SD_CARD_DETECTOR
 
 #elif defined(ATMOSPHERE_IS_MESOSPHERE)

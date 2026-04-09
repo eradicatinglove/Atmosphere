@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -14,34 +14,34 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include <stratosphere.hpp>
-#include "impl/os_waitable_manager_impl.hpp"
-#include "impl/os_waitable_holder_base.hpp"
-#include "impl/os_waitable_holder_impl.hpp"
+#include "impl/os_multiple_wait_impl.hpp"
+#include "impl/os_multiple_wait_holder_base.hpp"
+#include "impl/os_multiple_wait_holder_impl.hpp"
 
 namespace ams::os {
 
     namespace {
 
-        ALWAYS_INLINE impl::WaitableManagerImpl &GetWaitableManagerImpl(WaitableManagerType *manager) {
-            return GetReference(manager->impl_storage);
+        ALWAYS_INLINE impl::MultiWaitImpl &GetMultiWaitImpl(MultiWaitType *multi_wait) {
+            return GetReference(multi_wait->impl_storage);
         }
 
-        ALWAYS_INLINE WaitableHolderType *CastToWaitableHolder(impl::WaitableHolderBase *base) {
-            return reinterpret_cast<WaitableHolderType *>(base);
+        ALWAYS_INLINE MultiWaitHolderType *CastToMultiWaitHolder(impl::MultiWaitHolderBase *base) {
+            return reinterpret_cast<MultiWaitHolderType *>(base);
         }
 
     }
 
-    Result SdkReplyAndReceive(os::WaitableHolderType **out, Handle reply_target, WaitableManagerType *manager) {
-        auto &impl = GetWaitableManagerImpl(manager);
+    Result SdkReplyAndReceive(os::MultiWaitHolderType **out, NativeHandle reply_target, MultiWaitType *multi_wait) {
+        auto &impl = GetMultiWaitImpl(multi_wait);
 
-        AMS_ASSERT(manager->state == WaitableManagerType::State_Initialized);
-        AMS_ASSERT(!impl.IsEmpty());
+        AMS_ASSERT(multi_wait->state == MultiWaitType::State_Initialized);
+        AMS_ASSERT(impl.IsListNotEmpty());
 
-        impl::WaitableHolderBase *holder_base;
-        ON_SCOPE_EXIT { *out = CastToWaitableHolder(holder_base); };
+        impl::MultiWaitHolderBase *holder_base = nullptr;
+        ON_SCOPE_EXIT { *out = CastToMultiWaitHolder(holder_base); };
 
-        return impl.ReplyAndReceive(std::addressof(holder_base), reply_target);
+        R_RETURN(impl.ReplyAndReceive(std::addressof(holder_base), reply_target));
     }
 
 }

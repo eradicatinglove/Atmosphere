@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -116,7 +116,9 @@ namespace ams::kern::arch::arm {
                 u32 ipriorityr[NumLocalInterrupts / 4];
                 u32 itargetsr[NumLocalInterrupts / 4];
                 u32 icfgr[NumLocalInterrupts / 16];
+                u32 spendsgir[4];
             };
+            static_assert(sizeof(LocalState{}.spendsgir) == sizeof(GicDistributor{}.spendsgir));
 
             struct GlobalState {
                 u32 isenabler[NumGlobalInterrupts / 32];
@@ -133,7 +135,7 @@ namespace ams::kern::arch::arm {
                 PriorityLevel_Scheduler = 2,
             };
         private:
-            static inline u32 s_mask[cpu::NumCores];
+            static constinit inline u32 s_mask[cpu::NumCores];
         private:
             volatile GicDistributor  *m_gicd;
             volatile GicCpuInterface *m_gicc;
@@ -248,8 +250,9 @@ namespace ams::kern::arch::arm {
                 return id;
             }
         private:
-            static constexpr size_t PriorityShift = BITSIZEOF(u8) - __builtin_ctz(NumPriorityLevels);
+            static constexpr size_t PriorityShift = BITSIZEOF(u8) - util::CountTrailingZeros(NumPriorityLevels);
             static_assert(PriorityShift < BITSIZEOF(u8));
+            static_assert(util::IsPowerOfTwo(NumPriorityLevels));
 
             static constexpr ALWAYS_INLINE u8 ToGicPriorityValue(s32 level) {
                 return (level << PriorityShift) | ((1 << PriorityShift) - 1);

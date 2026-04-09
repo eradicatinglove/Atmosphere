@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -64,13 +64,13 @@ namespace ams::htclow {
     }
 
     void Worker::ReceiveThread() {
-        this->ProcessReceive();
+        static_cast<void>(this->ProcessReceive());
         m_driver->CancelSendReceive();
         this->Cancel();
     }
 
     void Worker::SendThread() {
-        this->ProcessSend();
+        static_cast<void>(this->ProcessSend());
         m_driver->CancelSendReceive();
         this->Cancel();
     }
@@ -114,9 +114,11 @@ namespace ams::htclow {
         }
 
         /* Process the received packet. */
-        m_service->ProcessReceivePacket(header, m_receive_packet_body, header.body_size);
+        if (R_FAILED(m_service->ProcessReceivePacket(header, m_receive_packet_body, header.body_size))) {
+            /* TODO: PrintIgnorePacket */
+        }
 
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     Result Worker::ProcessReceive(const PacketHeader &header) {
@@ -129,9 +131,11 @@ namespace ams::htclow {
         }
 
         /* Process the received packet. */
-        m_mux->ProcessReceivePacket(header, m_receive_packet_body, header.body_size);
+        if (R_FAILED(m_mux->ProcessReceivePacket(header, m_receive_packet_body, header.body_size))) {
+            /* TODO: PrintIgnorePacket */
+        }
 
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     Result Worker::ProcessSend() {
@@ -171,7 +175,7 @@ namespace ams::htclow {
 
                 /* Check if we're cancelled. */
                 if (m_cancelled) {
-                    return htclow::ResultCancelled();
+                    R_THROW(htclow::ResultCancelled());
                 }
             }
         }

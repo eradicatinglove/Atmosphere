@@ -49,7 +49,7 @@ Code type 0x0 allows writing a static value to a memory address.
 `0TMR00AA AAAAAAAA VVVVVVVV (VVVVVVVV)`
 
 + T: Width of memory write (1, 2, 4, or 8 bytes).
-+ M: Memory region to write to (0 = Main NSO, 1 = Heap, 2 = Alias, 3 = Aslr).
++ M: Memory region to write to (0 = Main NSO, 1 = Heap, 2 = Alias, 3 = Aslr, 4 = non-relative).
 + R: Register to use as an offset from memory region base.
 + A: Immediate offset to use from memory region base.
 + V: Value to write.
@@ -62,11 +62,13 @@ Code type 0x1 performs a comparison of the contents of memory to a static value.
 If the condition is not met, all instructions until the appropriate End or Else conditional block terminator are skipped.
 
 #### Encoding
-`1TMC00AA AAAAAAAA VVVVVVVV (VVVVVVVV)`
+`1TMCXrAA AAAAAAAA VVVVVVVV (VVVVVVVV)`
 
-+ T: Width of memory write (1, 2, 4, or 8 bytes).
-+ M: Memory region to write to (0 = Main NSO, 1 = Heap, 2 = Alias, 3 = Aslr).
++ T: Width of memory read (1, 2, 4, or 8 bytes).
++ M: Memory region to read from (0 = Main NSO, 1 = Heap, 2 = Alias, 3 = Aslr, 4 = non-relative).
 + C: Condition to use, see below.
++ X: Operand Type, see below.
++ r: Offset Register (operand types 1).
 + A: Immediate offset to use from memory region base.
 + V: Value to compare to.
 
@@ -78,6 +80,9 @@ If the condition is not met, all instructions until the appropriate End or Else 
 + 5: ==
 + 6: !=
 
+#### Operand Type
++ 0: Memory Base + Relative Offset
++ 1: Memory Base + Offset Register + Relative Offset
 ---
 
 ### Code Type 0x2: End Conditional Block
@@ -126,7 +131,7 @@ Code type 0x5 allows loading a value from memory into a register, either using a
 `5TMR00AA AAAAAAAA`
 
 + T: Width of memory read (1, 2, 4, or 8 bytes).
-+ M: Memory region to write to (0 = Main NSO, 1 = Heap, 2 = Alias, 3 = Aslr).
++ M: Memory region to write to (0 = Main NSO, 1 = Heap, 2 = Alias, 3 = Aslr, 4 = non-relative).
 + R: Register to load value into.
 + A: Immediate offset to use from memory region base.
 
@@ -137,6 +142,22 @@ Code type 0x5 allows loading a value from memory into a register, either using a
 + R: Register to load value into. (This register is also used as the base memory address).
 + A: Immediate offset to use from register R.
 
+#### Load from Register Address Encoding
+`5T0R2SAA AAAAAAAA`
+
++ T: Width of memory read (1, 2, 4, or 8 bytes).
++ R: Register to load value into. 
++ S: Register to use as the base memory address.
++ A: Immediate offset to use from register R.
+
+#### Load From Fixed Address Encoding with offset register
+`5TMR3SAA AAAAAAAA`
+
++ T: Width of memory read (1, 2, 4, or 8 bytes).
++ M: Memory region to write to (0 = Main NSO, 1 = Heap, 2 = Alias, 3 = Aslr, 4 = non-relative).
++ R: Register to load value into.
++ S: Register to use as offset register.
++ A: Immediate offset to use from memory region base.
 ---
 
 ### Code Type 0x6: Store Static Value to Register Memory Address
@@ -250,7 +271,10 @@ Code type 0x9 allows performing arithmetic on registers.
 + 7: Logical Not (discards right-hand operand)
 + 8: Logical Xor
 + 9: None/Move (discards right-hand operand)
-
++ 10: Float Addition, T==4 single T==8 double
++ 11: Float Subtraction, T==4 single T==8 double
++ 12: Float Multiplication, T==4 single T==8 double
++ 13: Float Division, T==4 single T==8 double
 ---
 
 ### Code Type 0xA: Store Register to Memory Address
@@ -379,6 +403,61 @@ Code type 0xC3 reads or writes a static register with a given register.
 + x: Register index.
 
 ---
+
+### Code Type 0xC4: Begin Extended Keypress Conditional Block
+Code type 0xC4 enters or skips a conditional block based on whether a key combination is pressed.
+
+#### Encoding
+`C4r00000 kkkkkkkk kkkkkkkk`
+
++ r: Auto-repeat, see below.
++ kkkkkkkkkk: Keypad mask to check against output of `hidKeysDown()`.
+
+Note that for multiple button combinations, the bitmasks should be OR'd together.
+
+#### Auto-repeat
+
++ 0: The conditional block executes only once when the keypad mask matches. The mask must stop matching to reset for the next trigger.
++ 1: The conditional block executes as long as the keypad mask matches.
+
+#### Keypad Values
+Note: This is the direct output of `hidKeysDown()`.
+
++ 00000000 00000001: A
++ 00000000 00000002: B
++ 00000000 00000004: X
++ 00000000 00000008: Y
++ 00000000 00000010: Left Stick Pressed
++ 00000000 00000020: Right Stick Pressed
++ 00000000 00000040: L
++ 00000000 00000080: R
++ 00000000 00000100: ZL
++ 00000000 00000200: ZR
++ 00000000 00000400: Plus
++ 00000000 00000800: Minus
++ 00000000 00001000: Left
++ 00000000 00002000: Up
++ 00000000 00004000: Right
++ 00000000 00008000: Down
++ 00000000 00010000: Left Stick Left
++ 00000000 00020000: Left Stick Up
++ 00000000 00040000: Left Stick Right
++ 00000000 00080000: Left Stick Down
++ 00000000 00100000: Right Stick Left
++ 00000000 00200000: Right Stick Up
++ 00000000 00400000: Right Stick Right
++ 00000000 00800000: Right Stick Down
++ 00000000 01000000: SL Left Joy-Con
++ 00000000 02000000: SR Left Joy-Con
++ 00000000 04000000: SL Right Joy-Con
++ 00000000 08000000: SR Right Joy-Con
++ 00000000 10000000: Top button on Poké Ball Plus (Palma) controller
++ 00000000 20000000: Verification
++ 00000000 40000000: B button on Left NES/HVC controller in Handheld mode
++ 00000000 80000000: Left C button in N64 controller
++ 00000001 00000000: Up C button in N64 controller
++ 00000002 00000000: Right C button in N64 controller
++ 00000004 00000000: Down C button in N64 controller
 
 ### Code Type 0xF0: Double Extended-Width Instruction
 Code Type 0xF0 signals to the VM to treat the upper three nybbles of the first dword as instruction type, instead of just the upper nybble.

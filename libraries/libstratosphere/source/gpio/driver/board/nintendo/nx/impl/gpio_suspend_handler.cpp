@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -20,7 +20,7 @@ namespace ams::gpio::driver::board::nintendo::nx::impl {
 
     void SuspendHandler::Initialize(uintptr_t gpio_vaddr) {
         /* Set our gpio virtual address. */
-        this->gpio_virtual_address = gpio_vaddr;
+        m_gpio_virtual_address = gpio_vaddr;
 
         /* Ensure that we can use the wec library. */
         ams::wec::Initialize();
@@ -28,21 +28,25 @@ namespace ams::gpio::driver::board::nintendo::nx::impl {
 
     void SuspendHandler::SetValueForSleepState(TegraPad *pad, GpioValue value) {
         /* TODO */
+        AMS_UNUSED(pad, value);
         AMS_ABORT();
     }
 
     Result SuspendHandler::IsWakeEventActive(bool *out, TegraPad *pad) const {
         /* TODO */
+        AMS_UNUSED(out, pad);
         AMS_ABORT();
     }
 
     Result SuspendHandler::SetWakeEventActiveFlagSetForDebug(TegraPad *pad, bool en) {
         /* TODO */
+        AMS_UNUSED(pad, en);
         AMS_ABORT();
     }
 
     void SuspendHandler::SetWakePinDebugMode(WakePinDebugMode mode) {
         /* TODO */
+        AMS_UNUSED(mode);
         AMS_ABORT();
     }
 

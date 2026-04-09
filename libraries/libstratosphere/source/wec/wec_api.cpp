@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -15,10 +15,10 @@
  */
 #include <stratosphere.hpp>
 
-/* TODO: How much of this should be namespaced under BOARD_NINTENDO_NX? */
-
 namespace ams::wec {
 
+    /* TODO: How much of this should be namespaced under BOARD_NINTENDO_NX? */
+    #if defined(ATMOSPHERE_BOARD_NINTENDO_NX)
     namespace {
 
         constexpr inline dd::PhysicalAddress ApbdevPmc = 0x7000E400;
@@ -108,5 +108,6 @@ namespace ams::wec {
             UpdateControlBit(ApbdevPmc + offset, (1u << index), en);
         }
     }
+    #endif
 
 }

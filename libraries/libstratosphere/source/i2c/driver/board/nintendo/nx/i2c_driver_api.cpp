@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -95,14 +95,17 @@ namespace ams::i2c::driver::board::nintendo::nx {
             }
         }
 
+        constinit util::TypedStorage<impl::I2cBusAccessorManager> g_bus_accessor_manager = {};
+        constinit util::TypedStorage<impl::I2cDevicePropertyManager> g_device_manager = {};
+
     }
 
     void Initialize() {
-        /* TODO: Should these be moved into getters? They're only used here, and they never destruct. */
-        static impl::I2cBusAccessorManager s_bus_accessor_manager(ddsf::GetMemoryResource());
-        static impl::I2cDevicePropertyManager s_device_manager(ddsf::GetMemoryResource());
+        /* Initialize managers. */
+        util::ConstructAt(g_bus_accessor_manager, ddsf::GetMemoryResource());
+        util::ConstructAt(g_device_manager, ddsf::GetMemoryResource());
 
-        return Initialize(s_bus_accessor_manager, s_device_manager);
+        return Initialize(util::GetReference(g_bus_accessor_manager), util::GetReference(g_device_manager));
     }
 
 }

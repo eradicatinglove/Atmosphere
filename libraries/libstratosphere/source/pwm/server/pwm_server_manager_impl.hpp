@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -24,9 +24,9 @@ namespace ams::pwm::server {
             using Allocator = ams::sf::ExpHeapAllocator;
             using Factory   = ams::sf::ObjectFactory<Allocator::Policy>;
         private:
-            lmem::HeapHandle heap_handle;
-            Allocator allocator;
-            u8 heap_buffer[4_KB];
+            lmem::HeapHandle m_heap_handle;
+            Allocator m_allocator;
+            u8 m_heap_buffer[4_KB];
         public:
             ManagerImpl();
 

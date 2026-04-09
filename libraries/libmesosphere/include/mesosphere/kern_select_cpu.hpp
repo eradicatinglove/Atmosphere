@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -39,6 +39,16 @@
 
     }
 
+#elif defined(ATMOSPHERE_BOARD_QEMU_VIRT)
+
+    #include <mesosphere/board/qemu/virt/kern_cpu_map.hpp>
+
+    namespace ams::kern::cpu {
+
+        using namespace ams::kern::board::qemu::virt::impl::cpu;
+
+    }
+
 #else
     #error "Unknown board for CPU Map"
 #endif
@@ -56,6 +66,16 @@ namespace ams::kern {
             }
             return mask;
         }();
+
+        static constexpr inline u64 ConvertVirtualCoreMaskToPhysical(u64 v_core_mask) {
+            u64 p_core_mask = 0;
+            while (v_core_mask != 0) {
+                const u64 next = util::CountTrailingZeros(v_core_mask);
+                v_core_mask &= ~(static_cast<u64>(1) << next);
+                p_core_mask |=  (static_cast<u64>(1) << cpu::VirtualToPhysicalCoreMap[next]);
+            }
+            return p_core_mask;
+        }
 
     }
 

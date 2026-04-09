@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -20,17 +20,17 @@
     AMS_SF_METHOD_INFO(C, H, 0, Result, GetLanguageCode, (sf::Out<ams::settings::LanguageCode> out), (out)) \
     AMS_SF_METHOD_INFO(C, H, 4, Result, GetRegionCode,   (sf::Out<ams::settings::RegionCode> out),   (out))
 
-AMS_SF_DEFINE_MITM_INTERFACE(ams::mitm::settings, ISetMitmInterface, AMS_SETTINGS_MITM_INTERFACE_INFO)
+AMS_SF_DEFINE_MITM_INTERFACE(ams::mitm::settings, ISetMitmInterface, AMS_SETTINGS_MITM_INTERFACE_INFO, 0x7F7BAF0A)
 
 namespace ams::mitm::settings {
 
     class SetMitmService : public sf::MitmServiceImplBase {
         private:
-            os::SdkMutex lock{};
-            cfg::OverrideLocale locale;
-            bool got_locale = false;
-            bool is_valid_language = false;
-            bool is_valid_region   = false;
+            os::SdkMutex m_lock{};
+            cfg::OverrideLocale m_locale;
+            bool m_got_locale = false;
+            bool m_is_valid_language = false;
+            bool m_is_valid_region   = false;
         public:
             SetMitmService(std::shared_ptr<::Service> &&s, const sm::MitmProcessInfo &c);
         public:

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -37,8 +37,10 @@ namespace ams::kern {
             size_t m_size;
             Type m_type;
         public:
-            static uintptr_t GetAddressSpaceStart(size_t width, Type type);
-            static size_t GetAddressSpaceSize(size_t width, Type type);
+            static uintptr_t GetAddressSpaceStart(ams::svc::CreateProcessFlag flags, Type type, size_t code_size);
+            static size_t GetAddressSpaceSize(ams::svc::CreateProcessFlag flags, Type type);
+
+            static void SetAddressSpaceSize(size_t width, Type type, size_t size);
 
             constexpr KAddressSpaceInfo(size_t bw, size_t a, size_t s, Type t) : m_bit_width(bw), m_address(a), m_size(s), m_type(t) { /* ... */ }
 
@@ -46,6 +48,8 @@ namespace ams::kern {
             constexpr size_t GetAddress() const { return m_address; }
             constexpr size_t GetSize() const { return m_size; }
             constexpr Type GetType() const { return m_type; }
+
+            constexpr void SetSize(size_t size) { m_size = size; }
     };
 
 }

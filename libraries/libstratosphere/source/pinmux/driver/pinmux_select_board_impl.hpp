@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -25,6 +25,30 @@
 
 #else
 
-    #error "Unknown board for pinmux driver"
+    // TODO: #error "Unknown board for pinmux driver"
+
+    namespace ams::pinmux::driver::board {
+
+        inline void Initialize() {
+            AMS_ABORT("TODO");
+        }
+
+        inline void Finalize() {
+            AMS_ABORT("TODO");
+        }
+
+        inline bool IsInitialized() {
+            AMS_ABORT("TODO");
+        }
+
+        inline void SetInitialConfig() {
+            AMS_ABORT("TODO");
+        }
+
+        inline void SetInitialDrivePadConfig() {
+            AMS_ABORT("TODO");
+        }
+
+    }
 
 #endif

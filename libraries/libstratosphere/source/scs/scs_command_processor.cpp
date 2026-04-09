@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -24,12 +24,26 @@ namespace ams::scs {
             u32 result;
         };
 
+        struct ResponseProgramExited {
+            ResponseHeader header;
+            u64 process_id;
+        };
+
+        struct ResponseProgramLaunched {
+            ResponseHeader header;
+            u64 process_id;
+        };
+
         constinit os::SdkMutex g_htcs_send_mutex;
 
     }
 
-    os::SdkMutex &GetHtcsSendMutex() {
-        return g_htcs_send_mutex;
+    std::scoped_lock<os::SdkMutex> CommandProcessor::MakeSendGuardBlock() {
+        return std::scoped_lock<os::SdkMutex>{g_htcs_send_mutex};
+    }
+
+    void CommandProcessor::Send(s32 socket, const void *data, size_t size) {
+        htcs::Send(socket, data, size, 0);
     }
 
     void CommandProcessor::SendSuccess(s32 socket, const CommandHeader &header) {
@@ -41,8 +55,8 @@ namespace ams::scs {
         };
 
         /* Send the response. */
-        std::scoped_lock lk(GetHtcsSendMutex());
-        htcs::Send(socket, std::addressof(response), sizeof(response), 0);
+        auto lk = MakeSendGuardBlock();
+        Send(socket, std::addressof(response), sizeof(response));
     }
 
     void CommandProcessor::SendErrorResult(s32 socket, const CommandHeader &header, Result result) {
@@ -61,23 +75,67 @@ namespace ams::scs {
         };
 
         /* Send the response. */
-        std::scoped_lock lk(GetHtcsSendMutex());
-        htcs::Send(socket, std::addressof(response), sizeof(response), 0);
+        auto lk = MakeSendGuardBlock();
+        Send(socket, std::addressof(response), sizeof(response));
+    }
+
+    void CommandProcessor::SendExited(s32 socket, u64 id, u64 process_id) {
+        /* Build the response. */
+        const ResponseProgramExited response = {
+            .header = {
+                .id        = id,
+                .response  = Response_ProgramExited,
+                .body_size = sizeof(response) - sizeof(response.header),
+            },
+            .process_id = process_id,
+        };
+
+        /* Send the response. */
+        auto lk = MakeSendGuardBlock();
+        Send(socket, std::addressof(response), sizeof(response));
+    }
+
+    void CommandProcessor::SendJitDebug(s32 socket, u64 id) {
+        /* Build the response. */
+        const ResponseHeader response = {
+            .id        = id,
+            .response  = Response_JitDebug,
+            .body_size = 0,
+        };
+
+        /* Send the response. */
+        auto lk = MakeSendGuardBlock();
+        Send(socket, std::addressof(response), sizeof(response));
+    }
+
+    void CommandProcessor::SendLaunched(s32 socket, u64 id, u64 process_id) {
+        /* Build the response. */
+        const ResponseProgramLaunched response = {
+            .header = {
+                .id        = id,
+                .response  = Response_ProgramLaunched,
+                .body_size = sizeof(response) - sizeof(response.header),
+            },
+            .process_id = process_id,
+        };
+
+        /* Send the response. */
+        auto lk = MakeSendGuardBlock();
+        Send(socket, std::addressof(response), sizeof(response));
     }
 
     void CommandProcessor::OnProcessStart(u64 id, s32 socket, os::ProcessId process_id) {
-        /* TODO */
-        AMS_ABORT("CommandProcessor::OnProcessStart");
+        SendLaunched(socket, id, process_id.value);
     }
 
     void CommandProcessor::OnProcessExit(u64 id, s32 socket, os::ProcessId process_id) {
-        /* TODO */
-        AMS_ABORT("CommandProcessor::OnProcessExit");
+        SendExited(socket, id, process_id.value);
     }
 
     void CommandProcessor::OnProcessJitDebug(u64 id, s32 socket, os::ProcessId process_id) {
-        /* TODO */
-        AMS_ABORT("CommandProcessor::OnProcessJitDebug");
+        AMS_UNUSED(process_id);
+
+        SendJitDebug(socket, id);
     }
 
     void CommandProcessor::Initialize() {
@@ -86,6 +144,8 @@ namespace ams::scs {
     }
 
     bool CommandProcessor::ProcessCommand(const CommandHeader &header, const u8 *body, s32 socket) {
+        AMS_UNUSED(body);
+
         switch (header.command) {
             /* TODO: Support commands. */
             default:

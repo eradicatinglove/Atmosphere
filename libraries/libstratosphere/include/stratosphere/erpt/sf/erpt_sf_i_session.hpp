@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -25,4 +25,4 @@
     AMS_SF_METHOD_INFO(C, H,  1, Result, OpenManager,    (ams::sf::Out<ams::sf::SharedPointer<erpt::sf::IManager>>    out), (out))                     \
     AMS_SF_METHOD_INFO(C, H,  2, Result, OpenAttachment, (ams::sf::Out<ams::sf::SharedPointer<erpt::sf::IAttachment>> out), (out), hos::Version_8_0_0)
 
-AMS_SF_DEFINE_INTERFACE(ams::erpt::sf, ISession, AMS_ERPT_I_SESSION_INTERFACE_INFO)
+AMS_SF_DEFINE_INTERFACE(ams::erpt::sf, ISession, AMS_ERPT_I_SESSION_INTERFACE_INFO, 0x00395188)

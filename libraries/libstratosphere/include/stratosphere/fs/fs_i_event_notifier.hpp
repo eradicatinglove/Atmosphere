@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -14,17 +14,18 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #pragma once
-#include "fs_common.hpp"
+#include <stratosphere/fs/fs_common.hpp>
 
 namespace ams::fs {
 
+    /* ACCURATE_TO_VERSION: Unknown */
     class IEventNotifier {
         public:
             virtual ~IEventNotifier() { /* ... */ }
 
             Result BindEvent(os::SystemEventType *out, os::EventClearMode clear_mode) {
                 AMS_ASSERT(out != nullptr);
-                return this->DoBindEvent(out, clear_mode);
+                R_RETURN(this->DoBindEvent(out, clear_mode));
             }
         private:
             virtual Result DoBindEvent(os::SystemEventType *out, os::EventClearMode clear_mode) = 0;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -207,14 +207,14 @@ namespace ams::htclow::driver {
         Result ConvertUsbDriverResult(Result result) {
             if (result.GetModule() == R_NAMESPACE_MODULE_ID(usb)) {
                 if (usb::ResultResourceBusy::Includes(result)) {
-                    return htclow::ResultUsbDriverBusyError();
+                    R_THROW(htclow::ResultUsbDriverBusyError());
                 } else if (usb::ResultMemAllocFailure::Includes(result)) {
-                    return htclow::ResultOutOfMemory();
+                    R_THROW(htclow::ResultOutOfMemory());
                 } else {
-                    return htclow::ResultUsbDriverUnknownError();
+                    R_THROW(htclow::ResultUsbDriverUnknownError());
                 }
             } else {
-                return result;
+                R_RETURN(result);
             }
         }
 
@@ -241,7 +241,7 @@ namespace ams::htclow::driver {
             /* Set binary object store. */
             R_TRY(g_ds_client.SetBinaryObjectStore(BinaryObjectStore, sizeof(BinaryObjectStore)));
 
-            return ResultSuccess();
+            R_SUCCEED();
         }
 
         Result InitializeDsInterface() {
@@ -263,35 +263,35 @@ namespace ams::htclow::driver {
             R_TRY(g_ds_interface.AppendConfigurationData(usb::UsbDeviceSpeed_Super, std::addressof(UsbEndpointDescriptorsSuperSpeed[1]), sizeof(usb::UsbEndpointDescriptor)));
             R_TRY(g_ds_interface.AppendConfigurationData(usb::UsbDeviceSpeed_Super, std::addressof(UsbEndpointCompanionDescriptor),      sizeof(usb::UsbEndpointCompanionDescriptor)));
 
-            return ResultSuccess();
+            R_SUCCEED();
         }
 
         Result InitializeDsEndpoints() {
             R_TRY(g_ds_endpoints[0].Initialize(std::addressof(g_ds_interface), 0x81));
             R_TRY(g_ds_endpoints[1].Initialize(std::addressof(g_ds_interface), 0x01));
-            return ResultSuccess();
+            R_SUCCEED();
         }
 
-        void UsbIndicationThreadFunction(void *arg) {
+        void UsbIndicationThreadFunction(void *) {
             /* Get the state change event. */
             os::SystemEventType *state_change_event = g_ds_client.GetStateChangeEvent();
 
-            /* Setup waitable manager. */
-            os::WaitableManagerType manager;
-            os::InitializeWaitableManager(std::addressof(manager));
+            /* Setup multi wait. */
+            os::MultiWaitType multi_wait;
+            os::InitializeMultiWait(std::addressof(multi_wait));
 
-            /* Link waitable holders. */
-            os::WaitableHolderType state_change_holder;
-            os::WaitableHolderType break_holder;
-            os::InitializeWaitableHolder(std::addressof(state_change_holder), state_change_event);
-            os::LinkWaitableHolder(std::addressof(manager), std::addressof(state_change_holder));
-            os::InitializeWaitableHolder(std::addressof(break_holder), g_usb_break_event.GetBase());
-            os::LinkWaitableHolder(std::addressof(manager), std::addressof(break_holder));
+            /* Link multi wait holders. */
+            os::MultiWaitHolderType state_change_holder;
+            os::MultiWaitHolderType break_holder;
+            os::InitializeMultiWaitHolder(std::addressof(state_change_holder), state_change_event);
+            os::LinkMultiWaitHolder(std::addressof(multi_wait), std::addressof(state_change_holder));
+            os::InitializeMultiWaitHolder(std::addressof(break_holder), g_usb_break_event.GetBase());
+            os::LinkMultiWaitHolder(std::addressof(multi_wait), std::addressof(break_holder));
 
             /* Loop forever. */
             while (true) {
                 /* If we should break, do so. */
-                if (os::WaitAny(std::addressof(manager)) == std::addressof(break_holder)) {
+                if (os::WaitAny(std::addressof(multi_wait)) == std::addressof(break_holder)) {
                     break;
                 }
 
@@ -303,11 +303,11 @@ namespace ams::htclow::driver {
                 R_ABORT_UNLESS(g_ds_client.GetState(std::addressof(usb_state)));
 
                 switch (usb_state) {
-                    case UsbState_Detached:
-                    case UsbState_Suspended:
+                    case usb::UsbState_Detached:
+                    case usb::UsbState_Suspended:
                         InvokeAvailabilityChangeCallback(UsbAvailability_Unavailable);
                         break;
-                    case UsbState_Configured:
+                    case usb::UsbState_Configured:
                         InvokeAvailabilityChangeCallback(UsbAvailability_Available);
                         break;
                     default:
@@ -320,12 +320,12 @@ namespace ams::htclow::driver {
             g_usb_break_event.Clear();
 
             /* Unlink all holders. */
-            os::UnlinkAllWaitableHolder(std::addressof(manager));
+            os::UnlinkAllMultiWaitHolder(std::addressof(multi_wait));
 
-            /* Finalize the waitable holders and manager. */
-            os::FinalizeWaitableHolder(std::addressof(break_holder));
-            os::FinalizeWaitableHolder(std::addressof(state_change_holder));
-            os::FinalizeWaitableManager(std::addressof(manager));
+            /* Finalize the multi wait/holders. */
+            os::FinalizeMultiWaitHolder(std::addressof(break_holder));
+            os::FinalizeMultiWaitHolder(std::addressof(state_change_holder));
+            os::FinalizeMultiWait(std::addressof(multi_wait));
         }
 
     }
@@ -400,18 +400,18 @@ namespace ams::htclow::driver {
 
         /* We succeeded! */
         init_guard.Cancel();
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     void FinalizeUsbInterface() {
         g_usb_break_event.Signal();
         os::WaitThread(std::addressof(g_usb_indication_thread));
         os::DestroyThread(std::addressof(g_usb_indication_thread));
-        g_ds_client.DisableDevice();
-        g_ds_endpoints[1].Finalize();
-        g_ds_endpoints[0].Finalize();
-        g_ds_interface.Finalize();
-        g_ds_client.Finalize();
+        static_cast<void>(g_ds_client.DisableDevice());
+        static_cast<void>(g_ds_endpoints[1].Finalize());
+        static_cast<void>(g_ds_endpoints[0].Finalize());
+        static_cast<void>(g_ds_interface.Finalize());
+        static_cast<void>(g_ds_client.Finalize());
         g_usb_interface_initialized = false;
     }
 
@@ -432,7 +432,7 @@ namespace ams::htclow::driver {
 
         /* Set output transferred size. */
         *out_transferred = src_size;
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     Result ReceiveUsb(int *out_transferred, void *dst, int dst_size) {
@@ -449,13 +449,13 @@ namespace ams::htclow::driver {
 
         /* Set output transferred size. */
         *out_transferred = dst_size;
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     void CancelUsbSendReceive() {
         if (g_usb_interface_initialized) {
-            g_ds_endpoints[0].Cancel();
-            g_ds_endpoints[1].Cancel();
+            static_cast<void>(g_ds_endpoints[0].Cancel());
+            static_cast<void>(g_ds_endpoints[1].Cancel());
         }
     }
 

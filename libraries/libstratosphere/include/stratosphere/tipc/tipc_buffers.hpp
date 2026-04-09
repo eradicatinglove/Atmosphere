@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -34,20 +34,20 @@ namespace ams::tipc {
             public:
                 static constexpr u32 AdditionalAttributes = 0;
             private:
-                const tipc::PointerAndSize pas;
+                const tipc::PointerAndSize m_pas;
             protected:
                 constexpr ALWAYS_INLINE uintptr_t GetAddressImpl() const {
-                    return this->pas.GetAddress();
+                    return m_pas.GetAddress();
                 }
 
                 template<typename Entry>
                 constexpr ALWAYS_INLINE size_t GetSizeImpl() const {
-                    return this->pas.GetSize() / sizeof(Entry);
+                    return m_pas.GetSize() / sizeof(Entry);
                 }
             public:
-                constexpr ALWAYS_INLINE BufferBase() : pas() { /* ... */ }
-                constexpr ALWAYS_INLINE BufferBase(const tipc::PointerAndSize &_pas) : pas(_pas) { /* ... */ }
-                constexpr ALWAYS_INLINE BufferBase(uintptr_t ptr, size_t sz) : pas(ptr, sz) { /* ... */ }
+                constexpr ALWAYS_INLINE BufferBase() : m_pas() { /* ... */ }
+                constexpr ALWAYS_INLINE BufferBase(const tipc::PointerAndSize &pas) : m_pas(pas) { /* ... */ }
+                constexpr ALWAYS_INLINE BufferBase(uintptr_t ptr, size_t sz) : m_pas(ptr, sz) { /* ... */ }
         };
 
         class InBufferBase : public BufferBase {
@@ -57,11 +57,11 @@ namespace ams::tipc {
                                                             SfBufferAttr_In;
             public:
                 constexpr ALWAYS_INLINE InBufferBase() : BaseType() { /* ... */ }
-                constexpr ALWAYS_INLINE InBufferBase(const tipc::PointerAndSize &_pas) : BaseType(_pas) { /* ... */ }
+                constexpr ALWAYS_INLINE InBufferBase(const tipc::PointerAndSize &pas) : BaseType(pas) { /* ... */ }
                 constexpr ALWAYS_INLINE InBufferBase(uintptr_t ptr, size_t sz) : BaseType(ptr, sz) { /* ... */ }
 
-                constexpr ALWAYS_INLINE InBufferBase(const void *ptr, size_t sz) : BaseType(reinterpret_cast<uintptr_t>(ptr), sz) { /* ... */ }
-                constexpr ALWAYS_INLINE InBufferBase(const u8 *ptr, size_t sz) : BaseType(reinterpret_cast<uintptr_t>(ptr), sz) { /* ... */ }
+                ALWAYS_INLINE InBufferBase(const void *ptr, size_t sz) : BaseType(reinterpret_cast<uintptr_t>(ptr), sz) { /* ... */ }
+                ALWAYS_INLINE InBufferBase(const u8 *ptr, size_t sz) : BaseType(reinterpret_cast<uintptr_t>(ptr), sz) { /* ... */ }
         };
 
         class OutBufferBase : public BufferBase {
@@ -71,11 +71,11 @@ namespace ams::tipc {
                                                             SfBufferAttr_Out;
             public:
                 constexpr ALWAYS_INLINE OutBufferBase() : BaseType() { /* ... */ }
-                constexpr ALWAYS_INLINE OutBufferBase(const tipc::PointerAndSize &_pas) : BaseType(_pas) { /* ... */ }
+                constexpr ALWAYS_INLINE OutBufferBase(const tipc::PointerAndSize &pas) : BaseType(pas) { /* ... */ }
                 constexpr ALWAYS_INLINE OutBufferBase(uintptr_t ptr, size_t sz) : BaseType(ptr, sz) { /* ... */ }
 
-                constexpr ALWAYS_INLINE OutBufferBase(void *ptr, size_t sz) : BaseType(reinterpret_cast<uintptr_t>(ptr), sz) { /* ... */ }
-                constexpr ALWAYS_INLINE OutBufferBase(u8 *ptr, size_t sz) : BaseType(reinterpret_cast<uintptr_t>(ptr), sz) { /* ... */ }
+                ALWAYS_INLINE OutBufferBase(void *ptr, size_t sz) : BaseType(reinterpret_cast<uintptr_t>(ptr), sz) { /* ... */ }
+                ALWAYS_INLINE OutBufferBase(u8 *ptr, size_t sz) : BaseType(reinterpret_cast<uintptr_t>(ptr), sz) { /* ... */ }
         };
 
         template<u32 ExtraAttributes = 0>
@@ -86,13 +86,13 @@ namespace ams::tipc {
                                                             ExtraAttributes;
             public:
                 constexpr ALWAYS_INLINE InBufferImpl() : BaseType() { /* ... */ }
-                constexpr ALWAYS_INLINE InBufferImpl(const tipc::PointerAndSize &_pas) : BaseType(_pas) { /* ... */ }
+                constexpr ALWAYS_INLINE InBufferImpl(const tipc::PointerAndSize &pas) : BaseType(pas) { /* ... */ }
                 constexpr ALWAYS_INLINE InBufferImpl(uintptr_t ptr, size_t sz) : BaseType(ptr, sz) { /* ... */ }
 
-                constexpr ALWAYS_INLINE InBufferImpl(const void *ptr, size_t sz) : BaseType(reinterpret_cast<uintptr_t>(ptr), sz) { /* ... */ }
-                constexpr ALWAYS_INLINE InBufferImpl(const u8 *ptr, size_t sz) : BaseType(reinterpret_cast<uintptr_t>(ptr), sz) { /* ... */ }
+                ALWAYS_INLINE InBufferImpl(const void *ptr, size_t sz) : BaseType(reinterpret_cast<uintptr_t>(ptr), sz) { /* ... */ }
+                ALWAYS_INLINE InBufferImpl(const u8 *ptr, size_t sz) : BaseType(reinterpret_cast<uintptr_t>(ptr), sz) { /* ... */ }
 
-                constexpr ALWAYS_INLINE const u8 *GetPointer() const {
+                ALWAYS_INLINE const u8 *GetPointer() const {
                     return reinterpret_cast<const u8 *>(this->GetAddressImpl());
                 }
 
@@ -109,13 +109,13 @@ namespace ams::tipc {
                                                             ExtraAttributes;
             public:
                 constexpr ALWAYS_INLINE OutBufferImpl() : BaseType() { /* ... */ }
-                constexpr ALWAYS_INLINE OutBufferImpl(const tipc::PointerAndSize &_pas) : BaseType(_pas) { /* ... */ }
+                constexpr ALWAYS_INLINE OutBufferImpl(const tipc::PointerAndSize &pas) : BaseType(pas) { /* ... */ }
                 constexpr ALWAYS_INLINE OutBufferImpl(uintptr_t ptr, size_t sz) : BaseType(ptr, sz) { /* ... */ }
 
-                constexpr ALWAYS_INLINE OutBufferImpl(void *ptr, size_t sz) : BaseType(reinterpret_cast<uintptr_t>(ptr), sz) { /* ... */ }
-                constexpr ALWAYS_INLINE OutBufferImpl(u8 *ptr, size_t sz) : BaseType(reinterpret_cast<uintptr_t>(ptr), sz) { /* ... */ }
+                ALWAYS_INLINE OutBufferImpl(void *ptr, size_t sz) : BaseType(reinterpret_cast<uintptr_t>(ptr), sz) { /* ... */ }
+                ALWAYS_INLINE OutBufferImpl(u8 *ptr, size_t sz) : BaseType(reinterpret_cast<uintptr_t>(ptr), sz) { /* ... */ }
 
-                constexpr ALWAYS_INLINE u8 *GetPointer() const {
+                ALWAYS_INLINE u8 *GetPointer() const {
                     return reinterpret_cast<u8 *>(this->GetAddressImpl());
                 }
 
@@ -131,12 +131,12 @@ namespace ams::tipc {
                 static constexpr u32 AdditionalAttributes = BaseType::AdditionalAttributes;
             public:
                 constexpr ALWAYS_INLINE InArrayImpl() : BaseType() { /* ... */ }
-                constexpr ALWAYS_INLINE InArrayImpl(const tipc::PointerAndSize &_pas) : BaseType(_pas) { /* ... */ }
+                constexpr ALWAYS_INLINE InArrayImpl(const tipc::PointerAndSize &pas) : BaseType(pas) { /* ... */ }
                 constexpr ALWAYS_INLINE InArrayImpl(uintptr_t ptr, size_t sz) : BaseType(ptr, sz) { /* ... */ }
 
-                constexpr ALWAYS_INLINE InArrayImpl(const T *ptr, size_t num_elements) : BaseType(reinterpret_cast<uintptr_t>(ptr), num_elements * sizeof(T)) { /* ... */ }
+                ALWAYS_INLINE InArrayImpl(const T *ptr, size_t num_elements) : BaseType(reinterpret_cast<uintptr_t>(ptr), num_elements * sizeof(T)) { /* ... */ }
 
-                constexpr ALWAYS_INLINE const T *GetPointer() const {
+                ALWAYS_INLINE const T *GetPointer() const {
                     return reinterpret_cast<const T *>(this->GetAddressImpl());
                 }
 
@@ -144,7 +144,7 @@ namespace ams::tipc {
                     return this->GetSizeImpl<T>();
                 }
 
-                constexpr ALWAYS_INLINE const T &operator[](size_t i) const {
+                ALWAYS_INLINE const T &operator[](size_t i) const {
                     return this->GetPointer()[i];
                 }
 
@@ -164,12 +164,12 @@ namespace ams::tipc {
                 static constexpr u32 AdditionalAttributes = BaseType::AdditionalAttributes;
             public:
                 constexpr ALWAYS_INLINE OutArrayImpl() : BaseType() { /* ... */ }
-                constexpr ALWAYS_INLINE OutArrayImpl(const tipc::PointerAndSize &_pas) : BaseType(_pas) { /* ... */ }
+                constexpr ALWAYS_INLINE OutArrayImpl(const tipc::PointerAndSize &pas) : BaseType(pas) { /* ... */ }
                 constexpr ALWAYS_INLINE OutArrayImpl(uintptr_t ptr, size_t sz) : BaseType(ptr, sz) { /* ... */ }
 
-                constexpr ALWAYS_INLINE OutArrayImpl(T *ptr, size_t num_elements) : BaseType(reinterpret_cast<uintptr_t>(ptr), num_elements * sizeof(T)) { /* ... */ }
+                ALWAYS_INLINE OutArrayImpl(T *ptr, size_t num_elements) : BaseType(reinterpret_cast<uintptr_t>(ptr), num_elements * sizeof(T)) { /* ... */ }
 
-                constexpr ALWAYS_INLINE T *GetPointer() const {
+                ALWAYS_INLINE T *GetPointer() const {
                     return reinterpret_cast<T *>(this->GetAddressImpl());
                 }
 
@@ -177,7 +177,7 @@ namespace ams::tipc {
                     return this->GetSizeImpl<T>();
                 }
 
-                constexpr ALWAYS_INLINE T &operator[](size_t i) const {
+                ALWAYS_INLINE T &operator[](size_t i) const {
                     return this->GetPointer()[i];
                 }
 

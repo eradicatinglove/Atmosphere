@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -32,6 +32,16 @@ namespace ams::pkg1 {
         KeyGeneration_9_0_0  = 0x09,
         KeyGeneration_9_1_0  = 0x0A,
         KeyGeneration_12_1_0 = 0x0B,
+        KeyGeneration_13_0_0 = 0x0C,
+        KeyGeneration_14_0_0 = 0x0D,
+        KeyGeneration_15_0_0 = 0x0E,
+        KeyGeneration_16_0_0 = 0x0F,
+        KeyGeneration_17_0_0 = 0x10,
+        KeyGeneration_18_0_0 = 0x11,
+        KeyGeneration_19_0_0 = 0x12,
+        KeyGeneration_20_0_0 = 0x13,
+        KeyGeneration_21_0_0 = 0x14,
+        KeyGeneration_22_0_0 = 0x15,
 
         KeyGeneration_Count,
 

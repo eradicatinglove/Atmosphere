@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -22,9 +22,9 @@ namespace ams::mitm::fs {
 
     namespace {
 
-        os::SdkMutex g_boot0_access_mutex;
+        constinit os::SdkMutex g_boot0_access_mutex;
         constinit bool g_custom_public_key = false;
-        u8 g_boot0_bct_buffer[Boot0Storage::BctEndOffset];
+        constinit u8 g_boot0_bct_buffer[Boot0Storage::BctEndOffset];
 
         /* Recognize special public key (https://gist.github.com/SciresM/16b63ac1d80494522bdba2c57995257c). */
         /* P = 19 */
@@ -59,11 +59,11 @@ namespace ams::mitm::fs {
             /* RCM bug patched. */
             /* Only allow NS to update the BCT pubks. */
             /* AutoRCM on a patched unit will cause a brick, so homebrew should NOT be allowed to write. */
-            return this->client_info.program_id == ncm::SystemProgramId::Ns;
+            return m_client_info.program_id == ncm::SystemProgramId::Ns;
         } else {
             /* RCM bug unpatched. */
             /* Allow homebrew but not NS to update the BCT pubks. */
-            return this->client_info.override_status.IsHbl();
+            return m_client_info.override_status.IsHbl();
         }
     }
 
@@ -74,7 +74,7 @@ namespace ams::mitm::fs {
         /* Check if we have nothing to do. */
         R_SUCCEED_IF(size == 0);
 
-        return Base::Read(offset, _buffer, size);
+        R_RETURN(Base::Read(offset, _buffer, size));
     }
 
     Result Boot0Storage::Write(s64 offset, const void *_buffer, size_t size) {
@@ -115,7 +115,7 @@ namespace ams::mitm::fs {
 
         /* We want to protect AutoRCM from NS on ipatched units. If we can modify bct pubks or we're not touching any of them, proceed. */
         if (this->CanModifyBctPublicKey() || offset >= BctEndOffset || (util::AlignUp(offset, BctSize) >= BctEndOffset && (offset % BctSize) >= BctPubkEnd)) {
-            return Base::Write(offset, buffer, size);
+            R_RETURN(Base::Write(offset, buffer, size));
         }
 
         /* Handle any data written past the end of the pubk region. */
@@ -136,10 +136,10 @@ namespace ams::mitm::fs {
             }
         }
 
-        return Base::Write(0, g_boot0_bct_buffer, BctEndOffset);
+        R_RETURN(Base::Write(0, g_boot0_bct_buffer, BctEndOffset));
     }
 
-    CustomPublicKeyBoot0Storage::CustomPublicKeyBoot0Storage(FsStorage &s, const sm::MitmProcessInfo &c, spl::SocType soc) : Base(s), client_info(c), soc_type(soc) {
+    CustomPublicKeyBoot0Storage::CustomPublicKeyBoot0Storage(FsStorage &s, const sm::MitmProcessInfo &c, spl::SocType soc) : Base(s), m_client_info(c), m_soc_type(soc) {
         std::scoped_lock lk{g_boot0_access_mutex};
 
         /* We're custom public key. */
@@ -157,7 +157,7 @@ namespace ams::mitm::fs {
 
         /* Check if we're reading the first BCTs for NS. */
         /* If we are, we want to lie about the contents of BCT0/1 so that they validate. */
-        if (offset < 0x8000 && this->client_info.program_id == ncm::SystemProgramId::Ns) {
+        if (offset < 0x8000 && m_client_info.program_id == ncm::SystemProgramId::Ns) {
             R_TRY(Base::Read(0, g_boot0_bct_buffer, Boot0Storage::BctEndOffset));
 
             /* Determine the readable size. */
@@ -174,7 +174,7 @@ namespace ams::mitm::fs {
         R_SUCCEED_IF(size == 0);
 
         /* Perform whatever remains of the read. */
-        return Base::Read(offset, buffer, size);
+        R_RETURN(Base::Read(offset, buffer, size));
     }
 
     Result CustomPublicKeyBoot0Storage::Write(s64 offset, const void *_buffer, size_t size) {
@@ -207,7 +207,7 @@ namespace ams::mitm::fs {
         }
 
         /* On erista, we want to protect the EKS region. */
-        if (this->soc_type == spl::SocType_Erista) {
+        if (m_soc_type == spl::SocType_Erista) {
             if (offset <= Boot0Storage::EksStart) {
                 if (offset + size < Boot0Storage::EksStart) {
                     /* Fall through, no need to do anything here. */
@@ -236,7 +236,7 @@ namespace ams::mitm::fs {
         R_SUCCEED_IF(size == 0);
 
         /* Perform whatever remains of the write. */
-        return Base::Write(offset, buffer, size);
+        R_RETURN(Base::Write(offset, buffer, size));
     }
 
     bool DetectBoot0CustomPublicKey(::FsStorage &storage) {

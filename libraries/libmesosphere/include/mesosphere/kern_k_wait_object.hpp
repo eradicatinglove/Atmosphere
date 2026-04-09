@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -20,14 +20,13 @@
 
 namespace ams::kern {
 
-    class KWaitObject : public KTimerTask {
+    class KWaitObject {
         private:
             KThread::WaiterList m_wait_list;
-            bool  m_timer_used;
+            KThread *m_next_thread;
         public:
-            constexpr KWaitObject() : m_wait_list(), m_timer_used() { /* ... */ }
+            constexpr KWaitObject() : m_wait_list(), m_next_thread() { /* ... */ }
 
-            virtual void OnTimer() override;
             Result Synchronize(s64 timeout);
     };
 

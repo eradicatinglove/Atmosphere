@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -25,7 +25,7 @@ namespace ams::kern {
     class KClientPort;
     class KProcess;
 
-    class KSession final : public KAutoObjectWithSlabHeapAndContainer<KSession, KAutoObjectWithList> {
+    class KSession final : public KAutoObjectWithSlabHeapAndContainer<KSession, KAutoObjectWithList, true> {
         MESOSPHERE_AUTOOBJECT_TRAITS(KSession, KAutoObject);
         private:
             enum class State : u8 {
@@ -35,35 +35,37 @@ namespace ams::kern {
                 ServerClosed = 3,
             };
         private:
+            util::Atomic<std::underlying_type<State>::type> m_atomic_state;
+            bool m_initialized;
             KServerSession m_server;
             KClientSession m_client;
-            std::atomic<std::underlying_type<State>::type> m_atomic_state;
             KClientPort *m_port;
             uintptr_t m_name;
             KProcess *m_process;
-            bool m_initialized;
         private:
             ALWAYS_INLINE void SetState(State state) {
                 m_atomic_state = static_cast<u8>(state);
             }
 
             ALWAYS_INLINE State GetState() const {
-                return static_cast<State>(m_atomic_state.load());
+                return static_cast<State>(m_atomic_state.Load());
             }
         public:
-            constexpr KSession()
-                : m_server(), m_client(), m_atomic_state(static_cast<std::underlying_type<State>::type>(State::Invalid)), m_port(), m_name(), m_process(), m_initialized()
+            constexpr explicit KSession(util::ConstantInitializeTag)
+                : KAutoObjectWithSlabHeapAndContainer<KSession, KAutoObjectWithList, true>(util::ConstantInitialize),
+                  m_atomic_state(static_cast<std::underlying_type<State>::type>(State::Invalid)), m_initialized(),
+                  m_server(util::ConstantInitialize), m_client(util::ConstantInitialize),  m_port(), m_name(), m_process()
             {
                 /* ... */
             }
 
-            virtual ~KSession() { /* ... */ }
+            explicit KSession() : m_atomic_state(util::ToUnderlying(State::Invalid)), m_initialized(false), m_process(nullptr) { /* ... */ }
 
             void Initialize(KClientPort *client_port, uintptr_t name);
-            virtual void Finalize() override;
+            void Finalize();
 
-            virtual bool IsInitialized() const override { return m_initialized; }
-            virtual uintptr_t GetPostDestroyArgument() const override { return reinterpret_cast<uintptr_t>(m_process); }
+            bool IsInitialized() const { return m_initialized; }
+            uintptr_t GetPostDestroyArgument() const { return reinterpret_cast<uintptr_t>(m_process); }
 
             static void PostDestroy(uintptr_t arg);
 
@@ -73,7 +75,7 @@ namespace ams::kern {
             bool IsServerClosed() const { return this->GetState() != State::Normal; }
             bool IsClientClosed() const { return this->GetState() != State::Normal; }
 
-            Result OnRequest(KSessionRequest *request) { return m_server.OnRequest(request); }
+            Result OnRequest(KSessionRequest *request) { R_RETURN(m_server.OnRequest(request)); }
 
             KClientSession &GetClientSession() { return m_client; }
             KServerSession &GetServerSession() { return m_server; }

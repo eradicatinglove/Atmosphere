@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -56,15 +56,18 @@ namespace ams::erpt::srv {
 
                 R_TRY(report->Write(str, str_len));
 
-                return ResultSuccess();
+                R_SUCCEED();
             }
 
             static Result AddId(Report *report, FieldId field_id) {
                 static_assert(MaxFieldStringSize < ElementSize_256);
 
-                R_TRY(AddStringValue(report, FieldString[field_id], strnlen(FieldString[field_id], MaxFieldStringSize)));
+                const auto index = FindFieldIndex(field_id);
+                AMS_ASSERT(index.has_value());
 
-                return ResultSuccess();
+                R_TRY(AddStringValue(report, FieldString[index.value()], strnlen(FieldString[index.value()], MaxFieldStringSize)));
+
+                R_SUCCEED();
             }
 
             template<typename T>
@@ -77,7 +80,7 @@ namespace ams::erpt::srv {
                 R_TRY(report->Write(tag));
                 R_TRY(report->Write(reinterpret_cast<u8 *>(std::addressof(big_endian_value)), sizeof(big_endian_value)));
 
-                return ResultSuccess();
+                R_SUCCEED();
             }
 
             template<typename T>
@@ -98,21 +101,21 @@ namespace ams::erpt::srv {
                     R_TRY(AddValue(report, arr[i]));
                 }
 
-                return ResultSuccess();
+                R_SUCCEED();
             }
 
             template<typename T>
             static Result AddIdValuePair(Report *report, FieldId field_id, T value) {
                 R_TRY(AddId(report, field_id));
                 R_TRY(AddValue(report, value));
-                return ResultSuccess();
+                R_SUCCEED();
             }
 
             template<typename T>
             static Result AddIdValueArray(Report *report, FieldId field_id, T *arr, u32 arr_size) {
                 R_TRY(AddId(report, field_id));
                 R_TRY(AddValueArray(report, arr, arr_size));
-                return ResultSuccess();
+                R_SUCCEED();
             }
         public:
             static Result Begin(Report *report, u32 record_count) {
@@ -128,27 +131,28 @@ namespace ams::erpt::srv {
                     R_TRY(report->Write(be_count));
                 }
 
-                return ResultSuccess();
+                R_SUCCEED();
             }
 
             static Result End(Report *report) {
-                return ResultSuccess();
+                AMS_UNUSED(report);
+                R_SUCCEED();
             }
 
             template<typename T>
             static Result AddField(Report *report, FieldId field_id, T value) {
-                return AddIdValuePair<T>(report, field_id, value);
+                R_RETURN(AddIdValuePair<T>(report, field_id, value));
             }
 
             template<typename T>
             static Result AddField(Report *report, FieldId field_id, T *arr, u32 arr_size) {
-                return AddIdValueArray(report, field_id, arr, arr_size);
+                R_RETURN(AddIdValueArray(report, field_id, arr, arr_size));
             }
 
             static Result AddField(Report *report, FieldId field_id, bool value) {
                 R_TRY(AddId(report, field_id));
                 R_TRY(report->Write(static_cast<u8>(value ? ValueTypeTag::True : ValueTypeTag::False)));
-                return ResultSuccess();
+                R_SUCCEED();
             }
 
             static Result AddField(Report *report, FieldId field_id, char *str, u32 len) {
@@ -156,7 +160,7 @@ namespace ams::erpt::srv {
 
                 R_TRY(AddStringValue(report, str, len));
 
-                return ResultSuccess();
+                R_SUCCEED();
             }
 
             static Result AddField(Report *report, FieldId field_id, u8 *bin, u32 len) {
@@ -176,7 +180,7 @@ namespace ams::erpt::srv {
 
                 R_TRY(report->Write(bin, len));
 
-                return ResultSuccess();
+                R_SUCCEED();
             }
     };
 

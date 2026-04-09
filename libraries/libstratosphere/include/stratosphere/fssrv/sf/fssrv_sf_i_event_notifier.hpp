@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -17,7 +17,8 @@
 #include <vapours.hpp>
 #include <stratosphere/sf.hpp>
 
+/* ACCURATE_TO_VERSION: 13.4.0.0 */
 #define AMS_FSSRV_I_EVENT_NOTIFIER_INTERFACE_INFO(C, H) \
     AMS_SF_METHOD_INFO(C, H, 0, Result, GetEventHandle, (ams::sf::OutCopyHandle out), (out))
 
-AMS_SF_DEFINE_INTERFACE(ams::fssrv::sf, IEventNotifier, AMS_FSSRV_I_EVENT_NOTIFIER_INTERFACE_INFO)
+AMS_SF_DEFINE_INTERFACE(ams::fssrv::sf, IEventNotifier, AMS_FSSRV_I_EVENT_NOTIFIER_INTERFACE_INFO, 0xA7E3A62C)

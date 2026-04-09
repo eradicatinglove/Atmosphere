@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -51,7 +51,7 @@ namespace ams::htcs::impl::rpc {
         m_size   = size;
         m_flags  = flags;
 
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     void SendSmallTask::Complete(htcs::SocketError err, s64 size) {
@@ -74,7 +74,7 @@ namespace ams::htcs::impl::rpc {
         *out_err  = m_err;
         *out_size = m_result_size;
 
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     void SendSmallTask::Cancel(htc::server::rpc::RpcTaskCancelReason reason) {
@@ -86,16 +86,20 @@ namespace ams::htcs::impl::rpc {
     }
 
     Result SendSmallTask::ProcessResponse(const char *data, size_t size) {
+        AMS_UNUSED(size);
+
         /* Convert the input to a packet. */
         auto *packet = reinterpret_cast<const HtcsRpcPacket *>(data);
 
         /* Complete the task. */
         this->Complete(static_cast<htcs::SocketError>(packet->params[0]), this->GetSize());
 
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     Result SendSmallTask::CreateRequest(size_t *out, char *data, size_t size, u32 task_id) {
+        AMS_UNUSED(size);
+
         /* Sanity check our size. */
         AMS_ASSERT(sizeof(HtcsRpcPacket) + this->GetBufferSize() <= size);
 
@@ -123,7 +127,7 @@ namespace ams::htcs::impl::rpc {
         /* Set the output size. */
         *out = sizeof(*packet) + this->GetSize();
 
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     bool SendSmallTask::IsSendBufferRequired() {

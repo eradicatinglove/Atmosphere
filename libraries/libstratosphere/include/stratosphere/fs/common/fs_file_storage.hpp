@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -22,48 +22,49 @@
 
 namespace ams::fs {
 
+    /* ACCURATE_TO_VERSION: Unknown */
     class FileStorage : public IStorage, public impl::Newable {
         NON_COPYABLE(FileStorage);
         NON_MOVEABLE(FileStorage);
         private:
             static constexpr s64 InvalidSize = -1;
         private:
-            std::unique_ptr<fsa::IFile> unique_file;
-            std::shared_ptr<fsa::IFile> shared_file;
-            fsa::IFile *base_file;
-            s64 size;
+            std::unique_ptr<fsa::IFile> m_unique_file;
+            std::shared_ptr<fsa::IFile> m_shared_file;
+            fsa::IFile *m_base_file;
+            s64 m_size;
         public:
-            FileStorage(fsa::IFile *f) : unique_file(f), size(InvalidSize) {
-                this->base_file = this->unique_file.get();
+            FileStorage(fsa::IFile *f) : m_unique_file(f), m_size(InvalidSize) {
+                m_base_file = m_unique_file.get();
             }
 
-            FileStorage(std::unique_ptr<fsa::IFile> f) : unique_file(std::move(f)), size(InvalidSize) {
-                this->base_file = this->unique_file.get();
+            FileStorage(std::unique_ptr<fsa::IFile> f) : m_unique_file(std::move(f)), m_size(InvalidSize) {
+                m_base_file = m_unique_file.get();
             }
 
-            FileStorage(std::shared_ptr<fsa::IFile> f) : shared_file(f), size(InvalidSize) {
-                this->base_file = this->shared_file.get();
+            FileStorage(std::shared_ptr<fsa::IFile> f) : m_shared_file(f), m_size(InvalidSize) {
+                m_base_file = m_shared_file.get();
             }
 
             virtual ~FileStorage() { /* ... */ }
         private:
             Result UpdateSize();
         protected:
-            constexpr FileStorage() : unique_file(), shared_file(), base_file(nullptr), size(InvalidSize) { /* ... */ }
+            constexpr FileStorage() : m_unique_file(), m_shared_file(), m_base_file(nullptr), m_size(InvalidSize) { /* ... */ }
 
             void SetFile(fs::fsa::IFile *file) {
                 AMS_ASSERT(file != nullptr);
-                AMS_ASSERT(this->base_file == nullptr);
-                this->base_file = file;
+                AMS_ASSERT(m_base_file == nullptr);
+                m_base_file = file;
             }
 
             void SetFile(std::unique_ptr<fs::fsa::IFile> &&file) {
                 AMS_ASSERT(file != nullptr);
-                AMS_ASSERT(this->base_file == nullptr);
-                AMS_ASSERT(this->unique_file == nullptr);
+                AMS_ASSERT(m_base_file == nullptr);
+                AMS_ASSERT(m_unique_file == nullptr);
 
-                this->unique_file = std::move(file);
-                this->base_file   = this->unique_file.get();
+                m_unique_file = std::move(file);
+                m_base_file   = m_unique_file.get();
             }
         public:
             virtual Result Read(s64 offset, void *buffer, size_t size) override;
@@ -74,32 +75,33 @@ namespace ams::fs {
             virtual Result OperateRange(void *dst, size_t dst_size, OperationId op_id, s64 offset, s64 size, const void *src, size_t src_size) override;
     };
 
+    /* ACCURATE_TO_VERSION: Unknown */
     class FileStorageBasedFileSystem : public FileStorage {
         NON_COPYABLE(FileStorageBasedFileSystem);
         NON_MOVEABLE(FileStorageBasedFileSystem);
         private:
-            std::shared_ptr<fs::fsa::IFileSystem> base_file_system;
+            std::shared_ptr<fs::fsa::IFileSystem> m_base_file_system;
         public:
-            constexpr FileStorageBasedFileSystem() : FileStorage(), base_file_system(nullptr) { /* ... */ }
+            constexpr FileStorageBasedFileSystem() : FileStorage(), m_base_file_system(nullptr) { /* ... */ }
 
-            Result Initialize(std::shared_ptr<fs::fsa::IFileSystem> base_file_system, const char *path, fs::OpenMode mode);
+            Result Initialize(std::shared_ptr<fs::fsa::IFileSystem> base_file_system, const fs::Path &path, fs::OpenMode mode);
     };
 
     class FileHandleStorage : public IStorage, public impl::Newable {
         private:
             static constexpr s64 InvalidSize = -1;
         private:
-            FileHandle handle;
-            bool close_file;
-            s64 size;
-            os::Mutex mutex;
+            FileHandle m_handle;
+            bool m_close_file;
+            s64 m_size;
+            os::SdkMutex m_mutex;
         public:
-            constexpr explicit FileHandleStorage(FileHandle handle, bool close_file) : handle(handle), close_file(close_file), size(InvalidSize), mutex(false) { /* ... */ }
+            constexpr explicit FileHandleStorage(FileHandle handle, bool close_file) : m_handle(handle), m_close_file(close_file), m_size(InvalidSize), m_mutex() { /* ... */ }
             constexpr explicit FileHandleStorage(FileHandle handle) : FileHandleStorage(handle, false) { /* ... */ }
 
             virtual ~FileHandleStorage() override {
-                if (this->close_file) {
-                    CloseFile(this->handle);
+                if (m_close_file) {
+                    CloseFile(m_handle);
                 }
              }
         protected:

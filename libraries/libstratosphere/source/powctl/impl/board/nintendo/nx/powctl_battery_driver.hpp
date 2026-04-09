@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -25,17 +25,17 @@ namespace ams::powctl::impl::board::nintendo::nx {
         NON_MOVEABLE(BatteryDevice);
         AMS_DDSF_CASTABLE_TRAITS(ams::powctl::impl::board::nintendo::nx::BatteryDevice, ::ams::powctl::impl::IDevice);
         private:
-            bool use_event_handler;
-            util::optional<BatteryInterruptEventHandler> event_handler;
-            os::SystemEventType system_event;
+            bool m_use_event_handler;
+            util::optional<BatteryInterruptEventHandler> m_event_handler;
+            os::SystemEventType m_system_event;
         public:
             BatteryDevice(bool ev);
 
-            os::SystemEventType *GetSystemEvent() { return std::addressof(this->system_event); }
+            os::SystemEventType *GetSystemEvent() { return std::addressof(m_system_event); }
 
             void SetInterruptEnabled(bool en) {
-                if (this->use_event_handler) {
-                    this->event_handler->SetInterruptEnabled(en);
+                if (m_use_event_handler) {
+                    m_event_handler->SetInterruptEnabled(en);
                 }
             }
     };
@@ -58,16 +58,19 @@ namespace ams::powctl::impl::board::nintendo::nx {
             virtual Result SetDeviceErrorStatus(IDevice *device, u32 status) override;
 
             /* Battery API. */
-            virtual Result GetBatterySocRep(float *out_percent, IDevice *device) override;
-
-            virtual Result GetBatterySocVf(float *out_percent, IDevice *device) override;
+            virtual Result GetBatteryChargePercentage(float *out_percent, IDevice *device) override;
+            virtual Result GetBatteryVoltageFuelGaugePercentage(float *out_percent, IDevice *device) override;
 
             virtual Result GetBatteryFullCapacity(int *out_mah, IDevice *device) override;
             virtual Result GetBatteryRemainingCapacity(int *out_mah, IDevice *device) override;
 
-            virtual Result SetBatteryPercentageMinimumAlertThreshold(IDevice *device, float percentage) override;
-            virtual Result SetBatteryPercentageMaximumAlertThreshold(IDevice *device, float percentage) override;
-            virtual Result SetBatteryPercentageFullThreshold(IDevice *device, float percentage) override;
+            virtual Result SetBatteryChargePercentageMinimumAlertThreshold(IDevice *device, float percentage) override;
+            virtual Result SetBatteryChargePercentageMaximumAlertThreshold(IDevice *device, float percentage) override;
+
+            virtual Result SetBatteryVoltageFuelGaugePercentageMinimumAlertThreshold(IDevice *device, float percentage) override;
+            virtual Result SetBatteryVoltageFuelGaugePercentageMaximumAlertThreshold(IDevice *device, float percentage) override;
+
+            virtual Result SetBatteryFullChargeThreshold(IDevice *device, float percentage) override;
 
             virtual Result GetBatteryAverageCurrent(int *out_ma, IDevice *device) override;
             virtual Result GetBatteryCurrent(int *out_ma, IDevice *device) override;
@@ -106,40 +109,40 @@ namespace ams::powctl::impl::board::nintendo::nx {
             virtual Result SetBatteryVoltageMaximumAlertThreshold(IDevice *device, int mv) override;
 
             /* Unsupported Charger API. */
-            virtual Result GetChargerChargeCurrentState(ChargeCurrentState *out, IDevice *device) override { return powctl::ResultNotSupported(); }
-            virtual Result SetChargerChargeCurrentState(IDevice *device, ChargeCurrentState state) override { return powctl::ResultNotSupported(); }
+            virtual Result GetChargerChargeCurrentState(ChargeCurrentState *out, IDevice *device) override { AMS_UNUSED(out, device); R_THROW(powctl::ResultNotSupported()); }
+            virtual Result SetChargerChargeCurrentState(IDevice *device, ChargeCurrentState state) override { AMS_UNUSED(device, state); R_THROW(powctl::ResultNotSupported()); }
 
-            virtual Result GetChargerFastChargeCurrentLimit(int *out_ma, IDevice *device) override { return powctl::ResultNotSupported(); }
-            virtual Result SetChargerFastChargeCurrentLimit(IDevice *device, int ma) override { return powctl::ResultNotSupported(); }
+            virtual Result GetChargerFastChargeCurrentLimit(int *out_ma, IDevice *device) override { AMS_UNUSED(out_ma, device); R_THROW(powctl::ResultNotSupported()); }
+            virtual Result SetChargerFastChargeCurrentLimit(IDevice *device, int ma) override { AMS_UNUSED(device, ma); R_THROW(powctl::ResultNotSupported()); }
 
-            virtual Result GetChargerChargeVoltageLimit(int *out_mv, IDevice *device) override { return powctl::ResultNotSupported(); }
-            virtual Result SetChargerChargeVoltageLimit(IDevice *device, int mv) override { return powctl::ResultNotSupported(); }
+            virtual Result GetChargerChargeVoltageLimit(int *out_mv, IDevice *device) override { AMS_UNUSED(out_mv, device); R_THROW(powctl::ResultNotSupported()); }
+            virtual Result SetChargerChargeVoltageLimit(IDevice *device, int mv) override { AMS_UNUSED(device, mv); R_THROW(powctl::ResultNotSupported()); }
 
-            virtual Result SetChargerChargerConfiguration(IDevice *device, ChargerConfiguration cfg) override { return powctl::ResultNotSupported(); }
+            virtual Result SetChargerChargerConfiguration(IDevice *device, ChargerConfiguration cfg) override { AMS_UNUSED(device, cfg); R_THROW(powctl::ResultNotSupported()); }
 
-            virtual Result IsChargerHiZEnabled(bool *out, IDevice *device) override { return powctl::ResultNotSupported(); }
-            virtual Result SetChargerHiZEnabled(IDevice *device, bool en) override { return powctl::ResultNotSupported(); }
+            virtual Result IsChargerHiZEnabled(bool *out, IDevice *device) override { AMS_UNUSED(out, device); R_THROW(powctl::ResultNotSupported()); }
+            virtual Result SetChargerHiZEnabled(IDevice *device, bool en) override { AMS_UNUSED(device, en); R_THROW(powctl::ResultNotSupported()); }
 
-            virtual Result GetChargerInputCurrentLimit(int *out_ma, IDevice *device) override { return powctl::ResultNotSupported(); }
-            virtual Result SetChargerInputCurrentLimit(IDevice *device, int ma) override { return powctl::ResultNotSupported(); }
+            virtual Result GetChargerInputCurrentLimit(int *out_ma, IDevice *device) override { AMS_UNUSED(out_ma, device); R_THROW(powctl::ResultNotSupported()); }
+            virtual Result SetChargerInputCurrentLimit(IDevice *device, int ma) override { AMS_UNUSED(device, ma); R_THROW(powctl::ResultNotSupported()); }
 
-            virtual Result SetChargerInputVoltageLimit(IDevice *device, int mv) override { return powctl::ResultNotSupported(); }
+            virtual Result SetChargerInputVoltageLimit(IDevice *device, int mv) override { AMS_UNUSED(device, mv); R_THROW(powctl::ResultNotSupported()); }
 
-            virtual Result SetChargerBoostModeCurrentLimit(IDevice *device, int ma) override { return powctl::ResultNotSupported(); }
+            virtual Result SetChargerBoostModeCurrentLimit(IDevice *device, int ma) override { AMS_UNUSED(device, ma); R_THROW(powctl::ResultNotSupported()); }
 
-            virtual Result GetChargerChargerStatus(ChargerStatus *out, IDevice *device) override { return powctl::ResultNotSupported(); }
+            virtual Result GetChargerChargerStatus(ChargerStatus *out, IDevice *device) override { AMS_UNUSED(out, device); R_THROW(powctl::ResultNotSupported()); }
 
-            virtual Result IsChargerWatchdogTimerEnabled(bool *out, IDevice *device) override { return powctl::ResultNotSupported(); }
-            virtual Result SetChargerWatchdogTimerEnabled(IDevice *device, bool en) override { return powctl::ResultNotSupported(); }
+            virtual Result IsChargerWatchdogTimerEnabled(bool *out, IDevice *device) override { AMS_UNUSED(out, device); R_THROW(powctl::ResultNotSupported()); }
+            virtual Result SetChargerWatchdogTimerEnabled(IDevice *device, bool en) override { AMS_UNUSED(device, en); R_THROW(powctl::ResultNotSupported()); }
 
-            virtual Result SetChargerWatchdogTimerTimeout(IDevice *device, TimeSpan timeout) override { return powctl::ResultNotSupported(); }
-            virtual Result ResetChargerWatchdogTimer(IDevice *device) override { return powctl::ResultNotSupported(); }
+            virtual Result SetChargerWatchdogTimerTimeout(IDevice *device, TimeSpan timeout) override { AMS_UNUSED(device, timeout); R_THROW(powctl::ResultNotSupported()); }
+            virtual Result ResetChargerWatchdogTimer(IDevice *device) override { AMS_UNUSED(device); R_THROW(powctl::ResultNotSupported()); }
 
-            virtual Result GetChargerBatteryCompensation(int *out_mo, IDevice *device) override { return powctl::ResultNotSupported(); }
-            virtual Result SetChargerBatteryCompensation(IDevice *device, int mo) override { return powctl::ResultNotSupported(); }
+            virtual Result GetChargerBatteryCompensation(int *out_mo, IDevice *device) override { AMS_UNUSED(out_mo, device); R_THROW(powctl::ResultNotSupported()); }
+            virtual Result SetChargerBatteryCompensation(IDevice *device, int mo) override { AMS_UNUSED(device, mo); R_THROW(powctl::ResultNotSupported()); }
 
-            virtual Result GetChargerVoltageClamp(int *out_mv, IDevice *device) override { return powctl::ResultNotSupported(); }
-            virtual Result SetChargerVoltageClamp(IDevice *device, int mv) override { return powctl::ResultNotSupported(); }
+            virtual Result GetChargerVoltageClamp(int *out_mv, IDevice *device) override { AMS_UNUSED(out_mv, device); R_THROW(powctl::ResultNotSupported()); }
+            virtual Result SetChargerVoltageClamp(IDevice *device, int mv) override { AMS_UNUSED(device, mv); R_THROW(powctl::ResultNotSupported()); }
     };
 
 }

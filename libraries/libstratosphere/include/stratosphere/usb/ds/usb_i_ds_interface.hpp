@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -37,5 +37,5 @@
 
 /* TODO: Deprecated interface? */
 
-AMS_SF_DEFINE_INTERFACE(ams::usb::ds, IDsInterface, AMS_USB_I_DS_INTERFACE_INTERFACE_INFO)
+AMS_SF_DEFINE_INTERFACE(ams::usb::ds, IDsInterface, AMS_USB_I_DS_INTERFACE_INTERFACE_INFO, 0x5632AFB2)
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -25,18 +25,18 @@ namespace ams::kern {
             public:
                 static constexpr size_t MaxMemoryRegions = 200;
             private:
-                KMemoryRegion region_heap[MaxMemoryRegions];
-                size_t num_regions;
+                KMemoryRegion m_region_heap[MaxMemoryRegions];
+                size_t m_num_regions;
             public:
-                constexpr ALWAYS_INLINE KMemoryRegionAllocator() : region_heap(), num_regions() { /* ... */ }
+                constexpr ALWAYS_INLINE KMemoryRegionAllocator() : m_region_heap(), m_num_regions() { /* ... */ }
             public:
                 template<typename... Args>
                 ALWAYS_INLINE KMemoryRegion *Allocate(Args&&... args) {
                     /* Ensure we stay within the bounds of our heap. */
-                    MESOSPHERE_INIT_ABORT_UNLESS(this->num_regions < MaxMemoryRegions);
+                    MESOSPHERE_INIT_ABORT_UNLESS(m_num_regions < MaxMemoryRegions);
 
                     /* Create the new region. */
-                    KMemoryRegion *region = std::addressof(this->region_heap[this->num_regions++]);
+                    KMemoryRegion *region = std::addressof(m_region_heap[m_num_regions++]);
                     std::construct_at(region, std::forward<Args>(args)...);
 
                     return region;
@@ -111,43 +111,6 @@ namespace ams::kern {
         return true;
     }
 
-    KVirtualAddress KMemoryRegionTree::GetRandomAlignedRegion(size_t size, size_t alignment, u32 type_id) {
-        /* We want to find the total extents of the type id. */
-        const auto extents = this->GetDerivedRegionExtents(type_id);
-
-        /* Ensure that our alignment is correct. */
-        MESOSPHERE_INIT_ABORT_UNLESS(util::IsAligned(extents.GetAddress(), alignment));
-
-        const uintptr_t first_address = extents.GetAddress();
-        const uintptr_t last_address  = extents.GetLastAddress();
-
-        const uintptr_t first_index = first_address / alignment;
-        const uintptr_t last_index  = last_address / alignment;
-
-        while (true) {
-            const uintptr_t candidate = KSystemControl::Init::GenerateRandomRange(first_index, last_index) * alignment;
-
-            /* Ensure that the candidate doesn't overflow with the size. */
-            if (!(candidate < candidate + size)) {
-                continue;
-            }
-
-            const uintptr_t candidate_last = candidate + size - 1;
-
-            /* Ensure that the candidate fits within the region. */
-            if (candidate_last > last_address) {
-                continue;
-            }
-
-            /* Locate the candidate region, and ensure it fits and has the correct type id. */
-            if (const auto &candidate_region = *this->Find(candidate); !(candidate_last <= candidate_region.GetLastAddress() && candidate_region.GetType() == type_id)) {
-                continue;
-            }
-
-            return candidate;
-        }
-    }
-
     void KMemoryLayout::InitializeLinearMemoryRegionTrees() {
         /* Initialize linear trees. */
         for (auto &region : GetPhysicalMemoryRegionTree()) {
@@ -163,11 +126,8 @@ namespace ams::kern {
         }
     }
 
-    size_t KMemoryLayout::GetResourceRegionSizeForInit() {
-        /* Calculate resource region size based on whether we allow extra threads. */
-        const bool use_extra_resources = KSystemControl::Init::ShouldIncreaseThreadResourceLimit();
-
-        return KernelResourceSize + (use_extra_resources ? KernelSlabHeapAdditionalSize : 0);
+    size_t KMemoryLayout::GetResourceRegionSizeForInit(bool use_extra_resource) {
+        return KernelResourceSize + KSystemControl::SecureAppletMemorySize + (use_extra_resource ? KernelSlabHeapAdditionalSize + KernelPageBufferAdditionalSize : 0);
     }
 
 }

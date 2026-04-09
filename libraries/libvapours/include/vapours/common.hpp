@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -16,6 +16,7 @@
 #pragma once
 #include <vapours/includes.hpp>
 #include <vapours/defines.hpp>
+#include <vapours/compiler.hpp>
 
 #if defined(AMS_FORCE_DISABLE_DETAILED_ASSERTIONS) && defined(AMS_FORCE_ENABLE_DETAILED_ASSERTIONS)
     #error "Invalid detailed assertions state"

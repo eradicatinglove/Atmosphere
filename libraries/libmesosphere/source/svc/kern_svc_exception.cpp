@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -60,7 +60,7 @@ namespace ams::kern::svc {
             }
 
             /* Print that break was called. */
-            MESOSPHERE_RELEASE_LOG("Break() called. %016lx\n", GetCurrentProcess().GetProgramId());
+            MESOSPHERE_EXCEPTION_LOG("Break() called. ");
 
             /* Try to enter JIT debug state. */
             if (GetCurrentProcess().EnterJitDebug(ams::svc::DebugEvent_Exception, ams::svc::DebugException_UserBreak, KDebug::GetProgramCounter(GetCurrentThread()), break_reason, address, size)) {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -86,7 +86,7 @@ namespace ams::ldr {
                 AMS_ASSUME(ofs < sizeof(module_id));
                 AMS_ASSUME(str[1] != 0);
 
-                module_id.build_id[ofs] = (ParseNybble(str[0]) << 4) | (ParseNybble(str[1]) << 0);
+                module_id.data[ofs] = (ParseNybble(str[0]) << 4) | (ParseNybble(str[1]) << 0);
 
                 str += 2;
                 ofs++;
@@ -108,25 +108,26 @@ namespace ams::ldr {
         };
 
         #include "ldr_embedded_usb_patches.inc"
+        #include "ldr_embedded_am_patches.inc"
 
     }
 
     /* Apply IPS patches. */
-    void LocateAndApplyIpsPatchesToModule(const u8 *build_id, uintptr_t mapped_nso, size_t mapped_size) {
+    void LocateAndApplyIpsPatchesToModule(const u8 *module_id_data, uintptr_t mapped_nso, size_t mapped_size) {
         if (!EnsureSdCardMounted()) {
             return;
         }
 
         ro::ModuleId module_id;
-        std::memcpy(&module_id.build_id, build_id, sizeof(module_id.build_id));
-        ams::patcher::LocateAndApplyIpsPatchesToModule(LoaderSdMountName, NsoPatchesDirectory, NsoPatchesProtectedSize, NsoPatchesProtectedOffset, &module_id, reinterpret_cast<u8 *>(mapped_nso), mapped_size);
+        std::memcpy(std::addressof(module_id.data), module_id_data, sizeof(module_id.data));
+        ams::patcher::LocateAndApplyIpsPatchesToModule(LoaderSdMountName, NsoPatchesDirectory, NsoPatchesProtectedSize, NsoPatchesProtectedOffset, std::addressof(module_id), reinterpret_cast<u8 *>(mapped_nso), mapped_size);
     }
 
     /* Apply embedded patches. */
-    void ApplyEmbeddedPatchesToModule(const u8 *build_id, uintptr_t mapped_nso, size_t mapped_size) {
+    void ApplyEmbeddedPatchesToModule(const u8 *module_id_data, uintptr_t mapped_nso, size_t mapped_size) {
         /* Make module id. */
         ro::ModuleId module_id;
-        std::memcpy(&module_id.build_id, build_id, sizeof(module_id.build_id));
+        std::memcpy(std::addressof(module_id.data), module_id_data, sizeof(module_id.data));
 
         if (IsUsb30ForceEnabled()) {
             for (const auto &patch : Usb30ForceEnablePatches) {
@@ -136,6 +137,18 @@ namespace ams::ldr {
                         if (entry.offset + entry.size <= mapped_size) {
                             std::memcpy(reinterpret_cast<void *>(mapped_nso + entry.offset), entry.data, entry.size);
                         }
+                    }
+                }
+            }
+        }
+        
+        /* TODO: Remove this if/when a cleaner solution is implemented by hbmenu/libnx. */
+        for (const auto &patch : AmDisableTeardownPatches) {
+            if (std::memcmp(std::addressof(patch.module_id), std::addressof(module_id), sizeof(module_id)) == 0) {
+                for (size_t i = 0; i < patch.num_entries; ++i) {
+                    const auto &entry = patch.entries[i];
+                    if (entry.offset + entry.size <= mapped_size) {
+                        std::memcpy(reinterpret_cast<void *>(mapped_nso + entry.offset), entry.data, entry.size);
                     }
                 }
             }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -30,7 +30,7 @@ namespace ams::htcs {
         constinit void *g_buffer = nullptr;
         constinit size_t g_buffer_size = 0;
 
-        constinit os::TlsSlot g_tls_slot;
+        constinit os::TlsSlot g_tls_slot = {};
 
         constinit tma::IHtcsManager *g_manager = nullptr;
         constinit tma::IHtcsManager *g_monitor = nullptr;
@@ -54,7 +54,7 @@ namespace ams::htcs {
             R_ABORT_UNLESS(g_monitor->MonitorManager(process_id));
 
             /* Allocate a tls slot for our last error. */
-            os::SdkAllocateTlsSlot(std::addressof(g_tls_slot), nullptr);
+            R_ABORT_UNLESS(os::SdkAllocateTlsSlot(std::addressof(g_tls_slot), nullptr));
 
             /* Setup the virtual socket collection. */
             AMS_ASSERT(buffer != nullptr);
@@ -185,7 +185,7 @@ namespace ams::htcs {
 
         /* Get name. */
         HtcsPeerName name;
-        g_manager->GetPeerNameAny(std::addressof(name));
+        static_cast<void>(g_manager->GetPeerNameAny(std::addressof(name)));
 
         return name;
     }
@@ -196,7 +196,7 @@ namespace ams::htcs {
 
         /* Get name. */
         HtcsPeerName name;
-        g_manager->GetDefaultHostName(std::addressof(name));
+        static_cast<void>(g_manager->GetDefaultHostName(std::addressof(name)));
 
         return name;
     }
@@ -357,6 +357,8 @@ namespace ams::htcs {
     }
 
     s32 Select(s32 count, FdSet *read, FdSet *write, FdSet *exception, TimeVal *timeout) {
+        AMS_UNUSED(count);
+
         /* Check that we have a manager. */
         AMS_ASSERT(g_manager != nullptr);
 
@@ -470,7 +472,7 @@ namespace ams::htcs {
 
         s32 close(sf::SharedPointer<tma::ISocket> socket, s32 &last_error) {
             s32 res;
-            socket->Close(std::addressof(last_error), std::addressof(res));
+            static_cast<void>(socket->Close(std::addressof(last_error), std::addressof(res)));
             return res;
         }
 
@@ -482,13 +484,13 @@ namespace ams::htcs {
             util::Strlcpy(null_terminated_address.port_name.name, address->port_name.name, PortNameBufferLength);
 
             s32 res;
-            socket->Bind(std::addressof(last_error), std::addressof(res), null_terminated_address);
+            static_cast<void>(socket->Bind(std::addressof(last_error), std::addressof(res), null_terminated_address));
             return res;
         }
 
         s32 listen(sf::SharedPointer<tma::ISocket> socket, s32 backlog_count, s32 &last_error) {
             s32 res;
-            socket->Listen(std::addressof(last_error), std::addressof(res), backlog_count);
+            static_cast<void>(socket->Listen(std::addressof(last_error), std::addressof(res), backlog_count));
             return res;
         }
 
@@ -496,11 +498,12 @@ namespace ams::htcs {
             /* Begin the accept. */
             sf::SharedPointer<tma::ISocket> res = nullptr;
             u32 task_id = 0;
-            sf::CopyHandle event_handle;
+            sf::NativeHandle event_handle;
             if (R_SUCCEEDED(socket->AcceptStart(std::addressof(task_id), std::addressof(event_handle)))) {
                 /* Create system event. */
                 os::SystemEventType event;
-                os::AttachReadableHandleToSystemEvent(std::addressof(event), event_handle.GetValue(), true, os::EventClearMode_ManualClear);
+                os::AttachReadableHandleToSystemEvent(std::addressof(event), event_handle.GetOsHandle(), event_handle.IsManaged(), os::EventClearMode_ManualClear);
+                event_handle.Detach();
 
                 /* When we're done, clean up the event. */
                 ON_SCOPE_EXIT { os::DestroySystemEvent(std::addressof(event)); };
@@ -509,7 +512,7 @@ namespace ams::htcs {
                 os::WaitSystemEvent(std::addressof(event));
 
                 /* End the accept. */
-                socket->AcceptResults(std::addressof(last_error), std::addressof(res), address, task_id);
+                static_cast<void>(socket->AcceptResults(std::addressof(last_error), std::addressof(res), address, task_id));
             } else {
                 /* Set error. */
                 last_error = HTCS_EINTR;
@@ -525,13 +528,13 @@ namespace ams::htcs {
 
         s32 fcntl(sf::SharedPointer<tma::ISocket> socket, s32 command, s32 value, s32 &last_error) {
             s32 res;
-            socket->Fcntl(std::addressof(last_error), std::addressof(res), command, value);
+            static_cast<void>(socket->Fcntl(std::addressof(last_error), std::addressof(res), command, value));
             return res;
         }
 
         s32 shutdown(sf::SharedPointer<tma::ISocket> socket, s32 how, s32 &last_error) {
             s32 res;
-            socket->Shutdown(std::addressof(last_error), std::addressof(res), how);
+            static_cast<void>(socket->Shutdown(std::addressof(last_error), std::addressof(res), how));
             return res;
         }
 
@@ -543,7 +546,7 @@ namespace ams::htcs {
             util::Strlcpy(null_terminated_address.port_name.name, address->port_name.name, PortNameBufferLength);
 
             s32 res;
-            socket->Connect(std::addressof(last_error), std::addressof(res), null_terminated_address);
+            static_cast<void>(socket->Connect(std::addressof(last_error), std::addressof(res), null_terminated_address));
             return res;
         }
 
@@ -562,11 +565,12 @@ namespace ams::htcs {
             /* Begin the select. */
             s32 res = -1;
             u32 task_id = 0;
-            sf::CopyHandle event_handle;
+            sf::NativeHandle event_handle;
             if (R_SUCCEEDED(g_manager->StartSelect(std::addressof(task_id), std::addressof(event_handle), InArray(read, num_read), InArray(write, num_write), InArray(except, num_except), tv_sec, tv_usec))) {
                 /* Create system event. */
                 os::SystemEventType event;
-                os::AttachReadableHandleToSystemEvent(std::addressof(event), event_handle.GetValue(), true, os::EventClearMode_ManualClear);
+                os::AttachReadableHandleToSystemEvent(std::addressof(event), event_handle.GetOsHandle(), event_handle.IsManaged(), os::EventClearMode_ManualClear);
+                event_handle.Detach();
 
                 /* When we're done, clean up the event. */
                 ON_SCOPE_EXIT { os::DestroySystemEvent(std::addressof(event)); };
@@ -575,7 +579,7 @@ namespace ams::htcs {
                 os::WaitSystemEvent(std::addressof(event));
 
                 /* End the select. */
-                g_manager->EndSelect(std::addressof(last_error), std::addressof(res), OutArray(read, num_read), OutArray(write, num_write), OutArray(except, num_except), task_id);
+                static_cast<void>(g_manager->EndSelect(std::addressof(last_error), std::addressof(res), OutArray(read, num_read), OutArray(write, num_write), OutArray(except, num_except), task_id));
             } else {
                 /* Set error. */
                 last_error = HTCS_EINTR;
@@ -596,11 +600,12 @@ namespace ams::htcs {
 
                 /* Start the receive. */
                 u32 task_id = 0;
-                sf::CopyHandle event_handle;
+                sf::NativeHandle event_handle;
                 if (R_SUCCEEDED(socket->StartRecv(std::addressof(task_id), std::addressof(event_handle), static_cast<s64>(buffer_size), flags))) {
                     /* Create system event. */
                     os::SystemEventType event;
-                    os::AttachReadableHandleToSystemEvent(std::addressof(event), event_handle.GetValue(), true, os::EventClearMode_ManualClear);
+                    os::AttachReadableHandleToSystemEvent(std::addressof(event), event_handle.GetOsHandle(), event_handle.IsManaged(), os::EventClearMode_ManualClear);
+                    event_handle.Detach();
 
                     /* When we're done, clean up the event. */
                     ON_SCOPE_EXIT { os::DestroySystemEvent(std::addressof(event)); };
@@ -609,7 +614,7 @@ namespace ams::htcs {
                     os::WaitSystemEvent(std::addressof(event));
 
                     /* End the receive. */
-                    socket->EndRecv(std::addressof(last_error), std::addressof(res), sf::OutAutoSelectBuffer(buffer, buffer_size), task_id);
+                    static_cast<void>(socket->EndRecv(std::addressof(last_error), std::addressof(res), sf::OutAutoSelectBuffer(buffer, buffer_size), task_id));
                 } else {
                     /* Set error. */
                     last_error = HTCS_EINTR;
@@ -627,11 +632,12 @@ namespace ams::htcs {
                 /* Start the send. */
                 u32 task_id = 0;
                 s64 max_size = 0;
-                sf::CopyHandle event_handle;
+                sf::NativeHandle event_handle;
                 if (R_SUCCEEDED(socket->StartSend(std::addressof(task_id), std::addressof(event_handle), std::addressof(max_size), static_cast<s64>(buffer_size), flags))) {
                     /* Create system event. */
                     os::SystemEventType event;
-                    os::AttachReadableHandleToSystemEvent(std::addressof(event), event_handle.GetValue(), true, os::EventClearMode_ManualClear);
+                    os::AttachReadableHandleToSystemEvent(std::addressof(event), event_handle.GetOsHandle(), event_handle.IsManaged(), os::EventClearMode_ManualClear);
+                    event_handle.Detach();
 
                     /* When we're done, clean up the event. */
                     ON_SCOPE_EXIT { os::DestroySystemEvent(std::addressof(event)); };
@@ -669,7 +675,7 @@ namespace ams::htcs {
                     }
 
                     /* End the send. */
-                    socket->EndSend(std::addressof(last_error), std::addressof(res), task_id);
+                    static_cast<void>(socket->EndSend(std::addressof(last_error), std::addressof(res), task_id));
                 } else {
                     /* Set error. */
                     last_error = HTCS_EINTR;
@@ -697,11 +703,12 @@ namespace ams::htcs {
             /* Start the receive. */
             s64 res = -1;
             u32 task_id = 0;
-            sf::CopyHandle event_handle;
+            sf::NativeHandle event_handle;
             if (R_SUCCEEDED(socket->RecvStart(std::addressof(task_id), std::addressof(event_handle), static_cast<s32>(recv_size), flags))) {
                 /* Create system event. */
                 os::SystemEventType event;
-                os::AttachReadableHandleToSystemEvent(std::addressof(event), event_handle.GetValue(), true, os::EventClearMode_ManualClear);
+                os::AttachReadableHandleToSystemEvent(std::addressof(event), event_handle.GetOsHandle(), event_handle.IsManaged(), os::EventClearMode_ManualClear);
+                event_handle.Detach();
 
                 /* When we're done, clean up the event. */
                 ON_SCOPE_EXIT { os::DestroySystemEvent(std::addressof(event)); };
@@ -710,7 +717,7 @@ namespace ams::htcs {
                 os::WaitSystemEvent(std::addressof(event));
 
                 /* End the receive. */
-                socket->RecvResults(std::addressof(last_error), std::addressof(res), sf::OutAutoSelectBuffer(buffer, recv_size), task_id);
+                static_cast<void>(socket->RecvResults(std::addressof(last_error), std::addressof(res), sf::OutAutoSelectBuffer(buffer, recv_size), task_id));
             } else {
                 /* Set error. */
                 last_error = HTCS_EINTR;
@@ -729,11 +736,12 @@ namespace ams::htcs {
             /* Start the send. */
             s64 res = -1;
             u32 task_id = 0;
-            sf::CopyHandle event_handle;
+            sf::NativeHandle event_handle;
             if (R_SUCCEEDED(socket->SendStart(std::addressof(task_id), std::addressof(event_handle), sf::InNonSecureAutoSelectBuffer(buffer, buffer_size), flags))) {
                 /* Create system event. */
                 os::SystemEventType event;
-                os::AttachReadableHandleToSystemEvent(std::addressof(event), event_handle.GetValue(), true, os::EventClearMode_ManualClear);
+                os::AttachReadableHandleToSystemEvent(std::addressof(event), event_handle.GetOsHandle(), event_handle.IsManaged(), os::EventClearMode_ManualClear);
+                event_handle.Detach();
 
                 /* When we're done, clean up the event. */
                 ON_SCOPE_EXIT { os::DestroySystemEvent(std::addressof(event)); };
@@ -742,7 +750,7 @@ namespace ams::htcs {
                 os::WaitSystemEvent(std::addressof(event));
 
                 /* End the send. */
-                socket->SendResults(std::addressof(last_error), std::addressof(res), task_id);
+                static_cast<void>(socket->SendResults(std::addressof(last_error), std::addressof(res), task_id));
             } else {
                 /* Set error. */
                 last_error = HTCS_EINTR;

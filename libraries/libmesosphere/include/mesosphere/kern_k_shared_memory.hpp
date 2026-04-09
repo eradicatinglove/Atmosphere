@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -35,18 +35,16 @@ namespace ams::kern {
             bool m_is_initialized;
         public:
             explicit KSharedMemory()
-                : m_page_group(std::addressof(Kernel::GetBlockInfoManager())), m_resource_limit(nullptr), m_owner_process_id(std::numeric_limits<u64>::max()),
+                : m_page_group(Kernel::GetSystemSystemResource().GetBlockInfoManagerPointer()), m_resource_limit(nullptr), m_owner_process_id(std::numeric_limits<u64>::max()),
                   m_owner_perm(ams::svc::MemoryPermission_None), m_remote_perm(ams::svc::MemoryPermission_None), m_is_initialized(false)
             {
                 /* ... */
             }
 
-            virtual ~KSharedMemory() { /* ... */ }
-
             Result Initialize(KProcess *owner, size_t size, ams::svc::MemoryPermission own_perm, ams::svc::MemoryPermission rem_perm);
-            virtual void Finalize() override;
+            void Finalize();
 
-            virtual bool IsInitialized() const override { return m_is_initialized; }
+            bool IsInitialized() const { return m_is_initialized; }
             static void PostDestroy(uintptr_t arg) { MESOSPHERE_UNUSED(arg); /* ... */ }
 
             Result Map(KProcessPageTable *table, KProcessAddress address, size_t size, KProcess *process, ams::svc::MemoryPermission map_perm);

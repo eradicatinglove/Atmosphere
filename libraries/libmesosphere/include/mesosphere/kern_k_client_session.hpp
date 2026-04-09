@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -20,14 +20,15 @@
 namespace ams::kern {
 
     class KSession;
+    class KEvent;
 
-    class KClientSession final : public KAutoObjectWithSlabHeapAndContainer<KClientSession, KAutoObjectWithList> {
+    class KClientSession final : public KAutoObject {
         MESOSPHERE_AUTOOBJECT_TRAITS(KClientSession, KAutoObject);
         private:
             KSession *m_parent;
         public:
-            constexpr KClientSession() : m_parent() { /* ... */ }
-            virtual ~KClientSession() { /* ... */ }
+            constexpr explicit KClientSession(util::ConstantInitializeTag) : KAutoObject(util::ConstantInitialize), m_parent() { /* ... */ }
+            explicit KClientSession() { /* ... */ }
 
             void Initialize(KSession *parent) {
                 /* Set member variables. */
@@ -35,12 +36,11 @@ namespace ams::kern {
             }
 
             virtual void Destroy() override;
-            static void PostDestroy(uintptr_t arg) { MESOSPHERE_UNUSED(arg); /* ... */ }
 
             constexpr KSession *GetParent() const { return m_parent; }
 
             Result SendSyncRequest(uintptr_t address, size_t size);
-            Result SendAsyncRequest(KWritableEvent *event, uintptr_t address, size_t size);
+            Result SendAsyncRequest(KEvent *event, uintptr_t address, size_t size);
 
             void OnServerClosed();
     };

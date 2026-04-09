@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -41,12 +41,13 @@ namespace ams::kern {
             State m_state;
             bool m_is_light;
         public:
-            constexpr KPort() : m_server(), m_client(), m_name(), m_state(State::Invalid), m_is_light() { /* ... */ }
-            virtual ~KPort() { /* ... */ }
+            explicit KPort() : m_state(State::Invalid), m_is_light() { /* ... */ }
 
             static void PostDestroy(uintptr_t arg) { MESOSPHERE_UNUSED(arg); /* ... */ }
 
             void Initialize(s32 max_sessions, bool is_light, uintptr_t name);
+            void Finalize() { /* ... */ }
+
             void OnClientClosed();
             void OnServerClosed();
 

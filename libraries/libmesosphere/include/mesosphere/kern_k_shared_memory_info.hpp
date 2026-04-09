@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -26,7 +26,7 @@ namespace ams::kern {
             KSharedMemory *m_shared_memory;
             size_t m_reference_count;
         public:
-            constexpr KSharedMemoryInfo() : m_shared_memory(), m_reference_count() { /* ... */ }
+            explicit KSharedMemoryInfo() { /* ... */ }
             ~KSharedMemoryInfo() { /* ... */ }
 
             constexpr void Initialize(KSharedMemory *m) {

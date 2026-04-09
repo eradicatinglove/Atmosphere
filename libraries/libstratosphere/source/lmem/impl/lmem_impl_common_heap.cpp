@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2019 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -45,6 +45,7 @@ namespace ams::lmem::impl {
 
     void FinalizeHeap(HeapHead *heap) {
         /* Nothing actually needs to be done here. */
+        AMS_UNUSED(heap);
     }
 
     bool ContainsAddress(HeapHandle handle, const void *address) {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -59,7 +59,7 @@ namespace ams::htclow::driver {
     }
 
     void SocketDiscoveryManager::OnSocketAcceptBegin(u16 port) {
-        /* ... */
+        AMS_UNUSED(port);
     }
 
     void SocketDiscoveryManager::OnSocketAcceptEnd() {
@@ -67,14 +67,20 @@ namespace ams::htclow::driver {
     }
 
     void SocketDiscoveryManager::ThreadFunc() {
-        for (this->DoDiscovery(); !m_driver_closed; this->DoDiscovery()) {
-            /* Check if the driver is closed five times. */
+        /* Do discovery. */
+        static_cast<void>(this->DoDiscovery());
+
+        while (!m_driver_closed) {
+            /* Check if the driver is closed 5 times. */
             for (size_t i = 0; i < 5; ++i) {
                 os::SleepThread(TimeSpan::FromSeconds(1));
                 if (m_driver_closed) {
                     return;
                 }
             }
+
+            /* Do discovery. */
+            static_cast<void>(this->DoDiscovery());
         }
     }
 
@@ -100,7 +106,7 @@ namespace ams::htclow::driver {
             TmipcHeader header;
             socket::SockAddr recv_sockaddr;
             socket::SockLenT recv_sockaddr_len = sizeof(recv_sockaddr);
-            const auto recv_res = socket::RecvFrom(m_socket, std::addressof(header), sizeof(header), socket::MsgFlag::MsgFlag_None, std::addressof(recv_sockaddr), std::addressof(recv_sockaddr_len));
+            const auto recv_res = socket::RecvFrom(m_socket, std::addressof(header), sizeof(header), socket::MsgFlag::Msg_None, std::addressof(recv_sockaddr), std::addressof(recv_sockaddr_len));
 
             /* Check that our receive was valid. */
             R_UNLESS(recv_res >= 0,                              htclow::ResultSocketReceiveFromError());
@@ -126,7 +132,7 @@ namespace ams::htclow::driver {
             }
 
             if (header.data_len > 0) {
-                const auto body_res = socket::RecvFrom(m_socket, packet_data, header.data_len, socket::MsgFlag::MsgFlag_None, std::addressof(recv_sockaddr), std::addressof(recv_sockaddr_len));
+                const auto body_res = socket::RecvFrom(m_socket, packet_data, header.data_len, socket::MsgFlag::Msg_None, std::addressof(recv_sockaddr), std::addressof(recv_sockaddr_len));
                 R_UNLESS(body_res >= 0, htclow::ResultSocketReceiveFromError());
                 R_UNLESS(recv_sockaddr_len == sizeof(recv_sockaddr), htclow::ResultSocketReceiveFromError());
 
@@ -139,13 +145,13 @@ namespace ams::htclow::driver {
             const auto len = MakeBeaconResponsePacket(packet_data, sizeof(packet_data));
 
             /* Send the beacon response data. */
-            const auto send_res = socket::SendTo(m_socket, packet_data, len, socket::MsgFlag::MsgFlag_None, std::addressof(recv_sockaddr), sizeof(recv_sockaddr));
+            const auto send_res = socket::SendTo(m_socket, packet_data, len, socket::MsgFlag::Msg_None, std::addressof(recv_sockaddr), sizeof(recv_sockaddr));
             R_UNLESS(send_res >= 0, htclow::ResultSocketSendToError());
         }
 
         /* This can never happen, as the above loop should be infinite, but completion logic is here for posterity. */
         socket_guard.Cancel();
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
 }

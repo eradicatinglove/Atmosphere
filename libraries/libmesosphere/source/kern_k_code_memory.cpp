@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -35,8 +35,9 @@ namespace ams::kern {
         /* Clear the memory. */
         for (const auto &block : GetReference(m_page_group)) {
             /* Clear and store cache. */
-            std::memset(GetVoidPointer(block.GetAddress()), 0xFF, block.GetSize());
-            cpu::StoreDataCache(GetVoidPointer(block.GetAddress()), block.GetSize());
+            void * const block_address = GetVoidPointer(KMemoryLayout::GetLinearVirtualAddress(block.GetAddress()));
+            std::memset(block_address, 0xFF, block.GetSize());
+            MESOSPHERE_R_ABORT_UNLESS(cpu::StoreDataCache(block_address, block.GetSize()));
         }
 
         /* Set remaining tracking members. */
@@ -48,7 +49,7 @@ namespace ams::kern {
 
         /* We succeeded. */
         pg_guard.Cancel();
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     void KCodeMemory::Finalize() {
@@ -66,9 +67,6 @@ namespace ams::kern {
 
         /* Close our reference to our owner. */
         m_owner->Close();
-
-        /* Perform inherited finalization. */
-        KAutoObjectWithSlabHeapAndContainer<KCodeMemory, KAutoObjectWithList>::Finalize();
     }
 
     Result KCodeMemory::Map(KProcessAddress address, size_t size) {
@@ -89,7 +87,7 @@ namespace ams::kern {
         /* Mark ourselves as mapped. */
         m_is_mapped = true;
 
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     Result KCodeMemory::Unmap(KProcessAddress address, size_t size) {
@@ -108,7 +106,7 @@ namespace ams::kern {
         MESOSPHERE_ASSERT(m_is_mapped);
         m_is_mapped = false;
 
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     Result KCodeMemory::MapToOwner(KProcessAddress address, size_t size, ams::svc::MemoryPermission perm) {
@@ -137,7 +135,7 @@ namespace ams::kern {
         /* Mark ourselves as mapped. */
         m_is_owner_mapped = true;
 
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     Result KCodeMemory::UnmapFromOwner(KProcessAddress address, size_t size) {
@@ -156,7 +154,7 @@ namespace ams::kern {
         MESOSPHERE_ASSERT(m_is_owner_mapped);
         m_is_owner_mapped = false;
 
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
 }

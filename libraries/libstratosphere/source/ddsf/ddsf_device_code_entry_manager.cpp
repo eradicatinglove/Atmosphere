@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2019 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -23,16 +23,17 @@ namespace ams::ddsf {
         AMS_ASSERT(device->IsDriverAttached());
 
         /* Acquire exclusive access to the manager. */
-        std::scoped_lock lk(this->entry_list_lock);
+        std::scoped_lock lk(m_entry_list_lock);
 
         /* Check that we don't already have an entry with the code. */
-        for (const auto &holder : this->entry_list) {
+        for (const auto &holder : m_entry_list) {
             AMS_ASSERT(holder.IsConstructed());
             AMS_ASSERT(holder.Get().GetDeviceCode() != device_code);
+            AMS_UNUSED(holder);
         }
 
         /* Allocate memory for a new device code entry holder. */
-        void *holder_storage = this->memory_resource->Allocate(sizeof(DeviceCodeEntryHolder));
+        void *holder_storage = m_memory_resource->Allocate(sizeof(DeviceCodeEntryHolder));
         R_UNLESS(holder_storage != nullptr, ddsf::ResultOutOfResource());
 
         /* Initialize the new holder. */
@@ -40,18 +41,18 @@ namespace ams::ddsf {
         holder->Construct(device_code, device);
 
         /* Link the new holder. */
-        holder->AddTo(this->entry_list);
+        holder->AddTo(m_entry_list);
 
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     bool DeviceCodeEntryManager::Remove(DeviceCode device_code) {
         /* Acquire exclusive access to the manager. */
-        std::scoped_lock lk(this->entry_list_lock);
+        std::scoped_lock lk(m_entry_list_lock);
 
         /* Find and erase the entry. */
         bool erased = false;
-        for (auto it = this->entry_list.begin(); it != this->entry_list.end(); /* ... */) {
+        for (auto it = m_entry_list.begin(); it != m_entry_list.end(); /* ... */) {
             /* Get the current entry, and advance the iterator. */
             DeviceCodeEntryHolder *cur = std::addressof(*(it++));
 
@@ -61,7 +62,7 @@ namespace ams::ddsf {
                 /* Destroy and deallocate the holder. */
                 cur->Destroy();
                 std::destroy_at(cur);
-                this->memory_resource->Deallocate(cur, sizeof(*cur));
+                m_memory_resource->Deallocate(cur, sizeof(*cur));
 
                 erased = true;
             }
@@ -89,7 +90,7 @@ namespace ams::ddsf {
         /* Check that we found the device. */
         R_UNLESS(found, ddsf::ResultDeviceCodeNotFound());
 
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     Result DeviceCodeEntryManager::FindDeviceCodeEntry(const DeviceCodeEntry **out, DeviceCode device_code) const {
@@ -111,7 +112,7 @@ namespace ams::ddsf {
         /* Check that we found the device. */
         R_UNLESS(found, ddsf::ResultDeviceCodeNotFound());
 
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     Result DeviceCodeEntryManager::FindDevice(IDevice **out, DeviceCode device_code) {
@@ -127,7 +128,7 @@ namespace ams::ddsf {
             *out = std::addressof(entry->GetDevice());
         }
 
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     Result DeviceCodeEntryManager::FindDevice(const IDevice **out, DeviceCode device_code) const {
@@ -143,7 +144,7 @@ namespace ams::ddsf {
             *out = std::addressof(entry->GetDevice());
         }
 
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
 }

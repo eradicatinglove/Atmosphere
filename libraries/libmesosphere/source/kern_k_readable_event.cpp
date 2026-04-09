@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -17,6 +17,16 @@
 
 namespace ams::kern {
 
+    void KReadableEvent::Initialize(KEvent *parent) {
+        MESOSPHERE_ASSERT_THIS();
+        m_is_signaled  = false;
+        m_parent       = parent;
+
+        if (m_parent != nullptr) {
+            m_parent->Open();
+        }
+    }
+
     bool KReadableEvent::IsSignaled() const {
         MESOSPHERE_ASSERT_THIS();
         MESOSPHERE_ASSERT(KScheduler::IsSchedulerLockedByCurrentThread());
@@ -27,11 +37,16 @@ namespace ams::kern {
     void KReadableEvent::Destroy() {
         MESOSPHERE_ASSERT_THIS();
         if (m_parent) {
+            {
+                KScopedSchedulerLock sl;
+                m_parent->OnReadableEventDestroyed();
+            }
+
             m_parent->Close();
         }
     }
 
-    Result KReadableEvent::Signal() {
+    void KReadableEvent::Signal() {
         MESOSPHERE_ASSERT_THIS();
 
         KScopedSchedulerLock lk;
@@ -40,16 +55,6 @@ namespace ams::kern {
             m_is_signaled = true;
             this->NotifyAvailable();
         }
-
-        return ResultSuccess();
-    }
-
-    Result KReadableEvent::Clear() {
-        MESOSPHERE_ASSERT_THIS();
-
-        this->Reset();
-
-        return ResultSuccess();
     }
 
     Result KReadableEvent::Reset() {
@@ -60,7 +65,7 @@ namespace ams::kern {
         R_UNLESS(m_is_signaled, svc::ResultInvalidState());
 
         m_is_signaled = false;
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -26,7 +26,7 @@ namespace ams::mitm::socket::resolver::serializer {
         concept IsInAddr = std::same_as<T, ams::socket::InAddr> || std::same_as<T, struct in_addr>;
 
         template<typename T> requires IsInAddr<T>
-        size_t SizeOfImpl(const T &in) {
+        size_t SizeOfImpl(const T &) {
             return sizeof(u32);
         }
 

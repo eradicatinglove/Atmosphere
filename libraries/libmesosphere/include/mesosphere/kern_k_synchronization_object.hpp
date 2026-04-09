@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -32,21 +32,54 @@ namespace ams::kern {
             ThreadListNode *m_thread_list_head;
             ThreadListNode *m_thread_list_tail;
         protected:
-            constexpr ALWAYS_INLINE explicit KSynchronizationObject() : KAutoObjectWithList(), m_thread_list_head(), m_thread_list_tail() { MESOSPHERE_ASSERT_THIS(); }
-            virtual ~KSynchronizationObject() { MESOSPHERE_ASSERT_THIS(); }
+            constexpr ALWAYS_INLINE explicit KSynchronizationObject(util::ConstantInitializeTag) : KAutoObjectWithList(util::ConstantInitialize), m_thread_list_head(), m_thread_list_tail() { MESOSPHERE_ASSERT_THIS(); }
+            ALWAYS_INLINE explicit KSynchronizationObject() : m_thread_list_head(), m_thread_list_tail() { MESOSPHERE_ASSERT_THIS(); }
 
-            virtual void OnFinalizeSynchronizationObject() { MESOSPHERE_ASSERT_THIS(); }
+            /* NOTE: This is a virtual function which is overridden only by KDebugBase in Nintendo's kernel. */
+            /* virtual void OnFinalizeSynchronizationObject() { MESOSPHERE_ASSERT_THIS(); } */
 
             void NotifyAvailable(Result result);
-            void NotifyAvailable() {
+            ALWAYS_INLINE void NotifyAvailable() {
                 return this->NotifyAvailable(ResultSuccess());
             }
         public:
             static Result Wait(s32 *out_index, KSynchronizationObject **objects, const s32 num_objects, s64 timeout);
         public:
-            virtual void Finalize() override;
+            void Finalize();
             virtual bool IsSignaled() const { AMS_INFINITE_LOOP(); }
-            virtual void DumpWaiters();
+
+            void DumpWaiters();
+
+            ALWAYS_INLINE void LinkNode(ThreadListNode *node) {
+                /* Link the node to the list. */
+                if (m_thread_list_tail == nullptr) {
+                    m_thread_list_head = node;
+                } else {
+                    m_thread_list_tail->next = node;
+                }
+
+                m_thread_list_tail = node;
+            }
+
+            ALWAYS_INLINE void UnlinkNode(ThreadListNode *node) {
+                /* Unlink the node from the list. */
+                ThreadListNode *prev_ptr = reinterpret_cast<ThreadListNode *>(std::addressof(m_thread_list_head));
+                ThreadListNode *prev_val = nullptr;
+                ThreadListNode *prev, *tail_prev;
+
+                do {
+                    prev      = prev_ptr;
+                    prev_ptr  = prev_ptr->next;
+                    tail_prev = prev_val;
+                    prev_val  = prev_ptr;
+                } while (prev_ptr != node);
+
+                if (m_thread_list_tail == node) {
+                    m_thread_list_tail = tail_prev;
+                }
+
+                prev->next = node->next;
+            }
     };
 
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020 Adubbz, Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -23,7 +23,7 @@ namespace ams::ncm {
         private:
             class Impl;
         private:
-            std::unique_ptr<Impl> impl;
+            std::unique_ptr<Impl> m_impl;
         public:
             SubmissionPackageInstallTask();
             virtual ~SubmissionPackageInstallTask() override;

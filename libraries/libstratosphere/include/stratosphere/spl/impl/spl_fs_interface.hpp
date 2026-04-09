@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -28,4 +28,4 @@
     AMS_SF_METHOD_INFO(C, H, 19, Result, LoadPreparedAesKey,             (s32 keyslot, spl::AccessKey access_key),                                                                                                                           (keyslot, access_key))                                                            \
     AMS_SF_METHOD_INFO(C, H, 31, Result, GetPackage2Hash,                (const sf::OutPointerBuffer &dst),                                                                                                                                  (dst), hos::Version_5_0_0)
 
-AMS_SF_DEFINE_INTERFACE_WITH_BASE(ams::spl::impl, IFsInterface, ::ams::spl::impl::ICryptoInterface, AMS_SPL_I_FS_INTERFACE_INTERFACE_INFO)
+AMS_SF_DEFINE_INTERFACE_WITH_BASE(ams::spl::impl, IFsInterface, ::ams::spl::impl::ICryptoInterface, AMS_SPL_I_FS_INTERFACE_INTERFACE_INFO, 0x682B3803)

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -42,15 +42,15 @@ namespace ams::kern {
             return arr;
         }();
 
-        std::atomic<s32> g_next_ticket    = 0;
-        std::atomic<s32> g_current_ticket = 0;
+        constinit util::Atomic<s32> g_next_ticket    = 0;
+        constinit util::Atomic<s32> g_current_ticket = 0;
 
-        std::array<s32, cpu::NumCores> g_core_tickets = NegativeArray;
+        constinit std::array<s32, cpu::NumCores> g_core_tickets = NegativeArray;
 
         s32 GetCoreTicket() {
             const s32 core_id = GetCurrentCoreId();
             if (g_core_tickets[core_id] == -1) {
-                g_core_tickets[core_id] = 2 * g_next_ticket.fetch_add(1);
+                g_core_tickets[core_id] = 2 * (g_next_ticket++);
             }
             return g_core_tickets[core_id];
         }
@@ -58,24 +58,21 @@ namespace ams::kern {
         void WaitCoreTicket() {
             const s32 expected = GetCoreTicket();
             const s32 desired  = expected + 1;
-            s32 compare = g_current_ticket;
+            s32 compare = g_current_ticket.Load<std::memory_order_relaxed>();
             do {
                 if (compare == desired) {
                     break;
                 }
                 compare = expected;
-            } while (!g_current_ticket.compare_exchange_weak(compare, desired));
+            } while (!g_current_ticket.CompareExchangeWeak(compare, desired));
         }
 
         void ReleaseCoreTicket() {
             const s32 expected = GetCoreTicket() + 1;
             const s32 desired  = expected + 1;
-            s32 compare = g_current_ticket;
-            do {
-                if (compare != expected) {
-                    break;
-                }
-            } while (!g_current_ticket.compare_exchange_weak(compare, desired));
+
+            s32 compare = expected;
+            g_current_ticket.CompareExchangeStrong(compare, desired);
         }
 
         ALWAYS_INLINE KExceptionContext *GetPanicExceptionContext(int core_id) {
@@ -97,13 +94,16 @@ namespace ams::kern {
             /* Print the state. */
             MESOSPHERE_RELEASE_LOG("Core[%d] Current State:\n", core_id);
 
-            /* Print registers and user backtrace. */
-            KDebug::PrintRegister();
-            KDebug::PrintBacktrace();
-
+            /* Print kernel state. */
             #ifdef ATMOSPHERE_ARCH_ARM64
+                MESOSPHERE_RELEASE_LOG("Kernel Registers:\n");
+                for (size_t i = 0; i < 31; i++) {
+                    MESOSPHERE_RELEASE_LOG("   X[%02zu] = %016lx\n", i, core_ctx->x[i]);
+                }
+                MESOSPHERE_RELEASE_LOG("   SP    = %016lx\n", core_ctx->sp);
+
                 /* Print kernel backtrace. */
-                MESOSPHERE_RELEASE_LOG("Backtrace:\n");
+                MESOSPHERE_RELEASE_LOG("Kernel Backtrace:\n");
                 uintptr_t fp = core_ctx != nullptr ? core_ctx->x[29] : reinterpret_cast<uintptr_t>(__builtin_frame_address(0));
                 for (size_t i = 0; i < 32 && fp && util::IsAligned(fp, 0x10) && cpu::GetPhysicalAddressWritable(nullptr, fp, true); i++) {
                     struct {
@@ -114,6 +114,10 @@ namespace ams::kern {
                     fp = stack_frame->fp;
                 }
             #endif
+
+            /* Print registers and user backtrace. */
+            KDebug::PrintRegister();
+            KDebug::PrintBacktrace();
 
             MESOSPHERE_RELEASE_LOG("\n");
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -70,7 +70,7 @@ namespace ams::erpt::srv {
             /* Commit the context. */
             R_TRY(Stream::CommitStream());
 
-            return ResultSuccess();
+            R_SUCCEED();
         }
 
         Result CreateReportForForcedShutdown() {
@@ -86,9 +86,9 @@ namespace ams::erpt::srv {
             R_TRY(record->Add(FieldId_ErrorCode, error_code_str, std::strlen(error_code_str)));
 
             /* Create report. */
-            R_TRY(Reporter::CreateReport(ReportType_Invisible, ResultSuccess(), std::move(record), nullptr, nullptr, 0));
+            R_TRY(Reporter::CreateReport(ReportType_Invisible, ResultSuccess(), std::move(record), nullptr, nullptr, 0, erpt::srv::MakeNoCreateReportOptionFlags(), nullptr));
 
-            return ResultSuccess();
+            R_SUCCEED();
         }
 
         Result LoadForcedShutdownContext() {
@@ -162,7 +162,7 @@ namespace ams::erpt::srv {
                 R_TRY(Context::SubmitContextRecord(std::move(record)));
             }
 
-            return ResultSuccess();
+            R_SUCCEED();
         }
 
         u32 GetForcedShutdownContextCount() {
@@ -215,7 +215,7 @@ namespace ams::erpt::srv {
             /* Commit the context. */
             R_TRY(Stream::CommitStream());
 
-            return ResultSuccess();
+            R_SUCCEED();
         }
 
     }
@@ -228,27 +228,27 @@ namespace ams::erpt::srv {
         /* Check if the forced shutdown context exists; if it doesn't, we should create an empty one. */
         if (!IsForceShutdownDetected()) {
             /* NOTE: Nintendo does not check result here. */
-            CreateForcedShutdownContext();
+            static_cast<void>(CreateForcedShutdownContext());
             return;
         }
 
         /* Load the forced shutdown context. */
         /* NOTE: Nintendo does not check that this succeeds. */
-        LoadForcedShutdownContext();
+        static_cast<void>(LoadForcedShutdownContext());
 
         /* Create report for the forced shutdown. */
         /* NOTE: Nintendo does not check that this succeeds. */
-        CreateReportForForcedShutdown();
+        static_cast<void>(CreateReportForForcedShutdown());
 
         /* Clear the forced shutdown categories. */
         /* NOTE: Nintendo does not check that this succeeds. */
-        Context::ClearContext(CategoryId_RunningApplicationInfo);
-        Context::ClearContext(CategoryId_RunningAppletInfo);
-        Context::ClearContext(CategoryId_FocusedAppletHistoryInfo);
+        static_cast<void>(Context::ClearContext(CategoryId_RunningApplicationInfo));
+        static_cast<void>(Context::ClearContext(CategoryId_RunningAppletInfo));
+        static_cast<void>(Context::ClearContext(CategoryId_FocusedAppletHistoryInfo));
 
         /* Save the forced shutdown context. */
         /* NOTE: Nintendo does not check that this succeeds. */
-        SaveForcedShutdownContext();
+        static_cast<void>(SaveForcedShutdownContext());
     }
 
     void FinalizeForcedShutdownDetection() {
@@ -265,7 +265,7 @@ namespace ams::erpt::srv {
 
     void SaveForcedShutdownContext() {
         /* NOTE: Nintendo does not check that saving the report succeeds. */
-        SaveForcedShutdownContextImpl();
+        static_cast<void>(SaveForcedShutdownContextImpl());
     }
 
     void SubmitContextForForcedShutdownDetection(const ContextEntry *entry, const u8 *data, u32 data_size) {
@@ -324,7 +324,7 @@ namespace ams::erpt::srv {
         /* Commit the deletion. */
         R_TRY(Stream::CommitStream());
 
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
 

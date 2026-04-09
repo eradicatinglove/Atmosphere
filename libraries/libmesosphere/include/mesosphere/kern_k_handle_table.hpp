@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -54,34 +54,35 @@ namespace ams::kern {
             }
 
             union EntryInfo {
-                struct {
-                    u16 linear_id;
-                    u16 type;
-                } info;
-                s32 next_free_index;
+                u16 linear_id;
+                s16 next_free_index;
 
-                constexpr ALWAYS_INLINE u16 GetLinearId() const { return info.linear_id; }
-                constexpr ALWAYS_INLINE u16 GetType() const { return info.type; }
+                constexpr ALWAYS_INLINE u16 GetLinearId() const { return linear_id; }
                 constexpr ALWAYS_INLINE s32 GetNextFreeIndex() const { return next_free_index; }
             };
         private:
             EntryInfo m_entry_infos[MaxTableSize];
             KAutoObject *m_objects[MaxTableSize];
+            mutable KSpinLock m_lock;
             s32 m_free_head_index;
             u16 m_table_size;
             u16 m_max_count;
             u16 m_next_linear_id;
             u16 m_count;
-            mutable KSpinLock m_lock;
         public:
-            constexpr KHandleTable() :
-                m_entry_infos(), m_objects(), m_free_head_index(-1), m_table_size(0), m_max_count(0), m_next_linear_id(MinLinearId), m_count(0), m_lock()
-            { MESOSPHERE_ASSERT_THIS(); }
+            constexpr explicit KHandleTable(util::ConstantInitializeTag) : m_entry_infos(), m_objects(), m_lock(), m_free_head_index(-1), m_table_size(), m_max_count(), m_next_linear_id(), m_count() { /* ... */ }
 
-            constexpr NOINLINE Result Initialize(s32 size) {
+            explicit KHandleTable() : m_lock(), m_free_head_index(-1), m_table_size(), m_max_count(), m_next_linear_id(), m_count() { MESOSPHERE_ASSERT_THIS(); }
+
+            MESOSPHERE_NOINLINE_IF_DEBUG Result Initialize(s32 size) {
                 MESOSPHERE_ASSERT_THIS();
 
+                /* Check that the table size is valid. */
                 R_UNLESS(size <= static_cast<s32>(MaxTableSize), svc::ResultOutOfMemory());
+
+                /* Lock. */
+                KScopedDisableDispatch dd;
+                KScopedSpinLock lk(m_lock);
 
                 /* Initialize all fields. */
                 m_max_count       = 0;
@@ -97,15 +98,15 @@ namespace ams::kern {
                     m_free_head_index                = i;
                 }
 
-                return ResultSuccess();
+                R_SUCCEED();
             }
 
             constexpr ALWAYS_INLINE size_t GetTableSize() const { return m_table_size; }
             constexpr ALWAYS_INLINE size_t GetCount() const { return m_count; }
             constexpr ALWAYS_INLINE size_t GetMaxCount() const { return m_max_count; }
 
-            NOINLINE Result Finalize();
-            NOINLINE bool Remove(ams::svc::Handle handle);
+            MESOSPHERE_NOINLINE_IF_DEBUG void Finalize();
+            MESOSPHERE_NOINLINE_IF_DEBUG bool Remove(ams::svc::Handle handle);
 
             template<typename T = KAutoObject>
             ALWAYS_INLINE KScopedAutoObject<T> GetObjectWithoutPseudoHandle(ams::svc::Handle handle) const {
@@ -184,20 +185,11 @@ namespace ams::kern {
                 return this->GetObjectByIndexImpl(out_handle, index);
             }
 
-            NOINLINE Result Reserve(ams::svc::Handle *out_handle);
-            NOINLINE void Unreserve(ams::svc::Handle handle);
+            MESOSPHERE_NOINLINE_IF_DEBUG Result Reserve(ams::svc::Handle *out_handle);
+            MESOSPHERE_NOINLINE_IF_DEBUG void Unreserve(ams::svc::Handle handle);
 
-            template<typename T>
-            ALWAYS_INLINE Result Add(ams::svc::Handle *out_handle, T *obj) {
-                static_assert(std::is_base_of<KAutoObject, T>::value);
-                return this->Add(out_handle, obj, obj->GetTypeObj().GetClassToken());
-            }
-
-            template<typename T>
-            ALWAYS_INLINE void Register(ams::svc::Handle handle, T *obj) {
-                static_assert(std::is_base_of<KAutoObject, T>::value);
-                return this->Register(handle, obj, obj->GetTypeObj().GetClassToken());
-            }
+            MESOSPHERE_NOINLINE_IF_DEBUG Result Add(ams::svc::Handle *out_handle, KAutoObject *obj);
+            MESOSPHERE_NOINLINE_IF_DEBUG void Register(ams::svc::Handle handle, KAutoObject *obj);
 
             template<typename T>
             ALWAYS_INLINE bool GetMultipleObjects(T **out, const ams::svc::Handle *handles, size_t num_handles) const {
@@ -242,8 +234,6 @@ namespace ams::kern {
                 return false;
             }
         private:
-            NOINLINE Result Add(ams::svc::Handle *out_handle, KAutoObject *obj, u16 type);
-            NOINLINE void Register(ams::svc::Handle handle, KAutoObject *obj, u16 type);
 
             constexpr ALWAYS_INLINE s32 AllocateEntry() {
                 MESOSPHERE_ASSERT_THIS();
@@ -312,7 +302,7 @@ namespace ams::kern {
                 return true;
             }
 
-            constexpr NOINLINE KAutoObject *GetObjectImpl(ams::svc::Handle handle) const {
+            constexpr MESOSPHERE_NOINLINE_IF_DEBUG KAutoObject *GetObjectImpl(ams::svc::Handle handle) const {
                 MESOSPHERE_ASSERT_THIS();
 
                 /* Handles must not have reserved bits set. */

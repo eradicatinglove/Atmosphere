@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -18,6 +18,7 @@
 
 namespace ams::usb {
 
+    #if defined(ATMOSPHERE_OS_HORIZON)
     class RemoteDsEndpoint {
         private:
             Service m_srv;
@@ -33,5 +34,6 @@ namespace ams::usb {
             Result SetZlt(bool zlt);
     };
     static_assert(ds::IsIDsEndpoint<RemoteDsEndpoint>);
+    #endif
 
 }

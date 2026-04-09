@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -21,7 +21,7 @@ namespace ams::htc::tenv {
 
     Result ServiceManager::GetServiceInterface(sf::Out<sf::SharedPointer<htc::tenv::IService>> out, const sf::ClientProcessId &process_id) {
         *out = impl::SfObjectFactory::CreateSharedEmplaced<htc::tenv::IService, Service>(process_id.GetValue());
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
 }

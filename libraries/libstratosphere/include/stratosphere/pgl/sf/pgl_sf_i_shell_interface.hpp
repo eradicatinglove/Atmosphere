@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -32,8 +32,9 @@
     AMS_SF_METHOD_INFO(C, H,  8, Result, EnableApplicationCrashReport,          (bool enabled),                                                                                 (enabled))                                            \
     AMS_SF_METHOD_INFO(C, H,  9, Result, IsApplicationCrashReportEnabled,       (ams::sf::Out<bool> out),                                                                       (out))                                                \
     AMS_SF_METHOD_INFO(C, H, 10, Result, EnableApplicationAllThreadDumpOnCrash, (bool enabled),                                                                                 (enabled))                                            \
+    AMS_SF_METHOD_INFO(C, H, 11, Result, GetProcessId,                          (ams::sf::Out<os::ProcessId> out, ncm::ProgramId program_id),                                   (out, program_id))                                    \
     AMS_SF_METHOD_INFO(C, H, 12, Result, TriggerApplicationSnapShotDumper,      (pgl::SnapShotDumpType dump_type, const ams::sf::InBuffer &arg),                                (dump_type, arg))                                     \
     AMS_SF_METHOD_INFO(C, H, 20, Result, GetShellEventObserver,                 (ams::sf::Out<ams::sf::SharedPointer<pgl::sf::IEventObserver>> out),                            (out))                                                \
     AMS_SF_METHOD_INFO(C, H, 21, Result, Command21NotImplemented,               (ams::sf::Out<u64> out, u32 in, const ams::sf::InBuffer &buf1, const ams::sf::InBuffer &buf2),  (out, in, buf1, buf2),           hos::Version_11_0_0)
 
-AMS_SF_DEFINE_INTERFACE(ams::pgl::sf, IShellInterface, AMS_PGL_I_SHELL_INTERFACE_INTERFACE_INFO);
+AMS_SF_DEFINE_INTERFACE(ams::pgl::sf, IShellInterface, AMS_PGL_I_SHELL_INTERFACE_INTERFACE_INFO, 0x00000000);

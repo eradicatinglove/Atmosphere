@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -21,13 +21,12 @@ namespace ams::kern {
 
     class KLightSession;
 
-    class KLightClientSession final : public KAutoObjectWithSlabHeapAndContainer<KLightClientSession, KAutoObjectWithList> {
+    class KLightClientSession final : public KAutoObject {
         MESOSPHERE_AUTOOBJECT_TRAITS(KLightClientSession, KAutoObject);
         private:
             KLightSession *m_parent;
         public:
-            constexpr KLightClientSession() : m_parent() { /* ... */ }
-            virtual ~KLightClientSession() { /* ... */ }
+            explicit KLightClientSession() { /* ... */ }
 
             void Initialize(KLightSession *parent) {
                 /* Set member variables. */
@@ -35,7 +34,6 @@ namespace ams::kern {
             }
 
             virtual void Destroy() override;
-            static void PostDestroy(uintptr_t arg) { MESOSPHERE_UNUSED(arg); /* ... */ }
 
             constexpr const KLightSession *GetParent() const { return m_parent; }
 

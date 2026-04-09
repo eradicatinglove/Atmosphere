@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -20,11 +20,13 @@ namespace ams::powctl::impl::board::nintendo::nx {
 
     void ChargerInterruptEventHandler::SignalEvent(IDevice *device) {
         /* TODO */
+        AMS_UNUSED(device);
         AMS_ABORT();
     }
 
     void BatteryInterruptEventHandler::SignalEvent(IDevice *device) {
         /* TODO */
+        AMS_UNUSED(device);
         AMS_ABORT();
     }
 

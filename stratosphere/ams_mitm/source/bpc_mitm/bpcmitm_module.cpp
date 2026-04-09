@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -32,7 +32,14 @@ namespace ams::mitm::bpc {
         constexpr size_t          MitmServiceMaxSessions = 13;
 
         constexpr size_t MaxSessions = MitmServiceMaxSessions;
-        using ServerOptions = sf::hipc::DefaultServerManagerOptions;
+
+        struct ServerOptions {
+            static constexpr size_t PointerBufferSize   = sf::hipc::DefaultServerManagerOptions::PointerBufferSize;
+            static constexpr size_t MaxDomains          = sf::hipc::DefaultServerManagerOptions::MaxDomains;
+            static constexpr size_t MaxDomainObjects    = sf::hipc::DefaultServerManagerOptions::MaxDomainObjects;
+            static constexpr bool CanDeferInvokeRequest = sf::hipc::DefaultServerManagerOptions::CanDeferInvokeRequest;
+            static constexpr bool CanManageMitmServers  = true;
+        };
 
         class ServerManager final : public sf::hipc::ServerManager<PortIndex_Count, ServerOptions, MaxSessions> {
             private:
@@ -49,21 +56,16 @@ namespace ams::mitm::bpc {
 
             switch (port_index) {
                 case PortIndex_Mitm:
-                    return this->AcceptMitmImpl(server, sf::CreateSharedObjectEmplaced<impl::IBpcMitmInterface, BpcMitmService>(decltype(fsrv)(fsrv), client_info), fsrv);
+                    R_RETURN(this->AcceptMitmImpl(server, sf::CreateSharedObjectEmplaced<impl::IBpcMitmInterface, BpcMitmService>(decltype(fsrv)(fsrv), client_info), fsrv));
                 AMS_UNREACHABLE_DEFAULT_CASE();
             }
         }
 
     }
 
-    void MitmModule::ThreadFunction(void *arg) {
+    void MitmModule::ThreadFunction(void *) {
         /* Wait until initialization is complete. */
         mitm::WaitInitialized();
-
-        /* On Mariko, we can't reboot to payload/do exosphere-shutdown...so there is no point in bpc.mitm. */
-        if (spl::GetSocType() == spl::SocType_Mariko) {
-            return;
-        }
 
         /* Create bpc mitm. */
         const sm::ServiceName service_name = (hos::GetVersion() >= hos::Version_2_0_0) ? MitmServiceName : DeprecatedMitmServiceName;

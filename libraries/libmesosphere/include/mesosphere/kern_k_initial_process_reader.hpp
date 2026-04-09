@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -133,7 +133,7 @@ namespace ams::kern {
             }
 
             Result MakeCreateProcessParameter(ams::svc::CreateProcessParameter *out, bool enable_aslr) const;
-            Result Load(KProcessAddress address, const ams::svc::CreateProcessParameter &params, KProcessAddress src) const;
+            void Load(const KPageGroup &pg, KVirtualAddress data) const;
             Result SetMemoryPermissions(KProcessPageTable &page_table, const ams::svc::CreateProcessParameter &params) const;
     };
 

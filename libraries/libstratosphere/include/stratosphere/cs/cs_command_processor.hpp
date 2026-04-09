@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -16,6 +16,7 @@
 #pragma once
 #include <vapours.hpp>
 #include <stratosphere/scs/scs_command_processor.hpp>
+#include <stratosphere/vi/vi_layer_stack.hpp>
 
 namespace ams::cs {
 
@@ -25,6 +26,10 @@ namespace ams::cs {
     class CommandProcessor : public scs::CommandProcessor {
         public:
             virtual bool ProcessCommand(const CommandHeader &header, const u8 *body, s32 socket) override;
+        private:
+            void TakeScreenShot(const CommandHeader &header, s32 socket, vi::LayerStack layer_stack);
+        private:
+            static void SendFirmwareVersion(s32 socket, const CommandHeader &header);
     };
 
 }

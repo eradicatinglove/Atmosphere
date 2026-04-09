@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -23,7 +23,7 @@ namespace ams::kern {
             private:
                 static constinit inline KLightLock s_req_lock;
                 static constinit inline KLightLock s_lock;
-                static constinit inline KLightConditionVariable s_cond_var;
+                static constinit inline KLightConditionVariable s_cond_var{util::ConstantInitialize};
                 static constinit inline u64 s_core_mask;
                 static constinit inline KDpcTask *s_task;
             private:
@@ -167,7 +167,7 @@ namespace ams::kern {
         KThread::Register(new_thread);
 
         /* Run the thread. */
-        new_thread->Run();
+        MESOSPHERE_R_ABORT_UNLESS(new_thread->Run());
     }
 
     void KDpcManager::HandleDpc() {

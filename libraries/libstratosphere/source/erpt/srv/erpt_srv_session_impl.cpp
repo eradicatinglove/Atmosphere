@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -33,21 +33,21 @@ namespace ams::erpt::srv {
 
             /* Return it. */
             out.SetValue(intf);
-            return ResultSuccess();
+            R_SUCCEED();
         }
 
     }
 
     Result SessionImpl::OpenReport(ams::sf::Out<ams::sf::SharedPointer<erpt::sf::IReport>> out) {
-        return OpenInterface<erpt::sf::IReport, ReportImpl>(out);
+        R_RETURN((OpenInterface<erpt::sf::IReport, ReportImpl>(out)));
     }
 
     Result SessionImpl::OpenManager(ams::sf::Out<ams::sf::SharedPointer<erpt::sf::IManager>> out) {
-        return OpenInterface<erpt::sf::IManager, ManagerImpl>(out);
+        R_RETURN((OpenInterface<erpt::sf::IManager, ManagerImpl>(out)));
     }
 
     Result SessionImpl::OpenAttachment(ams::sf::Out<ams::sf::SharedPointer<erpt::sf::IAttachment>> out) {
-        return OpenInterface<erpt::sf::IAttachment, AttachmentImpl>(out);
+        R_RETURN((OpenInterface<erpt::sf::IAttachment, AttachmentImpl>(out)));
     }
 
 }

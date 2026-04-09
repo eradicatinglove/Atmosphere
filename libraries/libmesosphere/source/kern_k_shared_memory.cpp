@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -37,7 +37,7 @@ namespace ams::kern {
         R_UNLESS(memory_reservation.Succeeded(), svc::ResultLimitReached());
 
         /* Allocate the memory. */
-        R_TRY(Kernel::GetMemoryManager().AllocateAndOpen(std::addressof(m_page_group), num_pages, owner->GetAllocateOption()));
+        R_TRY(Kernel::GetMemoryManager().AllocateAndOpen(std::addressof(m_page_group), num_pages, 1, owner->GetAllocateOption()));
 
         /* Commit our reservation. */
         memory_reservation.Commit();
@@ -51,10 +51,10 @@ namespace ams::kern {
 
         /* Clear all pages in the memory. */
         for (const auto &block : m_page_group) {
-            std::memset(GetVoidPointer(block.GetAddress()), 0, block.GetSize());
+            std::memset(GetVoidPointer(KMemoryLayout::GetLinearVirtualAddress(block.GetAddress())), 0, block.GetSize());
         }
 
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     void KSharedMemory::Finalize() {
@@ -71,9 +71,6 @@ namespace ams::kern {
         /* Release the memory reservation. */
         m_resource_limit->Release(ams::svc::LimitableResource_PhysicalMemoryMax, size);
         m_resource_limit->Close();
-
-        /* Perform inherited finalization. */
-        KAutoObjectWithSlabHeapAndContainer<KSharedMemory, KAutoObjectWithList>::Finalize();
     }
 
     Result KSharedMemory::Map(KProcessPageTable *table, KProcessAddress address, size_t size, KProcess *process, ams::svc::MemoryPermission map_perm) {
@@ -91,7 +88,7 @@ namespace ams::kern {
         }
 
         /* Map the memory. */
-        return table->MapPageGroup(address, m_page_group, KMemoryState_Shared, ConvertToKMemoryPermission(map_perm));
+        R_RETURN(table->MapPageGroup(address, m_page_group, KMemoryState_Shared, ConvertToKMemoryPermission(map_perm)));
     }
 
     Result KSharedMemory::Unmap(KProcessPageTable *table, KProcessAddress address, size_t size, KProcess *process) {
@@ -102,7 +99,7 @@ namespace ams::kern {
         R_UNLESS(m_page_group.GetNumPages() == util::DivideUp(size, PageSize), svc::ResultInvalidSize());
 
         /* Unmap the memory. */
-        return table->UnmapPageGroup(address, m_page_group, KMemoryState_Shared);
+        R_RETURN(table->UnmapPageGroup(address, m_page_group, KMemoryState_Shared));
     }
 
 }

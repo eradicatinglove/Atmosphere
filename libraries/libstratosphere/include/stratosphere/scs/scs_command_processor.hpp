@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -18,17 +18,21 @@
 
 namespace ams::scs {
 
-    struct CommandHeader {
-        u64 id;
+    struct alignas(alignof(u32)) CommandHeader {
+        u64 id __attribute__((packed));
         u32 command;
         u32 body_size;
     };
+    static_assert(sizeof(CommandHeader) == 0x10);
+    static_assert(alignof(CommandHeader) == alignof(u32));
 
-    struct ResponseHeader {
-        u64 id;
+    struct alignas(alignof(u32)) ResponseHeader {
+        u64 id __attribute__((packed));
         u32 response;
         u32 body_size;
     };
+    static_assert(sizeof(ResponseHeader) == 0x10);
+    static_assert(alignof(ResponseHeader) == alignof(u32));
 
     class CommandProcessor {
         protected:
@@ -56,10 +60,15 @@ namespace ams::scs {
             };
 
             enum Response {
-                Response_None    = 0,
-                Response_Success = 1,
-                Response_Error   = 2,
-                /* ... */
+                Response_None            = 0,
+                Response_Success         = 1,
+                Response_Error           = 2,
+                Response_ProgramExited   = 3,
+                Response_FirmwareVersion = 4,
+                Response_JitDebug        = 5,
+                Response_ProgramLaunched = 6,
+                Response_TitleName       = 7,
+                Response_ScreenShot      = 8,
             };
         public:
             constexpr CommandProcessor() = default;
@@ -68,16 +77,20 @@ namespace ams::scs {
         public:
             virtual bool ProcessCommand(const CommandHeader &header, const u8 *body, s32 socket);
         protected:
+            static std::scoped_lock<os::SdkMutex> MakeSendGuardBlock();
+            static void Send(s32 socket, const void *data, size_t size);
+
             static void SendSuccess(s32 socket, const CommandHeader &header);
             static void SendErrorResult(s32 socket, const CommandHeader &header, Result result);
         private:
             static void SendErrorResult(s32 socket, u64 id, Result result);
+            static void SendExited(s32 socket, u64 id, u64 process_id);
+            static void SendJitDebug(s32 socket, u64 id);
+            static void SendLaunched(s32 socket, u64 id, u64 process_id);
 
             static void OnProcessStart(u64 id, s32 socket, os::ProcessId process_id);
             static void OnProcessExit(u64 id, s32 socket, os::ProcessId process_id);
             static void OnProcessJitDebug(u64 id, s32 socket, os::ProcessId process_id);
     };
-
-    os::SdkMutex &GetHtcsSendMutex();
 
 }

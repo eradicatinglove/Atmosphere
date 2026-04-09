@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -32,7 +32,14 @@ namespace ams::mitm::ns {
         constexpr sm::ServiceName NsWebMitmServiceName = sm::ServiceName::Encode("ns:web");
 
         constexpr size_t MaxSessions = 5;
-        using ServerOptions = sf::hipc::DefaultServerManagerOptions;
+
+        struct ServerOptions {
+            static constexpr size_t PointerBufferSize   = sf::hipc::DefaultServerManagerOptions::PointerBufferSize;
+            static constexpr size_t MaxDomains          = sf::hipc::DefaultServerManagerOptions::MaxDomains;
+            static constexpr size_t MaxDomainObjects    = sf::hipc::DefaultServerManagerOptions::MaxDomainObjects;
+            static constexpr bool CanDeferInvokeRequest = sf::hipc::DefaultServerManagerOptions::CanDeferInvokeRequest;
+            static constexpr bool CanManageMitmServers  = true;
+        };
 
         class ServerManager final : public sf::hipc::ServerManager<PortIndex_Count, ServerOptions, MaxSessions> {
             private:
@@ -50,9 +57,9 @@ namespace ams::mitm::ns {
             switch (port_index) {
                 case PortIndex_Mitm:
                     if (hos::GetVersion() < hos::Version_3_0_0) {
-                        return this->AcceptMitmImpl(server, sf::CreateSharedObjectEmplaced<impl::IAmMitmInterface, NsAmMitmService>(decltype(fsrv)(fsrv), client_info), fsrv);
+                        R_RETURN(this->AcceptMitmImpl(server, sf::CreateSharedObjectEmplaced<impl::IAmMitmInterface, NsAmMitmService>(decltype(fsrv)(fsrv), client_info), fsrv));
                     } else {
-                        return this->AcceptMitmImpl(server, sf::CreateSharedObjectEmplaced<impl::IWebMitmInterface, NsWebMitmService>(decltype(fsrv)(fsrv), client_info), fsrv);
+                        R_RETURN(this->AcceptMitmImpl(server, sf::CreateSharedObjectEmplaced<impl::IWebMitmInterface, NsWebMitmService>(decltype(fsrv)(fsrv), client_info), fsrv));
                     }
 
                 AMS_UNREACHABLE_DEFAULT_CASE();
@@ -61,7 +68,7 @@ namespace ams::mitm::ns {
 
     }
 
-    void MitmModule::ThreadFunction(void *arg) {
+    void MitmModule::ThreadFunction(void *) {
         /* Wait until initialization is complete. */
         mitm::WaitInitialized();
 

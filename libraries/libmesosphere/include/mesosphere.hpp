@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -78,8 +78,7 @@
 #include <mesosphere/kern_select_debug.hpp>
 #include <mesosphere/kern_k_process.hpp>
 #include <mesosphere/kern_k_resource_limit.hpp>
-#include <mesosphere/kern_k_alpha.hpp>
-#include <mesosphere/kern_k_beta.hpp>
+#include <mesosphere/kern_k_io_pool.hpp>
 
 /* More Miscellaneous objects. */
 #include <mesosphere/kern_k_object_name.hpp>
@@ -91,3 +90,7 @@
 
 /* Main functionality. */
 #include <mesosphere/kern_main.hpp>
+
+/* Deferred includes. */
+#include <mesosphere/kern_k_auto_object_impls.hpp>
+#include <mesosphere/kern_k_scheduler_impls.hpp>

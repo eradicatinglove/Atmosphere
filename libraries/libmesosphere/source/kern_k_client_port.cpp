@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -28,8 +28,7 @@ namespace ams::kern {
     void KClientPort::OnSessionFinalized() {
         KScopedSchedulerLock sl;
 
-        const auto prev = m_num_sessions--;
-        if (prev == m_max_sessions) {
+        if (const auto prev = m_num_sessions--; prev == m_max_sessions) {
             this->NotifyAvailable();
         }
     }
@@ -56,51 +55,69 @@ namespace ams::kern {
 
     bool KClientPort::IsSignaled() const {
         MESOSPHERE_ASSERT_THIS();
-        return m_num_sessions < m_max_sessions;
+        return m_num_sessions.Load() < m_max_sessions;
     }
 
     Result KClientPort::CreateSession(KClientSession **out) {
         MESOSPHERE_ASSERT_THIS();
 
+        /* Declare the session we're going to allocate. */
+        KSession *session;
+
         /* Reserve a new session from the resource limit. */
         KScopedResourceReservation session_reservation(GetCurrentProcessPointer(), ams::svc::LimitableResource_SessionCountMax);
-        R_UNLESS(session_reservation.Succeeded(), svc::ResultLimitReached());
+        if (session_reservation.Succeeded()) {
+            /* Allocate a session normally. */
+            session = KSession::Create();
+        } else {
+            /* We couldn't reserve a session. Check that we support dynamically expanding the resource limit. */
+            R_UNLESS(GetCurrentProcess().GetResourceLimit() == std::addressof(Kernel::GetSystemResourceLimit()), svc::ResultLimitReached());
+            R_UNLESS(KTargetSystem::IsDynamicResourceLimitsEnabled(),                                            svc::ResultLimitReached());
+
+            /* Try to allocate a session from unused slab memory. */
+            session = KSession::CreateFromUnusedSlabMemory();
+            R_UNLESS(session != nullptr, svc::ResultLimitReached());
+            ON_RESULT_FAILURE { session->Close(); };
+
+            /* We want to add two KSessionRequests to the heap, to prevent request exhaustion. */
+            for (size_t i = 0; i < 2; ++i) {
+                KSessionRequest *request = KSessionRequest::CreateFromUnusedSlabMemory();
+                R_UNLESS(request != nullptr, svc::ResultLimitReached());
+
+                request->Close();
+            }
+
+            /* We successfully allocated a session, so add the object we allocated to the resource limit. */
+            Kernel::GetSystemResourceLimit().Add(ams::svc::LimitableResource_SessionCountMax, 1);
+        }
+
+        /* Check that we successfully created a session. */
+        R_UNLESS(session != nullptr, svc::ResultOutOfResource());
 
         /* Update the session counts. */
         {
+            ON_RESULT_FAILURE { session->Close(); };
+
             /* Atomically increment the number of sessions. */
             s32 new_sessions;
             {
                 const auto max = m_max_sessions;
-                auto cur_sessions = m_num_sessions.load(std::memory_order_acquire);
+                auto cur_sessions = m_num_sessions.Load();
                 do {
                     R_UNLESS(cur_sessions < max, svc::ResultOutOfSessions());
                     new_sessions = cur_sessions + 1;
-                } while (!m_num_sessions.compare_exchange_weak(cur_sessions, new_sessions, std::memory_order_relaxed));
-
+                } while (!m_num_sessions.CompareExchangeWeak<std::memory_order_relaxed>(cur_sessions, new_sessions));
             }
 
             /* Atomically update the peak session tracking. */
             {
-                auto peak = m_peak_sessions.load(std::memory_order_acquire);
+                auto peak = m_peak_sessions.Load();
                 do {
                     if (peak >= new_sessions) {
                         break;
                     }
-                } while (!m_peak_sessions.compare_exchange_weak(peak, new_sessions, std::memory_order_relaxed));
+                } while (!m_peak_sessions.CompareExchangeWeak<std::memory_order_relaxed>(peak, new_sessions));
             }
-        }
-
-        /* Create a new session. */
-        KSession *session = KSession::Create();
-        if (session == nullptr) {
-            /* Decrement the session count. */
-            const auto prev = m_num_sessions--;
-            if (prev == m_max_sessions) {
-                this->NotifyAvailable();
-            }
-
-            return svc::ResultOutOfResource();
         }
 
         /* Initialize the session. */
@@ -111,7 +128,7 @@ namespace ams::kern {
 
         /* Register the session. */
         KSession::Register(session);
-        auto session_guard = SCOPE_GUARD {
+        ON_RESULT_FAILURE {
             session->GetClientSession().Close();
             session->GetServerSession().Close();
         };
@@ -120,53 +137,61 @@ namespace ams::kern {
         R_TRY(m_parent->EnqueueSession(std::addressof(session->GetServerSession())));
 
         /* We succeeded, so set the output. */
-        session_guard.Cancel();
         *out = std::addressof(session->GetClientSession());
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     Result KClientPort::CreateLightSession(KLightClientSession **out) {
         MESOSPHERE_ASSERT_THIS();
 
+        /* Declare the session we're going to allocate. */
+        KLightSession *session;
+
         /* Reserve a new session from the resource limit. */
         KScopedResourceReservation session_reservation(GetCurrentProcessPointer(), ams::svc::LimitableResource_SessionCountMax);
-        R_UNLESS(session_reservation.Succeeded(), svc::ResultLimitReached());
+        if (session_reservation.Succeeded()) {
+            /* Allocate a session normally. */
+            session = KLightSession::Create();
+        } else {
+            /* We couldn't reserve a session. Check that we support dynamically expanding the resource limit. */
+            R_UNLESS(GetCurrentProcess().GetResourceLimit() == std::addressof(Kernel::GetSystemResourceLimit()), svc::ResultLimitReached());
+            R_UNLESS(KTargetSystem::IsDynamicResourceLimitsEnabled(),                                            svc::ResultLimitReached());
+
+            /* Try to allocate a session from unused slab memory. */
+            session = KLightSession::CreateFromUnusedSlabMemory();
+            R_UNLESS(session != nullptr, svc::ResultLimitReached());
+
+            /* We successfully allocated a session, so add the object we allocated to the resource limit. */
+            Kernel::GetSystemResourceLimit().Add(ams::svc::LimitableResource_SessionCountMax, 1);
+        }
+
+        /* Check that we successfully created a session. */
+        R_UNLESS(session != nullptr, svc::ResultOutOfResource());
 
         /* Update the session counts. */
         {
+            ON_RESULT_FAILURE { session->Close(); };
+
             /* Atomically increment the number of sessions. */
             s32 new_sessions;
             {
                 const auto max = m_max_sessions;
-                auto cur_sessions = m_num_sessions.load(std::memory_order_acquire);
+                auto cur_sessions = m_num_sessions.Load();
                 do {
                     R_UNLESS(cur_sessions < max, svc::ResultOutOfSessions());
                     new_sessions = cur_sessions + 1;
-                } while (!m_num_sessions.compare_exchange_weak(cur_sessions, new_sessions, std::memory_order_relaxed));
-
+                } while (!m_num_sessions.CompareExchangeWeak<std::memory_order_relaxed>(cur_sessions, new_sessions));
             }
 
             /* Atomically update the peak session tracking. */
             {
-                auto peak = m_peak_sessions.load(std::memory_order_acquire);
+                auto peak = m_peak_sessions.Load();
                 do {
                     if (peak >= new_sessions) {
                         break;
                     }
-                } while (!m_peak_sessions.compare_exchange_weak(peak, new_sessions, std::memory_order_relaxed));
+                } while (!m_peak_sessions.CompareExchangeWeak<std::memory_order_relaxed>(peak, new_sessions));
             }
-        }
-
-        /* Create a new session. */
-        KLightSession *session = KLightSession::Create();
-        if (session == nullptr) {
-            /* Decrement the session count. */
-            const auto prev = m_num_sessions--;
-            if (prev == m_max_sessions) {
-                this->NotifyAvailable();
-            }
-
-            return svc::ResultOutOfResource();
         }
 
         /* Initialize the session. */
@@ -177,7 +202,7 @@ namespace ams::kern {
 
         /* Register the session. */
         KLightSession::Register(session);
-        auto session_guard = SCOPE_GUARD {
+        ON_RESULT_FAILURE {
             session->GetClientSession().Close();
             session->GetServerSession().Close();
         };
@@ -186,9 +211,8 @@ namespace ams::kern {
         R_TRY(m_parent->EnqueueSession(std::addressof(session->GetServerSession())));
 
         /* We succeeded, so set the output. */
-        session_guard.Cancel();
         *out = std::addressof(session->GetClientSession());
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
 }

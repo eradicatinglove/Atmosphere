@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -31,7 +31,7 @@ namespace ams::sf {
             public:
                 class Object;
                 using Allocator = StatelessDummyAllocator;
-                using StatelessAllocator = typename Policy::StatelessAllocator<Object>;
+                using StatelessAllocator = typename Policy::template StatelessAllocator<Object>;
 
                 class Object final : private ::ams::sf::impl::ServiceObjectImplBase2, public Base {
                     NON_COPYABLE(Object);
@@ -100,7 +100,7 @@ namespace ams::sf {
                         static void *operator new(size_t size);
 
                         static void operator delete(void *ptr, size_t size) {
-                            /* ... */
+                            AMS_UNUSED(ptr, size);
                         }
 
                         static void *operator new(size_t size, Allocator *a) {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -18,6 +18,8 @@
 
 #if defined(ATMOSPHERE_OS_HORIZON)
     #include <stratosphere/os/impl/os_memory_fence_api.os.horizon.hpp>
+#elif defined(ATMOSPHERE_OS_WINDOWS) || defined(ATMOSPHERE_OS_LINUX) || defined(ATMOSPHERE_OS_MACOS)
+    #include <stratosphere/os/impl/os_memory_fence_api.os.generic.hpp>
 #else
     #error "Unknown os for os::MemoryFence*"
 #endif

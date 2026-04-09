@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -15,12 +15,14 @@
  */
 
 #pragma once
-#include "ams_types.hpp"
+#include <stratosphere/ams/ams_types.hpp>
 
 namespace ams {
 
     /* Will be called by libstratosphere on crash. */
+    #if defined(ATMOSPHERE_OS_HORIZON)
     void CrashHandler(ThreadExceptionDump *ctx);
+    #endif
 
     /* API for boot sysmodule. */
     void InitializeForBoot();

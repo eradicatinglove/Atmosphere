@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -83,9 +83,9 @@ namespace ams::kern::arch::arm64 {
             }
 
             NOINLINE Result BindHandler(KInterruptHandler *handler, s32 irq, s32 core_id, s32 priority, bool manual_clear, bool level);
-            NOINLINE Result UnbindHandler(s32 irq, s32 core);
+            NOINLINE void UnbindHandler(s32 irq, s32 core);
 
-            NOINLINE Result ClearInterrupt(s32 irq, s32 core_id);
+            NOINLINE void ClearInterrupt(s32 irq, s32 core_id);
 
             ALWAYS_INLINE void SendInterProcessorInterrupt(s32 irq, u64 core_mask) {
                 m_interrupt_controller.SendInterProcessorInterrupt(irq, core_mask);
@@ -96,44 +96,55 @@ namespace ams::kern::arch::arm64 {
             }
 
             static void HandleInterrupt(bool user_mode);
-
-            /* Implement more KInterruptManager functionality. */
         private:
             Result BindGlobal(KInterruptHandler *handler, s32 irq, s32 core_id, s32 priority, bool manual_clear, bool level);
             Result BindLocal(KInterruptHandler *handler, s32 irq, s32 priority, bool manual_clear);
-            Result UnbindGlobal(s32 irq);
-            Result UnbindLocal(s32 irq);
-            Result ClearGlobal(s32 irq);
-            Result ClearLocal(s32 irq);
-        public:
-            static ALWAYS_INLINE u32 DisableInterrupts() {
+            void UnbindGlobal(s32 irq);
+            void UnbindLocal(s32 irq);
+            void ClearGlobal(s32 irq);
+            void ClearLocal(s32 irq);
+        private:
+            [[nodiscard]] static ALWAYS_INLINE u32 GetInterruptsEnabledState() {
                 u64 intr_state;
-                __asm__ __volatile__("mrs %[intr_state], daif\n"
-                                     "msr daifset, #2"
+                __asm__ __volatile__("mrs   %[intr_state], daif\n"
+                                     "ubfx  %[intr_state], %[intr_state], #7, #1"
                                      : [intr_state]"=r"(intr_state)
                                      :: "memory");
                 return intr_state;
             }
+        public:
+            static ALWAYS_INLINE void EnableInterrupts() {
+                __asm__ __volatile__("msr   daifclr, #2" ::: "memory");
+            }
 
-            static ALWAYS_INLINE u32 EnableInterrupts() {
-                u64 intr_state;
-                __asm__ __volatile__("mrs %[intr_state], daif\n"
-                                     "msr daifclr, #2"
-                                     : [intr_state]"=r"(intr_state)
-                                     :: "memory");
+            static ALWAYS_INLINE void DisableInterrupts() {
+                __asm__ __volatile__("msr   daifset, #2" ::: "memory");
+            }
+
+            [[nodiscard]] static ALWAYS_INLINE u32 GetInterruptsEnabledStateAndDisableInterrupts() {
+                const auto intr_state = GetInterruptsEnabledState();
+                DisableInterrupts();
+                return intr_state;
+            }
+
+            [[nodiscard]] static ALWAYS_INLINE u32 GetInterruptsEnabledStateAndEnableInterrupts() {
+                const auto intr_state = GetInterruptsEnabledState();
+                EnableInterrupts();
                 return intr_state;
             }
 
             static ALWAYS_INLINE void RestoreInterrupts(u32 intr_state) {
-                u64 cur_state;
-                __asm__ __volatile__("mrs %[cur_state], daif" : [cur_state]"=r"(cur_state));
-                __asm__ __volatile__("msr daif, %[intr_state]" :: [intr_state]"r"((cur_state & ~0x80ul) | (intr_state & 0x80)));
+                u64 tmp;
+                __asm__ __volatile__("mrs   %[tmp], daif\n"
+                                     "bfi   %[tmp], %[intr_state], #7, #1\n"
+                                     "msr daif, %[tmp]"
+                                     : [tmp]"=&r"(tmp)
+                                     : [intr_state]"r"(intr_state)
+                                     : "memory");
             }
 
             static ALWAYS_INLINE bool AreInterruptsEnabled() {
-                u64 intr_state;
-                __asm__ __volatile__("mrs %[intr_state], daif" : [intr_state]"=r"(intr_state));
-                return (intr_state & 0x80) == 0;
+                return GetInterruptsEnabledState() == 0;
             }
     };
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -24,6 +24,8 @@ namespace ams::dd {
     using PhysicalAddress      = u64;
     using DeviceVirtualAddress = u64;
 
+    #if defined(ATMOSPHERE_OS_HORIZON)
     static_assert(std::same_as<PhysicalAddress, ams::svc::PhysicalAddress>);
+    #endif
 
 }

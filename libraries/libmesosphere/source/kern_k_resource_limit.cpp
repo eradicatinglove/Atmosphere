@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -24,17 +24,11 @@ namespace ams::kern {
     }
 
     void KResourceLimit::Initialize() {
-        /* This should be unnecessary for us, because our constructor will clear all fields. */
-        /* The following is analagous to what Nintendo's implementation (no constexpr constructor) would do, though. */
-        /*
-            m_waiter_count = 0;
-            for (size_t i = 0; i < util::size(m_limit_values); i++) {
-                m_limit_values[i]    = 0;
-                m_current_values[i]  = 0;
-                m_current_hints[i]   = 0;
-                m_peak_values[i]     = 0;
-            }
-        */
+        m_waiter_count = 0;
+        std::memset(m_limit_values,   0, sizeof(m_limit_values));
+        std::memset(m_current_values, 0, sizeof(m_current_values));
+        std::memset(m_current_hints,  0, sizeof(m_current_hints));
+        std::memset(m_peak_values,    0, sizeof(m_peak_values));
     }
 
     void KResourceLimit::Finalize() {
@@ -49,7 +43,8 @@ namespace ams::kern {
             KScopedLightLock lk(m_lock);
             value = m_limit_values[which];
             MESOSPHERE_ASSERT(value >= 0);
-            MESOSPHERE_ASSERT(m_current_values[which] <= m_limit_values[which]);
+            MESOSPHERE_ASSERT(m_current_values[which] <= m_peak_values[which]);
+            MESOSPHERE_ASSERT(m_peak_values[which] <= m_limit_values[which]);
             MESOSPHERE_ASSERT(m_current_hints[which]  <= m_current_values[which]);
         }
 
@@ -64,7 +59,8 @@ namespace ams::kern {
             KScopedLightLock lk(m_lock);
             value = m_current_values[which];
             MESOSPHERE_ASSERT(value >= 0);
-            MESOSPHERE_ASSERT(m_current_values[which] <= m_limit_values[which]);
+            MESOSPHERE_ASSERT(m_current_values[which] <= m_peak_values[which]);
+            MESOSPHERE_ASSERT(m_peak_values[which] <= m_limit_values[which]);
             MESOSPHERE_ASSERT(m_current_hints[which]  <= m_current_values[which]);
         }
 
@@ -79,7 +75,8 @@ namespace ams::kern {
             KScopedLightLock lk(m_lock);
             value = m_peak_values[which];
             MESOSPHERE_ASSERT(value >= 0);
-            MESOSPHERE_ASSERT(m_current_values[which] <= m_limit_values[which]);
+            MESOSPHERE_ASSERT(m_current_values[which] <= m_peak_values[which]);
+            MESOSPHERE_ASSERT(m_peak_values[which] <= m_limit_values[which]);
             MESOSPHERE_ASSERT(m_current_hints[which]  <= m_current_values[which]);
         }
 
@@ -93,7 +90,8 @@ namespace ams::kern {
         {
             KScopedLightLock lk(m_lock);
             MESOSPHERE_ASSERT(m_current_values[which] >= 0);
-            MESOSPHERE_ASSERT(m_current_values[which] <= m_limit_values[which]);
+            MESOSPHERE_ASSERT(m_current_values[which] <= m_peak_values[which]);
+            MESOSPHERE_ASSERT(m_peak_values[which] <= m_limit_values[which]);
             MESOSPHERE_ASSERT(m_current_hints[which]  <= m_current_values[which]);
             value = m_limit_values[which] - m_current_values[which];
         }
@@ -110,7 +108,38 @@ namespace ams::kern {
         m_limit_values[which] = value;
         m_peak_values[which]  = m_current_values[which];
 
-        return ResultSuccess();
+        R_SUCCEED();
+    }
+
+    void KResourceLimit::Add(ams::svc::LimitableResource which, s64 value) {
+        MESOSPHERE_ASSERT_THIS();
+        MESOSPHERE_ASSERT(KTargetSystem::IsDynamicResourceLimitsEnabled());
+
+        KScopedLightLock lk(m_lock);
+
+        /* Check that this is a true increase. */
+        MESOSPHERE_ABORT_UNLESS(value > 0);
+
+        /* Check that we can perform an increase. */
+        MESOSPHERE_ABORT_UNLESS(m_current_values[which] <= m_peak_values[which]);
+        MESOSPHERE_ABORT_UNLESS(m_peak_values[which] <= m_limit_values[which]);
+        MESOSPHERE_ABORT_UNLESS(m_current_hints[which] <= m_current_values[which]);
+
+        /* Check that the increase doesn't cause an overflow. */
+        const auto increased_limit   = m_limit_values[which] + value;
+        const auto increased_current = m_current_values[which] + value;
+        const auto increased_hint    = m_current_hints[which] + value;
+        MESOSPHERE_ABORT_UNLESS(m_limit_values[which] < increased_limit);
+        MESOSPHERE_ABORT_UNLESS(m_current_values[which] < increased_current);
+        MESOSPHERE_ABORT_UNLESS(m_current_hints[which] < increased_hint);
+
+        /* Add the value. */
+        m_limit_values[which]   = increased_limit;
+        m_current_values[which] = increased_current;
+        m_current_hints[which]  = increased_hint;
+
+        /* Update our peak. */
+        m_peak_values[which] = std::max(m_peak_values[which], increased_current);
     }
 
     bool KResourceLimit::Reserve(ams::svc::LimitableResource which, s64 value) {
@@ -147,7 +176,7 @@ namespace ams::kern {
 
             if (m_current_hints[which] + value <= m_limit_values[which] && (timeout < 0 || KHardwareTimer::GetTick() < timeout)) {
                 m_waiter_count++;
-                m_cond_var.Wait(&m_lock, timeout, false);
+                m_cond_var.Wait(std::addressof(m_lock), timeout, false);
                 m_waiter_count--;
 
                 if (GetCurrentThread().IsTerminationRequested()) {

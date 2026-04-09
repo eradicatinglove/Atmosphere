@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -38,6 +38,7 @@ namespace ams::pwm::driver {
             virtual Result SetPeriod(IPwmDevice *device, TimeSpan period) = 0;
             virtual Result GetPeriod(TimeSpan *out, IPwmDevice *device)   = 0;
 
+            /* TODO: Nintendo removed these in 14.0.0. Should we? */
             virtual Result SetDuty(IPwmDevice *device, int duty) = 0;
             virtual Result GetDuty(int *out, IPwmDevice *device) = 0;
 

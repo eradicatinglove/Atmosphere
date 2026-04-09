@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Atmosphère-NX
+ * Copyright (c) Atmosphère-NX
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -52,28 +52,28 @@ namespace ams::htclow::mux {
 
         /* Otherwise, return appropriate failure error. */
         if (m_state == ChannelState_Disconnected) {
-            return htclow::ResultInvalidChannelStateDisconnected();
+            R_THROW(htclow::ResultInvalidChannelStateDisconnected());
         } else {
-            return htclow::ResultInvalidChannelState();
+            R_THROW(htclow::ResultInvalidChannelState());
         }
     }
 
     Result ChannelImpl::CheckPacketVersion(s16 version) const {
         R_UNLESS(version == m_version, htclow::ResultChannelVersionNotMatched());
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
 
     Result ChannelImpl::ProcessReceivePacket(const PacketHeader &header, const void *body, size_t body_size) {
         switch (header.packet_type) {
             case PacketType_Data:
-                return this->ProcessReceiveDataPacket(header.version, header.share, header.offset, body, body_size);
+                R_RETURN(this->ProcessReceiveDataPacket(header.version, header.share, header.offset, body, body_size));
             case PacketType_MaxData:
-                return this->ProcessReceiveMaxDataPacket(header.version, header.share);
+                R_RETURN(this->ProcessReceiveMaxDataPacket(header.version, header.share));
             case PacketType_Error:
-                return this->ProcessReceiveErrorPacket();
+                R_RETURN(this->ProcessReceiveErrorPacket());
             default:
-                return htclow::ResultProtocolError();
+                R_THROW(htclow::ResultProtocolError());
         }
     }
 
@@ -110,7 +110,7 @@ namespace ams::htclow::mux {
         /* Notify the data was received. */
         m_task_manager->NotifyReceiveData(m_channel, m_receive_buffer.GetDataSize());
 
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     Result ChannelImpl::ProcessReceiveMaxDataPacket(s16 version, u64 share) {
@@ -134,14 +134,14 @@ namespace ams::htclow::mux {
             this->SignalSendPacketEvent();
         }
 
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     Result ChannelImpl::ProcessReceiveErrorPacket() {
         if (m_state == ChannelState_Connected || m_state == ChannelState_Disconnected) {
             this->ShutdownForce();
         }
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     bool ChannelImpl::QuerySendPacket(PacketHeader *header, PacketBody *body, int *out_body_size) {
@@ -237,7 +237,7 @@ namespace ams::htclow::mux {
         m_state_machine->SetConnecting(m_channel);
 
         /* Allocate a task. */
-        u32 task_id;
+        u32 task_id{};
         R_TRY(m_task_manager->AllocateTask(std::addressof(task_id), m_channel));
 
         /* Configure the task. */
@@ -250,7 +250,7 @@ namespace ams::htclow::mux {
 
         /* Set the output task id. */
         *out_task_id = task_id;
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     Result ChannelImpl::DoConnectEnd() {
@@ -287,7 +287,7 @@ namespace ams::htclow::mux {
         /* Set our state as connected. */
         this->SetState(ChannelState_Connected);
 
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     Result ChannelImpl::DoFlush(u32 *out_task_id) {
@@ -295,7 +295,7 @@ namespace ams::htclow::mux {
         R_TRY(this->CheckState({ChannelState_Connected}));
 
         /* Allocate a task. */
-        u32 task_id;
+        u32 task_id{};
         R_TRY(m_task_manager->AllocateTask(std::addressof(task_id), m_channel));
 
         /* Configure the task. */
@@ -308,7 +308,7 @@ namespace ams::htclow::mux {
 
         /* Set the output task id. */
         *out_task_id = task_id;
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     Result ChannelImpl::DoReceiveBegin(u32 *out_task_id, size_t size) {
@@ -316,7 +316,7 @@ namespace ams::htclow::mux {
         R_TRY(this->CheckState({ChannelState_Connected, ChannelState_Disconnected}));
 
         /* Allocate a task. */
-        u32 task_id;
+        u32 task_id{};
         R_TRY(m_task_manager->AllocateTask(std::addressof(task_id), m_channel));
 
         /* Configure the task. */
@@ -331,7 +331,7 @@ namespace ams::htclow::mux {
 
         /* Set the output task id. */
         *out_task_id = task_id;
-        return ResultSuccess();
+        R_SUCCEED();
 
     }
     Result ChannelImpl::DoReceiveEnd(size_t *out, void *dst, size_t dst_size) {
@@ -341,7 +341,7 @@ namespace ams::htclow::mux {
         /* If we have nowhere to receive, we're done. */
         if (dst_size == 0) {
             *out = 0;
-            return ResultSuccess();
+            R_SUCCEED();
         }
 
         /* Get the amount of receivable data. */
@@ -381,7 +381,7 @@ namespace ams::htclow::mux {
 
         /* Set the output size. */
         *out = received;
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     Result ChannelImpl::DoSend(u32 *out_task_id, size_t *out, const void *src, size_t src_size) {
@@ -389,7 +389,7 @@ namespace ams::htclow::mux {
         R_TRY(this->CheckState({ChannelState_Connected}));
 
         /* Allocate a task. */
-        u32 task_id;
+        u32 task_id{};
         R_TRY(m_task_manager->AllocateTask(std::addressof(task_id), m_channel));
 
         /* Send the data. */
@@ -413,7 +413,7 @@ namespace ams::htclow::mux {
         *out_task_id = task_id;
         *out         = sent;
 
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     Result ChannelImpl::DoShutdown() {
@@ -422,7 +422,7 @@ namespace ams::htclow::mux {
 
         /* Set our state. */
         this->SetState(ChannelState_Disconnected);
-        return ResultSuccess();
+        R_SUCCEED();
     }
 
     void ChannelImpl::SetConfig(const ChannelConfig &config) {
